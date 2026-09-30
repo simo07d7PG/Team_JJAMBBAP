@@ -1064,6 +1064,8 @@ MonoBehaviour:
   settingPanel: {fileID: 517378487}
   menuPanel: {fileID: 1911281446}
   questPanel: {fileID: 1396124756}
+  menuButtonImage: {fileID: 1390928146}
+  questButtonImage: {fileID: 1889694066}
 --- !u!4 &877662347
 Transform:
   m_ObjectHideFlags: 0
@@ -1539,6 +1541,8 @@ MonoBehaviour:
   settingPanel: {fileID: 983588447}
   menuPanel: {fileID: 0}
   questPanel: {fileID: 0}
+  menuButtonImage: {fileID: 0}
+  questButtonImage: {fileID: 0}
 --- !u!4 &1165849260
 Transform:
   m_ObjectHideFlags: 0
