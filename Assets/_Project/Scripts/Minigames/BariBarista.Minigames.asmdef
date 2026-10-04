@@ -1,0 +1,17 @@
+{
+    "name": "BariBarista.Minigames",
+    "rootNamespace": "BariBarista.Minigames",
+    "references": [
+        "BariBarista.Minigames.Logic",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,21 @@
+{
+    "name": "BariBarista.Minigames.Editor",
+    "rootNamespace": "BariBarista.Minigames.EditorTools",
+    "references": [
+        "BariBarista.Minigames",
+        "BariBarista.Minigames.Logic",
+        "UnityEditor.TestRunner",
+        "UnityEngine.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
