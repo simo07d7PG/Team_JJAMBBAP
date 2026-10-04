@@ -35,7 +35,6 @@ namespace BariBarista.Minigames
         [SerializeField] private MilkPourHud hud;
         [Tooltip("우유 줄기 피벗. localScale.y = 길이, 위쪽이 원점")]
         [SerializeField] private Transform stream;
-        [SerializeField] private ParticleSystem pourParticles;
 
         [Header("손맛")]
         [SerializeField] private float cupCapacityMl = 300f;
@@ -99,7 +98,6 @@ namespace BariBarista.Minigames
             lastAngle = 0f;
             glugRemaining = 0f;
             SetStream(false, 0f);
-            if (pourParticles != null) pourParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 
             var lv = Level;
             judge.Reset(lv.targetMin01, lv.targetMax01, cupCapacityMl, 0f, lv.maxOutsideMl);
@@ -148,7 +146,6 @@ namespace BariBarista.Minigames
                 // 팩을 다시 세웠다 → 판정
                 pouring = false;
                 SetStream(false, 0f);
-                if (pourParticles != null) pourParticles.Stop(true, ParticleSystemStopBehavior.StopEmitting);
                 Complete(judge.StopPouring());
                 return;
             }
@@ -170,8 +167,6 @@ namespace BariBarista.Minigames
             }
             float ml = flow * dt;
             if (ml <= 0f) { SetStream(false, 0f); return; }
-
-            if (pourParticles != null && !pourParticles.isEmitting) pourParticles.Play(true);
 
             JudgeOutcome outcome;
             if (TryHitCup(out float hitDistance))
@@ -241,7 +236,6 @@ namespace BariBarista.Minigames
         {
             pouring = false;
             SetStream(false, 0f);
-            if (pourParticles != null) pourParticles.Stop(true, ParticleSystemStopBehavior.StopEmitting);
             if (carton != null) carton.InputEnabled = false;
         }
 

@@ -217,6 +217,89 @@ namespace BariBarista.Minigames.EditorTools
             });
         }
 
+        /// <summary>옛 단색 배경색. AC-V2는 이 색과 채널별 ±4/255 안인 픽셀 비율로 단색 배경 제거를 확인한다.</summary>
+        public static readonly Color OldBackdropColor = new Color(0.55f, 0.47f, 0.4f);
+
+        [MenuItem("Tools/BariBarista/Sim/Capture Scenes (WP3)")]
+        private static void CaptureScenesMenu() => CaptureAllWorld(Path.Combine("Temp", "wp3-captures"));
+
+        /// <summary>
+        /// 미니게임 3종의 3D 화면(Canvas 제외)을 PNG로 저장하고, 게임마다 옛 단색 배경색 픽셀 비율을 로그에 남긴다.
+        /// 컵에는 예시 내용물을 넣어 액체·크레마·거품이 보이게 한다. 씬은 저장하지 않는다.
+        /// </summary>
+        public static void CaptureAllWorld(string dir)
+        {
+            WithSandbox(rigs =>
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("[SimHarness] 월드 캡처 — 옛 배경색(0.55, 0.47, 0.40) ±4/255 픽셀 비율");
+                foreach (var rig in rigs)
+                {
+                    var g = rig.Game;
+                    PoseState(g, HarnessPose.Prepared);
+                    var cupVisual = g.GetComponentInChildren<CupVisual>(true);
+                    var samples = new (string tag, float espresso, float milk)[] { ("empty", 0f, 0f), ("espresso", 40f, 0f), ("latte", 40f, 140f) };
+                    foreach (var s in samples)
+                    {
+                        if (cupVisual != null)
+                        {
+                            var cup = new CupContents();
+                            cup.Add(Ingredient.Espresso, s.espresso);
+                            cup.Add(Ingredient.Milk, s.milk);
+                            cupVisual.SetFill(s.espresso + s.milk > 0f ? 0.7f : 0f);
+                            if (s.espresso + s.milk > 0f) cupVisual.SetColorFrom(cup);
+                        }
+                        float ratio = CaptureWorld(g, Path.Combine(dir, g.Id + "_" + s.tag + ".png"));
+                        sb.AppendLine($"  {g.Id,-14} {s.tag,-9} 옛 배경색 비율 {ratio * 100f:0.00}%");
+                    }
+                    g.ForceEnd();
+                }
+                Debug.Log(sb.ToString());
+            });
+        }
+
+        /// <summary>프리팹 카메라로 3D 화면만(Canvas 끄고) 1280x720으로 찍어 저장한다. 반환값은 옛 배경색 픽셀 비율, 실패하면 -1.</summary>
+        public static float CaptureWorld(MicrogameBase game, string path)
+        {
+            var cam = game.GetComponentInChildren<Camera>(true);
+            if (cam == null) return -1f;
+            var canvases = game.GetComponentsInChildren<Canvas>(true);
+            var wasActive = new bool[canvases.Length];
+            for (int i = 0; i < canvases.Length; i++) { wasActive[i] = canvases[i].gameObject.activeSelf; canvases[i].gameObject.SetActive(false); }
+            var prevTarget = cam.targetTexture;
+            var prevActive = RenderTexture.active;
+            var rt = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+            Texture2D tex = null;
+            try
+            {
+                cam.targetTexture = rt;
+                cam.Render();
+                RenderTexture.active = rt;
+                tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                string d = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(d)) Directory.CreateDirectory(d);
+                File.WriteAllBytes(path, tex.EncodeToPNG());
+
+                var px = tex.GetPixels32();
+                int near = 0;
+                Color32 old = OldBackdropColor;
+                foreach (var p in px)
+                    if (Mathf.Abs(p.r - old.r) <= 4 && Mathf.Abs(p.g - old.g) <= 4 && Mathf.Abs(p.b - old.b) <= 4) near++;
+                return near / (float)px.Length;
+            }
+            finally
+            {
+                for (int i = 0; i < canvases.Length; i++) canvases[i].gameObject.SetActive(wasActive[i]);
+                cam.targetTexture = prevTarget;
+                RenderTexture.active = prevActive;
+                rt.Release();
+                Object.DestroyImmediate(rt);
+                if (tex != null) Object.DestroyImmediate(tex);
+            }
+        }
+
         /// <summary>캡처용: 진행 중 화면에 보일 예시 값을 HUD에 넣는다.</summary>
         private static void PokeSampleValues(MicrogameBase g)
         {
