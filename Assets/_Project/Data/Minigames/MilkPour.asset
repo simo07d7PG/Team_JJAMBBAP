@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 35854034409e7da48a1d92bbe7060326, type: 3}
+  m_Name: MilkPour
+  m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.MicrogameDefinition
+  id: milk_pour
+  instruction: "\uC6B0\uC720 \uBD80\uC5B4\uB77C!"
+  stationId: milk
+  baseTimeLimit: 7
+  prefab: {fileID: 458489003686554954, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
+  successOnTimeout: 0
+  defaultDifficulty: 1
