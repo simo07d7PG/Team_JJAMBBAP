@@ -41,6 +41,8 @@ namespace BariBarista.Minigames.EditorTools
     {
         Prepared,
         Playing,
+        /// <summary>플레이 2초 뒤. 큰 안내가 구석 힌트로 바뀐 상태.</summary>
+        PlayingLate,
         FailPresenting,
         SuccessPresenting,
     }
@@ -149,7 +151,7 @@ namespace BariBarista.Minigames.EditorTools
         }
 
         /// <summary>미니게임을 지정한 자세로 세워 둔다(캡처용). 씬 로드·정리는 호출한 쪽 몫이다.</summary>
-        public static void PoseState(MicrogameBase game, HarnessPose pose)
+        public static void PoseState(MicrogameBase game, HarnessPose pose, FailReason failReason = FailReason.Overflow)
         {
             var rig = new Rig(game);
             try
@@ -163,9 +165,13 @@ namespace BariBarista.Minigames.EditorTools
                         rig.StartRun(1);
                         rig.StepFor(0.5f);
                         break;
+                    case HarnessPose.PlayingLate:
+                        rig.StartRun(1);
+                        rig.StepFor(2f);
+                        break;
                     case HarnessPose.FailPresenting:
                         rig.StartRun(1);
-                        game.DebugForceFail(FailReason.Overflow);
+                        game.DebugForceFail(failReason);
                         rig.StepFor(game.PresentationDuration * 0.4f);
                         break;
                     case HarnessPose.SuccessPresenting:
@@ -179,6 +185,47 @@ namespace BariBarista.Minigames.EditorTools
             {
                 rig.Dispose();
             }
+        }
+
+        /// <summary>
+        /// 모든 미니게임의 안내·플레이·실패 이유별·성공 화면을 PNG로 저장한다(Canvas 캡처).
+        /// 중간 상태 화면은 HUD에 예시 값을 직접 넣어 만든다. 씬은 저장하지 않는다.
+        /// </summary>
+        public static void CaptureAllHud(string dir)
+        {
+            WithSandbox(rigs =>
+            {
+                foreach (var rig in rigs)
+                {
+                    var g = rig.Game;
+                    string id = g.Id;
+                    PoseState(g, HarnessPose.Prepared);
+                    CaptureHud(g, Path.Combine(dir, id + "_1_guide.png"));
+                    PoseState(g, HarnessPose.PlayingLate);
+                    PokeSampleValues(g);
+                    CaptureHud(g, Path.Combine(dir, id + "_2_playing.png"));
+                    foreach (var reason in new[] { FailReason.Overflow, FailReason.TooMuch, FailReason.TooLittle, FailReason.Timeout, FailReason.Spilled })
+                    {
+                        if (reason == FailReason.Spilled && !(g is MilkPourMicrogame)) continue;
+                        PoseState(g, HarnessPose.FailPresenting, reason);
+                        CaptureHud(g, Path.Combine(dir, id + "_3_fail_" + reason + ".png"));
+                    }
+                    PoseState(g, HarnessPose.SuccessPresenting);
+                    CaptureHud(g, Path.Combine(dir, id + "_4_success.png"));
+                    g.ForceEnd();
+                }
+            });
+        }
+
+        /// <summary>캡처용: 진행 중 화면에 보일 예시 값을 HUD에 넣는다.</summary>
+        private static void PokeSampleValues(MicrogameBase g)
+        {
+            var shot = g.GetComponentInChildren<EspressoShotHud>(true);
+            if (shot != null) shot.SetAmount(32f, 60f);
+            var ice = g.GetComponentInChildren<IceScoopHud>(true);
+            if (ice != null) ice.SetState(5, 0.6f);
+            var milk = g.GetComponentInChildren<MilkPourHud>(true);
+            if (milk != null) { milk.SetFill(0.55f); milk.SetSpill(0.3f); }
         }
 
         /// <summary>
@@ -803,6 +850,8 @@ namespace BariBarista.Minigames.EditorTools
                 Expect(pool.ActiveCount == 0, $"{label}: 얼음 {pool.ActiveCount}개가 남음", errors);
             }
 
+            CheckHud(g, label, errors);
+
             var cupVisual = g.GetComponentInChildren<CupVisual>(true);
             if (cupVisual != null)
             {
@@ -819,6 +868,22 @@ namespace BariBarista.Minigames.EditorTools
 
             if (g is EspressoShotMicrogame es) Expect(es.Extracted == 0f, $"{label}: 추출량 {es.Extracted}이 남음", errors);
             if (g is MilkPourMicrogame mp) Expect(mp.Fill01 == 0f, $"{label}: 우유 양 {mp.Fill01}이 남음", errors);
+        }
+
+        /// <summary>시작 직후 안내는 보이고 결과 글씨는 숨겨져 있어야 한다.</summary>
+        private static void CheckHud(MicrogameBase g, string label, List<string> errors)
+        {
+            var hud = g.GetComponentInChildren<Canvas>(true);
+            if (hud == null) { errors.Add($"{label}: HUD Canvas가 없음"); return; }
+            Behaviour component = hud.GetComponent<EspressoShotHud>();
+            if (component == null) component = hud.GetComponent<IceScoopHud>();
+            if (component == null) component = hud.GetComponent<MilkPourHud>();
+            if (component == null) { errors.Add($"{label}: HUD 컴포넌트가 없음"); return; }
+            var guide = RefOf<GameObject>(component, "guideBig");
+            var banner = RefOf<ResultBanner>(component, "banner");
+            Expect(guide != null && guide.activeSelf, $"{label}: 큰 안내가 꺼져 있음", errors);
+            Expect(banner != null && !banner.gameObject.activeSelf, $"{label}: 결과 글씨가 남음", errors);
+            Expect(hud.renderMode == RenderMode.ScreenSpaceOverlay && hud.sortingOrder == -10, $"{label}: Canvas가 Overlay -10이 아님", errors);
         }
 
         private static void Expect(bool condition, string message, List<string> errors)

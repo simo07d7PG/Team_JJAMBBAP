@@ -38,7 +38,7 @@ namespace BariBarista.Minigames
         [SerializeField] private Transform floor;
         [SerializeField] private IcePiecePool icePool;
         [SerializeField] private CupVisual cupVisual;
-        [SerializeField] private VerticalGauge countGauge;
+        [SerializeField] private IceScoopHud hud;
 
         [Header("손맛")]
         [Tooltip("바닥에서 이 높이 아래로 내려간 얼음은 떨어진 것으로 본다")]
@@ -57,6 +57,7 @@ namespace BariBarista.Minigames
         };
 
         private readonly IceJudge judge = new IceJudge();
+        private readonly GuideTimer guide = new GuideTimer();
         private Vector3 scoopStartPos;
         private Quaternion scoopStartRot;
         private bool startCaptured;
@@ -101,15 +102,13 @@ namespace BariBarista.Minigames
             var lv = Level;
             judge.Reset(lv.targetMin, lv.targetMax, lv.cupMax, lv.holdSeconds);
 
-            if (countGauge != null)
-            {
-                countGauge.SetRange((float)lv.targetMin / lv.cupMax, (float)lv.targetMax / lv.cupMax);
-                countGauge.SetValue(0f);
-            }
+            if (hud != null) hud.Configure(lv.targetMin, lv.targetMax, lv.cupMax);
         }
 
         protected override void OnPrepare()
         {
+            guide.Reset();
+            if (hud != null) hud.ShowGuide(Ctx.Definition != null ? Ctx.Definition.instruction : PresentationRules.InstructionIce);
             // 컵 모델 상태를 이전 내용물에 맞춘다
             if (cupVisual != null)
             {
@@ -130,6 +129,8 @@ namespace BariBarista.Minigames
             if (scoop == null) return;
             float dt = TickDelta;
             var lv = Level;
+            if (Hand.GrabHeld) guide.MarkInput();
+            if (hud != null) hud.SetGuideBig(guide.Tick(dt));
 
             // 제빙기 안에서 누르고 있으면 스쿱에 얼음이 담긴다
             if (Hand.GrabHeld && IsInside(binZone, scoopFillPoint != null ? scoopFillPoint.position : scoop.transform.position))
@@ -148,9 +149,9 @@ namespace BariBarista.Minigames
             }
 
             int inCup = CountInCupAndDrops();
-            if (countGauge != null) countGauge.SetValue((float)inCup / lv.cupMax);
-
-            Complete(judge.Update(inCup, dt));
+            var outcome = judge.Update(inCup, dt);
+            if (hud != null) hud.SetState(inCup, judge.Hold01);
+            Complete(outcome);
         }
 
         protected override void OnTimeUp()
@@ -162,6 +163,11 @@ namespace BariBarista.Minigames
         {
             result.Amount = judge.Count;
             result.Wasted = droppedCount;
+        }
+
+        protected override void OnPresentStart(in MicrogameResult result)
+        {
+            if (hud != null) hud.ShowResult(result);
         }
 
         protected override void OnEnd(MicrogameResult result)

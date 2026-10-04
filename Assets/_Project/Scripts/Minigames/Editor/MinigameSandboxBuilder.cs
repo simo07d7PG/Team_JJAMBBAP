@@ -82,6 +82,7 @@ namespace BariBarista.Minigames.EditorTools
             EnsureFolder(MaterialsDir);
             EnsureFolder(DataDir);
             materials.Clear();
+            MinigameUiBuilder.EnsureAssets();
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -106,9 +107,9 @@ namespace BariBarista.Minigames.EditorTools
             var icePrefabRoot = SavePrefab(ice, "IceScoop");
             var milkPrefab = SavePrefab(milk, "MilkPour");
 
-            var espressoDef = CreateDefinition("EspressoShot", "espresso_shot", "샷 내려라!", "espresso", 7f, espressoPrefab);
-            var iceDef = CreateDefinition("IceScoop", "ice_scoop", "얼음 퍼라!", "ice", 8f, icePrefabRoot);
-            var milkDef = CreateDefinition("MilkPour", "milk_pour", "우유 부어라!", "milk", 7f, milkPrefab);
+            var espressoDef = CreateDefinition("EspressoShot", "espresso_shot", PresentationRules.InstructionShot, "espresso", 7f, espressoPrefab);
+            var iceDef = CreateDefinition("IceScoop", "ice_scoop", PresentationRules.InstructionIce, "ice", 8f, icePrefabRoot);
+            var milkDef = CreateDefinition("MilkPour", "milk_pour", PresentationRules.InstructionPour, "milk", 7f, milkPrefab);
 
             // 단독 실행기 (AudioListener는 여기 하나만 둔다. 미니게임 프리팹에는 넣지 않는다)
             var runnerGo = new GameObject("MicrogameRunner");
@@ -173,7 +174,7 @@ namespace BariBarista.Minigames.EditorTools
             var cupVisual = AddCupVisual(cupGo, liquidDiameter, cupSize.y * 0.8f, 0.015f);
 
             var stream = AddStream(r, spout.localPosition, Mat("Espresso", new Color(0.25f, 0.13f, 0.06f)));
-            var gauge = AddGauge(r, new Vector3(0.3f, 0.03f, -0.05f), 0.4f);
+            var hud = MinigameUiBuilder.BuildEspressoUi(r);
 
             Configure(game,
                 ("viewCamera", cam),
@@ -184,7 +185,7 @@ namespace BariBarista.Minigames.EditorTools
                 ("cupFollower", cupFollower),
                 ("counter", floor.transform),
                 ("cupVisual", cupVisual),
-                ("gauge", gauge),
+                ("hud", hud),
                 ("stream", stream),
                 ("extractButton", button.transform));
             return root;
@@ -273,7 +274,7 @@ namespace BariBarista.Minigames.EditorTools
             var pool = poolGo.AddComponent<IcePiecePool>();
             Configure(pool, ("template", icePrefab));
 
-            var gauge = AddGauge(r, new Vector3(0.58f, 0.03f, 0f), 0.4f);
+            var hud = MinigameUiBuilder.BuildIceUi(r);
 
             Configure(game,
                 ("viewCamera", cam),
@@ -285,7 +286,7 @@ namespace BariBarista.Minigames.EditorTools
                 ("floor", floor.transform),
                 ("icePool", pool),
                 ("cupVisual", cupVisual),
-                ("countGauge", gauge));
+                ("hud", hud));
             return root;
         }
 
@@ -345,7 +346,7 @@ namespace BariBarista.Minigames.EditorTools
             var milkMat = Mat("Milk", new Color(0.97f, 0.96f, 0.92f));
             var stream = AddStream(r, Vector3.zero, milkMat);
             var particles = AddParticles(spout, milkMat.color);
-            var gauge = AddGauge(r, new Vector3(0.38f, 0.03f, 0f), 0.4f);
+            var hud = MinigameUiBuilder.BuildMilkUi(r);
 
             Configure(game,
                 ("viewCamera", cam),
@@ -354,7 +355,7 @@ namespace BariBarista.Minigames.EditorTools
                 ("cupMouth", mouth),
                 ("floor", floor.transform),
                 ("cupVisual", cupVisual),
-                ("gauge", gauge),
+                ("hud", hud),
                 ("stream", stream),
                 ("pourParticles", particles));
             return root;
@@ -479,25 +480,6 @@ namespace BariBarista.Minigames.EditorTools
             pivot.localScale = new Vector3(0.02f, 0.1f, 0.02f);
             pivot.gameObject.SetActive(false);
             return pivot;
-        }
-
-        private static VerticalGauge AddGauge(Transform parent, Vector3 localPos, float height)
-        {
-            var root = new GameObject("Gauge");
-            root.transform.SetParent(parent, false);
-            root.transform.localPosition = localPos;
-            root.transform.localScale = new Vector3(0.04f, height, 0.02f);
-            Prim(PrimitiveType.Cube, "Background", root.transform, new Vector3(0f, 0.5f, 0f), Vector3.one, Mat("GaugeBg", new Color(0.12f, 0.12f, 0.12f)), false);
-            var band = Empty("Band", root.transform, new Vector3(0f, 0f, -0.6f));
-            Prim(PrimitiveType.Cube, "Body", band, new Vector3(0f, 0.5f, 0f), new Vector3(1.4f, 1f, 0.4f), Mat("GaugeBand", new Color(0.2f, 0.8f, 0.3f)), false);
-            var fill = Empty("Fill", root.transform, new Vector3(0f, 0f, -1.1f));
-            Prim(PrimitiveType.Cube, "Body", fill, new Vector3(0f, 0.5f, 0f), new Vector3(0.6f, 1f, 0.4f), Mat("GaugeFill", new Color(1f, 0.6f, 0.1f)), false);
-            fill.localScale = new Vector3(1f, 0.0001f, 1f);
-            fill.gameObject.SetActive(false);
-
-            var gauge = root.AddComponent<VerticalGauge>();
-            Configure(gauge, ("fill", fill), ("band", band));
-            return gauge;
         }
 
         private static ParticleSystem AddParticles(Transform spout, Color color)
@@ -646,7 +628,7 @@ namespace BariBarista.Minigames.EditorTools
             entry.FindPropertyRelative("definition").objectReferenceValue = def;
         }
 
-        private static void Configure(Object target, params (string name, object value)[] values)
+        internal static void Configure(Object target, params (string name, object value)[] values)
         {
             var so = new SerializedObject(target);
             foreach (var (name, value) in values)
@@ -660,6 +642,10 @@ namespace BariBarista.Minigames.EditorTools
                 switch (value)
                 {
                     case Object o: p.objectReferenceValue = o; break;
+                    case Object[] arr:
+                        p.arraySize = arr.Length;
+                        for (int k = 0; k < arr.Length; k++) p.GetArrayElementAtIndex(k).objectReferenceValue = arr[k];
+                        break;
                     case int i when p.propertyType == SerializedPropertyType.Enum: p.enumValueIndex = i; break;
                     case int i: p.intValue = i; break;
                     case float f: p.floatValue = f; break;

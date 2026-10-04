@@ -3,7 +3,9 @@
     "rootNamespace": "BariBarista.Minigames",
     "references": [
         "BariBarista.Minigames.Logic",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

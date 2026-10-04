@@ -3,7 +3,7 @@
 ## 새 미니게임 만들기 (10단계)
 
 1. `Assets/_Project/Scripts/Minigames/<이름>/` 폴더에 `MicrogameBase`를 상속한 클래스를 만든다 (네임스페이스 `BariBarista.Minigames`).
-2. `ResetState()`는 필수다. 위치, Rigidbody 속도, 액체 양, 게이지, 풀 오브젝트를 전부 처음으로 되돌린다. 같은 미니게임이 한 판에 여러 번 켜지기 때문이다.
+2. `ResetState()`는 필수다. 위치, Rigidbody 속도, 액체 양, 화면(HUD) 값, 풀 오브젝트를 전부 처음으로 되돌린다. 같은 미니게임이 한 판에 여러 번 켜지기 때문이다.
 3. `OnPrepare()`에서 `Ctx.Cup`(컵 내용물)을 보고 컵 모델 상태(얼음, 액체 높이)를 맞춘다(입력·시간은 켜지 않는다). `OnBegin()`에서 입력을 켠다.
 4. 판정은 `OnTick(remaining01)`에서 한다. 이번 틱에 흐른 시간은 `TickDelta`다. **`Time.deltaTime`으로 제한 시간을 세지 않는다.** 물리 조작은 평소처럼 `FixedUpdate`를 쓴다.
 5. 결과가 나오면 `Succeed(score)` 또는 `Fail(FailReason.X)`를 부른다. 처음 한 번만 반영되고 이후 호출은 무시된다.
@@ -57,6 +57,16 @@
 - 결과 큰 글씨는 미니게임이 그린다. 코어 루프는 미니게임 연출 중 자기 결과 글씨를 그리지 않는다(지시어·타이머·목숨만).
 - 일시정지 중에는 코어 루프가 자기 HUD를 숨긴다(HUD가 ESC 패널을 덮지 않게).
 
+## 화면 UI(Canvas)와 한글 폰트
+
+- 미니게임마다 자기 Canvas UI를 가진다(공용 템플릿 없음): 에스프레소는 오른쪽 세로 "샷 잔" 게이지, 얼음은 아래 얼음 칸 줄 + 유지 파이, 우유는 왼쪽 컵 단면 + 흘림 막대. `EspressoShotHud`, `IceScoopHud`, `MilkPourHud`가 표시만 한다.
+- 안내는 `OnPrepare`부터 Playing 첫 1.5초 또는 첫 입력까지 크게(마우스 그림 + 짧은 한글) 보이고, 이후 구석 힌트로 줄어든다(`GuideTimer`). 결과가 나면 `ResultBanner`가 칭찬 또는 실패 이유를 크게 보여 준다.
+- 모든 문구는 `Logic/PresentationRules.cs`의 `const string`에 둔다(실패 이유는 `ShotRules`/`IceRules`/`PourRules.FailText`). 새 문구를 추가하면 `PreloadCharacters`에도 들어가는지 `PresentationRulesTests`로 확인한다.
+- 색은 `MinigameUiPalette`(팀 UI에서 뽑은 베이지·갈색·버건디)만 쓴다. 목표 구간은 초록이 아니라 버건디 테두리 + 밝은 갈색 채움이다.
+- 한글 폰트는 `Assets/_Project/UI/Fonts/Galmuri11-Bold_Dynamic SDF.asset`(동적, SDFAA)이다. 없으면 메뉴 `Tools/BariBarista/Create Galmuri Dynamic Font` 또는 `Rebuild Minigame Prefabs`가 만든다. 기존 TMP 폰트 에셋과 TMP Settings는 건드리지 않는다. 큰 결과 글씨용 외곽선 재질은 `Galmuri11-Bold_Dynamic SDF Outline.mat`이다.
+- Canvas는 Screen Space - Overlay라서 카메라 캡처에 안 찍힌다. 화면 확인은 `MinigameSimHarness.CaptureAllHud(폴더)`가 임시로 Camera 모드로 바꿔 찍고 되돌린다.
+- `VerticalGauge`(월드 공간 게이지)는 없어졌다. 쓰던 게이지 재질 3개(`GaugeBg`, `GaugeBand`, `GaugeFill`)는 재질 정리 때 지운다.
+
 ## 샌드박스 사용법
 
 - 메뉴 `Tools/BariBarista/Create Minigame Sandbox`: 테스트 씬, 프리팹, 정의 에셋을 새로 만든다. 같은 이름이 있으면 덮어쓰지 않고 새 이름으로 만든다.
@@ -77,6 +87,6 @@
 
 | 미니게임 | 조작 | 성공 / 실패 |
 | --- | --- | --- |
-| 에스프레소 샷 | 좌클릭을 누르고 있으면 추출된다. Lv3은 먼저 컵을 클릭해 받침 위로 끌어다 놓는다 | 게이지의 초록 구간에서 떼면 성공. 컵을 넘치게 하거나 구간을 넘겨서 떼면 실패 |
+| 에스프레소 샷 | 좌클릭을 누르고 있으면 추출된다. Lv3은 먼저 컵을 클릭해 받침 위로 끌어다 놓는다 | 게이지의 목표 띠(버건디 테두리)에서 떼면 성공. 컵을 넘치게 하거나 구간을 넘겨서 떼면 실패 |
 | 얼음 퍼기 | 스쿱이 마우스를 따라온다. 제빙기 위에서 좌클릭을 누르고 있으면 담기고, 컵 위에서 우클릭을 누르고 있으면 기울어지고, 떼면 다시 선다 | 컵 안 얼음 개수가 목표 구간에서 1초 유지되면 성공. 최대치를 넘기면 실패 |
 | 우유 붓기 | 좌클릭을 누르고 있는 동안 우유팩을 잡는다. 우클릭을 누르고 있으면 기울고, 떼면 다시 선다 | 목표 선 안에서 팩을 세우면 성공. 넘치거나 컵 밖으로 많이 부으면 실패 |
