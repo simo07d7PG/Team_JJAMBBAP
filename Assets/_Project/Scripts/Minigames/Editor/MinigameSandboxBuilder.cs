@@ -121,7 +121,7 @@ namespace BariBarista.Minigames.EditorTools
                 ("springStrength", 120f),
                 ("damping", 14f),
                 ("maxSpeed", 3f),
-                ("tiltPerNotch", 0f),
+                ("tiltSpeed", 0f),
                 ("maxTilt", 0f));
             float liquidDiameter = Mathf.Min(cupSize.x, cupSize.z) * 0.62f;
             var cupVisual = AddCupVisual(cupGo, liquidDiameter, cupSize.y * 0.8f, 0.015f);
@@ -218,7 +218,8 @@ namespace BariBarista.Minigames.EditorTools
                 ("damping", 16f),
                 ("maxSpeed", 5f),
                 ("tiltAxisLocal", Vector3.back),
-                ("tiltPerNotch", 15f),
+                ("tiltSpeed", 150f),
+                ("tiltReturnSpeed", 200f),
                 ("maxTilt", 110f));
 
             var poolGo = new GameObject("IcePool");
@@ -290,8 +291,9 @@ namespace BariBarista.Minigames.EditorTools
                 ("damping", 13f),
                 ("maxSpeed", 4f),
                 ("tiltAxisLocal", Vector3.back),
-                ("tiltPerNotch", 12f),
-                ("maxTilt", 130f),
+                ("tiltSpeed", 70f),
+                ("tiltReturnSpeed", 400f),
+                ("maxTilt", 110f),
                 ("rotationGain", 9f));
 
             var milkMat = Mat("Milk", new Color(0.97f, 0.96f, 0.92f));

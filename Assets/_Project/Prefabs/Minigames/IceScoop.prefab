@@ -2740,6 +2740,9 @@ MonoBehaviour:
   damping: 16
   maxSpeed: 5
   tiltAxisLocal: {x: 0, y: 0, z: -1}
+  tiltMode: 0
+  tiltSpeed: 150
+  tiltReturnSpeed: 200
   tiltPerNotch: 15
   minTilt: 0
   maxTilt: 110

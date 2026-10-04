@@ -4,7 +4,7 @@ namespace BariBarista.Minigames
 {
     /// <summary>
     /// 물리 손 대체 조작. 포인터를 평면에 투영한 점을 Rigidbody가 스프링·감쇠로 따라간다.
-    /// 휠로 지정 축을 기준으로 기울인다. 속도로 움직이므로 위에 올린 물체(얼음 등)는 물리적으로 따라오거나 튀어 나간다.
+    /// 기울이기 버튼(우클릭)을 누르는 동안 지정 축을 기준으로 기울고, 떼면 다시 선다(휠 방식도 선택 가능). 속도로 움직이므로 위에 올린 물체(얼음 등)는 물리적으로 따라오거나 튀어 나간다.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
     public class MouseSpringFollower : MonoBehaviour
@@ -17,6 +17,14 @@ namespace BariBarista.Minigames
             WhileGrabHeld,
             /// <summary>SetGrabbed로 밖에서 잡기를 정한다(컵 끌기).</summary>
             Manual,
+        }
+
+        public enum TiltMode
+        {
+            /// <summary>기울이기 버튼을 누르는 동안 기울고, 떼면 다시 선다.</summary>
+            HoldToTilt,
+            /// <summary>휠 한 칸마다 일정 각도씩 기울인다.</summary>
+            WheelSteps,
         }
 
         [Header("참조")]
@@ -40,6 +48,12 @@ namespace BariBarista.Minigames
         [Header("기울이기")]
         [Tooltip("기울이는 로컬 축")]
         [SerializeField] private Vector3 tiltAxisLocal = Vector3.right;
+        [SerializeField] private TiltMode tiltMode = TiltMode.HoldToTilt;
+        [Tooltip("HoldToTilt: 누르고 있는 동안 초당 기울어지는 각도")]
+        [SerializeField] private float tiltSpeed = 90f;
+        [Tooltip("HoldToTilt: 떼면 초당 되돌아오는 각도")]
+        [SerializeField] private float tiltReturnSpeed = 180f;
+        [Tooltip("WheelSteps: 휠 한 칸당 각도")]
         [SerializeField] private float tiltPerNotch = 15f;
         [SerializeField] private float minTilt = 0f;
         [SerializeField] private float maxTilt = 120f;
@@ -58,7 +72,7 @@ namespace BariBarista.Minigames
 
         public bool InputEnabled { get; set; }
         public bool IsGrabbed { get; private set; }
-        /// <summary>휠로 정한 목표 기울기(도).</summary>
+        /// <summary>입력으로 정한 목표 기울기(도).</summary>
         public float TargetTilt { get; private set; }
         /// <summary>실제 몸체가 세워진 상태에서 기울어진 각도(도). 출렁임 포함.</summary>
         public float ActualTilt => body != null ? Quaternion.Angle(restRotation, body.rotation) : 0f;
@@ -147,8 +161,12 @@ namespace BariBarista.Minigames
                     break;
             }
 
-            float tilt = hand.TiltDelta;
-            if (tilt != 0f) TargetTilt = Mathf.Clamp(TargetTilt + tilt * tiltPerNotch, minTilt, maxTilt);
+            // 누르고 있는 동안 기울기는 FixedUpdate에서 고정 간격으로 쌓는다(프레임레이트와 무관)
+            if (tiltMode == TiltMode.WheelSteps)
+            {
+                float tilt = hand.TiltDelta;
+                if (tilt != 0f) TargetTilt = Mathf.Clamp(TargetTilt + tilt * tiltPerNotch, minTilt, maxTilt);
+            }
 
             if (IsGrabbed && TryProjectPointer(out Vector3 p)) holdTarget = p;
         }
@@ -171,6 +189,12 @@ namespace BariBarista.Minigames
         {
             if (body == null || body.isKinematic) return;
             float dt = Time.fixedDeltaTime;
+
+            if (InputEnabled && tiltMode == TiltMode.HoldToTilt)
+            {
+                float rate = hand.TiltHeld ? tiltSpeed : -tiltReturnSpeed;
+                TargetTilt = Mathf.Clamp(TargetTilt + rate * dt, minTilt, maxTilt);
+            }
 
             // 위치: 스프링-감쇠 가속도로 속도를 정하고 Rigidbody에 넣는다
             Vector3 accel = (holdTarget - body.position) * springStrength - velocity * damping;

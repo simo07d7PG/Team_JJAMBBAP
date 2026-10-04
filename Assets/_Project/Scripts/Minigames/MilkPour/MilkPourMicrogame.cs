@@ -4,7 +4,7 @@ using UnityEngine;
 namespace BariBarista.Minigames
 {
     /// <summary>
-    /// "우유 부어라!" — 우유팩을 잡고 휠로 기울여 컵을 목표 선까지 채운 뒤 다시 세운다.
+    /// "우유 부어라!" — 우유팩을 잡고 우클릭으로 기울여 컵을 목표 선까지 채운 뒤 다시 세운다.
     /// 유체 시뮬레이션 없이 "레이 판정 + 양 데이터"로 계산하고 파티클은 보이기용이다.
     /// </summary>
     public class MilkPourMicrogame : MicrogameBase

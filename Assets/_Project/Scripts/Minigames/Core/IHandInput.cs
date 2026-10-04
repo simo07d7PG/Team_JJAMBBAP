@@ -14,11 +14,13 @@ namespace BariBarista.Minigames
         bool GrabHeld { get; }
         bool GrabPressedThisFrame { get; }
         bool GrabReleasedThisFrame { get; }
-        /// <summary>이번 프레임 기울기 입력(휠 한 칸 = 1). 양수 = 더 기울이기.</summary>
+        /// <summary>기울이기 버튼을 누르고 있는지(마우스 우클릭). 누르는 동안 기울어지고 떼면 다시 선다.</summary>
+        bool TiltHeld { get; }
+        /// <summary>이번 프레임 휠 기울기 입력(한 칸 = 1). 양수 = 더 기울이기. 휠 방식(TiltMode.WheelSteps)에서만 쓴다.</summary>
         float TiltDelta { get; }
     }
 
-    /// <summary>Input System 마우스 기반 구현. 좌클릭 = 잡기, 휠 = 기울이기.</summary>
+    /// <summary>Input System 마우스 기반 구현. 좌클릭 = 잡기, 우클릭 = 기울이기(휠 방식도 지원).</summary>
     public sealed class MouseHandInput : IHandInput
     {
         public static readonly MouseHandInput Shared = new MouseHandInput();
@@ -44,6 +46,11 @@ namespace BariBarista.Minigames
         public bool GrabReleasedThisFrame
         {
             get { var m = Mouse.current; return m != null && m.leftButton.wasReleasedThisFrame; }
+        }
+
+        public bool TiltHeld
+        {
+            get { var m = Mouse.current; return m != null && m.rightButton.isPressed; }
         }
 
         public float TiltDelta
