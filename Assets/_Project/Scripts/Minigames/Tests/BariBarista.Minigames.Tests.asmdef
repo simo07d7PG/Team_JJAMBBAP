@@ -2,6 +2,7 @@
     "name": "BariBarista.Minigames.Tests",
     "rootNamespace": "BariBarista.Minigames.Tests",
     "references": [
+        "BariBarista.Minigames",
         "BariBarista.Minigames.Logic",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

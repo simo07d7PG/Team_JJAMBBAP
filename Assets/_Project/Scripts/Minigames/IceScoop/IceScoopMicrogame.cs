@@ -108,7 +108,7 @@ namespace BariBarista.Minigames
             }
         }
 
-        protected override void OnBegin()
+        protected override void OnPrepare()
         {
             // 컵 모델 상태를 이전 내용물에 맞춘다
             if (cupVisual != null)
@@ -118,6 +118,10 @@ namespace BariBarista.Minigames
                 cupVisual.SetFill(Mathf.Clamp01(cup.TotalLiquid / cupCapacityMl));
                 cupVisual.SetColorFrom(cup);
             }
+        }
+
+        protected override void OnBegin()
+        {
             if (scoop != null) scoop.InputEnabled = true;
         }
 

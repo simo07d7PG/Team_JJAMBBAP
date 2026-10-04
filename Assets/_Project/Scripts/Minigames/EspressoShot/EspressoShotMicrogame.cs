@@ -163,10 +163,15 @@ namespace BariBarista.Minigames
             return new Vector3(s.x, cupRestPos.y, s.z);
         }
 
-        protected override void OnBegin()
+        protected override void OnPrepare()
         {
+            // 안내 단계에서도 컵 모델이 이번 컵 내용물을 보여 주도록
             UpdateCupVisual();
             if (cupVisual != null) cupVisual.SetIceVisible(Ctx.Cup.IceCount > 0);
+        }
+
+        protected override void OnBegin()
+        {
             // 메인 씬에서 기계를 클릭한 채로 들어와도 바로 추출되지 않게 현재 상태에서 시작
             wasHeld = Hand.GrabHeld;
         }

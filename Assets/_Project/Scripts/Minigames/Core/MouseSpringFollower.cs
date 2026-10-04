@@ -146,8 +146,20 @@ namespace BariBarista.Minigames
             holdTarget = body.position;
         }
 
-        private void Update()
+        private void Update() => PollInput();
+
+        /// <summary>
+        /// 검증 도구용 수동 스텝: 입력 읽기 → 한 스텝 계산. 호출한 쪽이 이어서 Physics.Simulate(dt)를 부른다.
+        /// </summary>
+        public void SimulationStep(float dt)
         {
+            PollInput();
+            Step(dt);
+        }
+
+        private void PollInput()
+        {
+            EnsureInit();
             // 일시정지(timeScale 0) 중에 쌓인 입력이 재개 순간 한꺼번에 반영되지 않게
             if (!InputEnabled || Time.timeScale <= 0f) return;
 
@@ -185,10 +197,11 @@ namespace BariBarista.Minigames
             return true;
         }
 
-        private void FixedUpdate()
+        private void FixedUpdate() => Step(Time.fixedDeltaTime);
+
+        private void Step(float dt)
         {
             if (body == null || body.isKinematic) return;
-            float dt = Time.fixedDeltaTime;
 
             if (InputEnabled && tiltMode == TiltMode.HoldToTilt)
             {

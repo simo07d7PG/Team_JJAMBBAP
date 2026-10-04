@@ -109,7 +109,7 @@ namespace BariBarista.Minigames
             }
         }
 
-        protected override void OnBegin()
+        protected override void OnPrepare()
         {
             // 기존 내용물(에스프레소·얼음)을 액체 높이에 합산한다
             var cup = Ctx.Cup;
@@ -119,6 +119,10 @@ namespace BariBarista.Minigames
 
             if (cupVisual != null) cupVisual.SetIceVisible(cup.IceCount > 0);
             UpdateCupDisplay();
+        }
+
+        protected override void OnBegin()
+        {
             if (carton != null) carton.InputEnabled = true;
         }
 

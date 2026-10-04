@@ -21,16 +21,62 @@ namespace BariBarista.Minigames.EditorTools
         private const float Spacing = 30f;
 
         private static readonly Dictionary<string, Material> materials = new Dictionary<string, Material>();
+        // 재생성 중이면 같은 경로를 덮어써서 GUID를 유지한다(새 이름 만들기 없음)
+        private static bool rebuilding;
 
         [MenuItem("Tools/BariBarista/Create Minigame Sandbox")]
-        public static void Create()
+        public static void Create() => Build(false);
+
+        /// <summary>
+        /// 프리팹·정의 에셋·샌드박스 씬을 코드대로 다시 만든다. 같은 경로를 덮어써서 GUID가 그대로다.
+        /// 프리팹을 손으로 고친 내용은 사라지므로, 바꾸고 싶은 값은 이 빌더에 적는다.
+        /// </summary>
+        [MenuItem("Tools/BariBarista/Rebuild Minigame Prefabs")]
+        public static void Rebuild() => Build(true);
+
+        private static string TargetPath(string path) => rebuilding ? path : AssetDatabase.GenerateUniqueAssetPath(path);
+
+        private static void Build(bool rebuild)
         {
-            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                Debug.LogWarning("[MinigameSandbox] 플레이 중에는 실행할 수 없습니다.");
+                return;
+            }
+
+            if (rebuild)
+            {
+                // 샌드박스 씬은 어차피 다시 만들지만, 다른 씬의 저장 안 한 변경은 지키기 위해 취소한다
+                string sandboxPath = ScenesDir + "/MinigameSandbox.unity";
+                for (int i = 0; i < EditorSceneManager.sceneCount; i++)
+                {
+                    var open = EditorSceneManager.GetSceneAt(i);
+                    if (open.isDirty && open.path != sandboxPath)
+                    {
+                        Debug.LogWarning($"[MinigameSandbox] 저장하지 않은 씬({open.path})이 있어 취소했습니다.");
+                        return;
+                    }
+                }
+            }
+            else if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
             {
                 Debug.LogWarning("[MinigameSandbox] 저장하지 않은 씬이 있어 취소했습니다.");
                 return;
             }
 
+            rebuilding = rebuild;
+            try
+            {
+                BuildAll();
+            }
+            finally
+            {
+                rebuilding = false;
+            }
+        }
+
+        private static void BuildAll()
+        {
             EnsureFolder(ScenesDir);
             EnsureFolder(PrefabsDir);
             EnsureFolder(MaterialsDir);
@@ -76,7 +122,7 @@ namespace BariBarista.Minigames.EditorTools
             SetEntry(entries.GetArrayElementAtIndex(2), milk.GetComponent<MicrogameBase>(), milkDef);
             so.ApplyModifiedPropertiesWithoutUndo();
 
-            string scenePath = AssetDatabase.GenerateUniqueAssetPath(ScenesDir + "/MinigameSandbox.unity");
+            string scenePath = TargetPath(ScenesDir + "/MinigameSandbox.unity");
             EditorSceneManager.SaveScene(scene, scenePath);
             AssetDatabase.SaveAssets();
             Debug.Log($"[MinigameSandbox] 생성 완료: {scenePath}\n프리팹: {AssetDatabase.GetAssetPath(espressoPrefab)}, {AssetDatabase.GetAssetPath(icePrefabRoot)}, {AssetDatabase.GetAssetPath(milkPrefab)}\n정의: {AssetDatabase.GetAssetPath(espressoDef)}, {AssetDatabase.GetAssetPath(iceDef)}, {AssetDatabase.GetAssetPath(milkDef)}");
@@ -515,7 +561,7 @@ namespace BariBarista.Minigames.EditorTools
             rb.interpolation = RigidbodyInterpolation.Interpolate;
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             go.AddComponent<IcePiece>();
-            string path = AssetDatabase.GenerateUniqueAssetPath(PrefabsDir + "/IceCube.prefab");
+            string path = TargetPath(PrefabsDir + "/IceCube.prefab");
             var prefab = PrefabUtility.SaveAsPrefabAsset(go, path);
             Object.DestroyImmediate(go);
             return prefab.GetComponent<IcePiece>();
@@ -523,13 +569,16 @@ namespace BariBarista.Minigames.EditorTools
 
         private static GameObject SavePrefab(GameObject root, string name)
         {
-            string path = AssetDatabase.GenerateUniqueAssetPath($"{PrefabsDir}/{name}.prefab");
+            string path = TargetPath($"{PrefabsDir}/{name}.prefab");
             return PrefabUtility.SaveAsPrefabAssetAndConnect(root, path, InteractionMode.AutomatedAction);
         }
 
         private static MicrogameDefinition CreateDefinition(string fileName, string id, string instruction, string stationId, float timeLimit, GameObject prefab)
         {
-            var def = ScriptableObject.CreateInstance<MicrogameDefinition>();
+            string path = TargetPath($"{DataDir}/{fileName}.asset");
+            // 재생성이면 기존 에셋을 불러와 필드만 갱신한다(GUID 유지)
+            var existing = rebuilding ? AssetDatabase.LoadAssetAtPath<MicrogameDefinition>(path) : null;
+            var def = existing != null ? existing : ScriptableObject.CreateInstance<MicrogameDefinition>();
             def.id = id;
             def.instruction = instruction;
             def.stationId = stationId;
@@ -537,8 +586,8 @@ namespace BariBarista.Minigames.EditorTools
             def.prefab = prefab;
             def.successOnTimeout = false;
             def.defaultDifficulty = 1;
-            string path = AssetDatabase.GenerateUniqueAssetPath($"{DataDir}/{fileName}.asset");
-            AssetDatabase.CreateAsset(def, path);
+            if (existing != null) EditorUtility.SetDirty(def);
+            else AssetDatabase.CreateAsset(def, path);
             return def;
         }
 
