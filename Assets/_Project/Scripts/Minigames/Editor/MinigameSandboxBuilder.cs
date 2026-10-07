@@ -235,11 +235,11 @@ namespace BariBarista.Minigames.EditorTools
 
             // 제빙기
             var iceMat = IceMat();
-            Prim(PrimitiveType.Cube, "IceMachine", r, new Vector3(-0.5f, 0.25f, 0.1f), new Vector3(0.42f, 0.5f, 0.42f), Mat("Machine", new Color(0.18f, 0.18f, 0.2f)), true);
-            Prim(PrimitiveType.Cube, "IceBinVisual", r, new Vector3(-0.5f, 0.505f, 0.1f), new Vector3(0.36f, 0.01f, 0.36f), iceMat, false);
+            Prim(PrimitiveType.Cube, "IceMachine", r, new Vector3(-0.5f, 0.25f, 0.05f), new Vector3(0.42f, 0.5f, 0.42f), Mat("Machine", new Color(0.18f, 0.18f, 0.2f)), true);
+            Prim(PrimitiveType.Cube, "IceBinVisual", r, new Vector3(-0.5f, 0.505f, 0.05f), new Vector3(0.36f, 0.01f, 0.36f), iceMat, false);
             var bin = new GameObject("IceBinZone");
             bin.transform.SetParent(r, false);
-            bin.transform.localPosition = new Vector3(-0.5f, 0.62f, 0.1f);
+            bin.transform.localPosition = new Vector3(-0.5f, 0.62f, 0.05f);
             bin.layer = 2; // Ignore Raycast
             var binCol = bin.AddComponent<BoxCollider>();
             binCol.isTrigger = true;
@@ -266,7 +266,7 @@ namespace BariBarista.Minigames.EditorTools
             // 스쿱: 앞(+X)이 열린 상자. 로컬 -Z축(뒤)으로 기울이면 앞이 내려가 쏟아진다
             var scoopGo = new GameObject("Scoop");
             scoopGo.transform.SetParent(r, false);
-            scoopGo.transform.localPosition = new Vector3(-0.1f, 0.62f, -0.1f);
+            scoopGo.transform.localPosition = new Vector3(-0.1f, 0.62f, 0.05f);
             var metal = Mat("Metal", new Color(0.75f, 0.75f, 0.78f));
             Prim(PrimitiveType.Cube, "Base", scoopGo.transform, new Vector3(0f, -0.05f, 0f), new Vector3(0.26f, 0.025f, 0.22f), metal, true);
             Prim(PrimitiveType.Cube, "BackWall", scoopGo.transform, new Vector3(-0.13f, 0.03f, 0f), new Vector3(0.02f, 0.17f, 0.22f), metal, true);
@@ -293,6 +293,11 @@ namespace BariBarista.Minigames.EditorTools
                 ("viewCamera", cam),
                 ("grabMode", (int)MouseSpringFollower.GrabMode.Always),
                 ("maxDistanceFromOrigin", 0.9f),
+                // 시작 Z(컵 가운데 선)에 고정. X는 제빙기 왼쪽 끝~컵 오른쪽을 덮고 화면 밖으로는 안 나가는 범위
+                ("lockWorldZ", true),
+                ("limitWorldX", true),
+                ("minXFromOrigin", -0.55f),
+                ("maxXFromOrigin", 0.5f),
                 ("springStrength", 150f),
                 ("damping", 16f),
                 ("maxSpeed", 5f),
