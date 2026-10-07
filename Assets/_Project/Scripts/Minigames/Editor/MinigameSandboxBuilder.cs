@@ -26,6 +26,7 @@ namespace BariBarista.Minigames.EditorTools
         private static readonly Color MilkColor = new Color(0.97f, 0.96f, 0.92f);
         private static readonly Color EspressoColor = new Color(0.25f, 0.13f, 0.06f);
         private static readonly Color IceColor = new Color(0.78f, 0.93f, 1f);
+        private const float IceCubeSize = 0.085f;
 
         private static readonly Dictionary<string, Material> materials = new Dictionary<string, Material>();
         // 재생성 중이면 같은 경로를 덮어써서 GUID를 유지한다(새 이름 만들기 없음)
@@ -237,6 +238,7 @@ namespace BariBarista.Minigames.EditorTools
             var iceMat = IceMat();
             Prim(PrimitiveType.Cube, "IceMachine", r, new Vector3(-0.5f, 0.25f, 0.05f), new Vector3(0.42f, 0.5f, 0.42f), Mat("Machine", new Color(0.18f, 0.18f, 0.2f)), true);
             Prim(PrimitiveType.Cube, "IceBinVisual", r, new Vector3(-0.5f, 0.505f, 0.05f), new Vector3(0.36f, 0.01f, 0.36f), iceMat, false);
+            AddIceMound(r, iceMat, new Vector3(-0.5f, 0.51f, 0.05f), 0.32f);
             var bin = new GameObject("IceBinZone");
             bin.transform.SetParent(r, false);
             bin.transform.localPosition = new Vector3(-0.5f, 0.62f, 0.05f);
@@ -275,7 +277,7 @@ namespace BariBarista.Minigames.EditorTools
             // 낮은 앞턱: 들고 다닐 땐 얼음을 붙잡고, 기울이면 넘어간다
             Prim(PrimitiveType.Cube, "FrontLip", scoopGo.transform, new Vector3(0.13f, -0.025f, 0f), new Vector3(0.02f, 0.03f, 0.22f), metal, true);
             Prim(PrimitiveType.Cube, "Handle", scoopGo.transform, new Vector3(-0.22f, 0.02f, 0f), new Vector3(0.16f, 0.03f, 0.04f), Mat("Handle", new Color(0.2f, 0.2f, 0.22f)), false);
-            var fillPoint = Empty("FillPoint", scoopGo.transform, new Vector3(0f, 0.04f, 0f));
+            var fillPoint = Empty("FillPoint", scoopGo.transform, new Vector3(0f, 0.015f, 0f)); // 스쿱 바닥 위 오목한 안쪽
             var scoopZoneGo = new GameObject("ScoopZone");
             scoopZoneGo.transform.SetParent(scoopGo.transform, false);
             scoopZoneGo.transform.localPosition = new Vector3(0f, 0.02f, 0f);
@@ -328,6 +330,34 @@ namespace BariBarista.Minigames.EditorTools
         }
 
         // ───────────────────────── 우유 붓기 ─────────────────────────
+
+        /// <summary>제빙기 판 위의 장식 얼음 더미. 콜라이더 없이 같은 재질을 써서 배칭을 유지한다.</summary>
+        private static void AddIceMound(Transform parent, Material mat, Vector3 center, float width)
+        {
+            var mound = Empty("IceMound", parent, center);
+            var rng = new System.Random(7);
+            // 층마다 칸 수와 높이를 줄여 가운데가 솟은 더미 모양을 만든다 (4x4 + 3x3 + 2x2 = 29개)
+            int[] grid = { 4, 3, 2 };
+            float y = 0.035f;
+            for (int layer = 0; layer < grid.Length; layer++)
+            {
+                int n = grid[layer];
+                float step = width / 4f;
+                for (int ix = 0; ix < n; ix++)
+                {
+                    for (int iz = 0; iz < n; iz++)
+                    {
+                        float x = (ix - (n - 1) * 0.5f) * step + ((float)rng.NextDouble() - 0.5f) * 0.02f;
+                        float z = (iz - (n - 1) * 0.5f) * step + ((float)rng.NextDouble() - 0.5f) * 0.02f;
+                        float size = IceCubeSize * (0.85f + (float)rng.NextDouble() * 0.3f);
+                        var cube = Prim(PrimitiveType.Cube, "DecoIce", mound.transform,
+                            new Vector3(x, y + ((float)rng.NextDouble() - 0.5f) * 0.01f, z), Vector3.one * size, mat, false);
+                        cube.transform.localRotation = Quaternion.Euler((float)rng.NextDouble() * 360f, (float)rng.NextDouble() * 360f, (float)rng.NextDouble() * 360f);
+                    }
+                }
+                y += 0.055f;
+            }
+        }
 
         private static GameObject BuildMilk()
         {
@@ -615,15 +645,17 @@ namespace BariBarista.Minigames.EditorTools
 
         private static IcePiece CreateIcePrefab()
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "IceCube";
-            go.transform.localScale = Vector3.one * 0.085f;
-            go.GetComponent<Renderer>().sharedMaterial = IceMat();
+            // 콜라이더는 루트에 최종 크기로 두고, 보이는 모델만 자식으로 두어 커지게 한다
+            var go = new GameObject("IceCube");
+            var col = go.AddComponent<BoxCollider>();
+            col.size = Vector3.one * IceCubeSize;
+            var model = Prim(PrimitiveType.Cube, "Model", go.transform, Vector3.zero, Vector3.one * IceCubeSize, IceMat(), false);
             var rb = go.AddComponent<Rigidbody>();
             rb.mass = 0.05f;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            go.AddComponent<IcePiece>();
+            var piece = go.AddComponent<IcePiece>();
+            Configure(piece, ("visual", model.transform));
             string path = TargetPath(PrefabsDir + "/IceCube.prefab");
             var prefab = PrefabUtility.SaveAsPrefabAsset(go, path);
             Object.DestroyImmediate(go);

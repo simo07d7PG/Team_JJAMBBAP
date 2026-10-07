@@ -38,12 +38,12 @@ namespace BariBarista.Minigames
         }
 
         /// <summary>얼음 하나를 꺼낸다. 다 쓰고 있으면 null.</summary>
-        public IcePiece Spawn(Vector3 position, Quaternion rotation)
+        public IcePiece Spawn(Vector3 position, Quaternion rotation, float sizeFactor = 1f)
         {
             EnsureInit();
             if (active.Count >= capacity) return null;
             IcePiece piece = pool.Get();
-            piece.ResetPiece(position, rotation);
+            piece.ResetPiece(position, rotation, sizeFactor);
             return piece;
         }
 

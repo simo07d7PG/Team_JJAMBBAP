@@ -45,6 +45,8 @@ namespace BariBarista.Minigames
         [SerializeField] private float dropHeight = 0.06f;
         [Tooltip("얼음이 생길 때 위치를 흩뜨리는 반경")]
         [SerializeField] private float spawnJitter = 0.03f;
+        [Tooltip("얼음 크기 무작위 폭(기본 크기의 ±비율)")]
+        [SerializeField] private float sizeVariation = 0.15f;
         [Tooltip("컵 액체 높이 표시용 컵 용량(ml)")]
         [SerializeField] private float cupCapacityMl = 300f;
 
@@ -188,7 +190,8 @@ namespace BariBarista.Minigames
             if (icePool == null || scoopFillPoint == null) return;
             Vector2 j = UnityEngine.Random.insideUnitCircle * spawnJitter;
             Vector3 pos = scoopFillPoint.position + new Vector3(j.x, 0f, j.y);
-            IcePiece piece = icePool.Spawn(pos, UnityEngine.Random.rotationUniform);
+            float size = IceSizing.SizeFactor(UnityEngine.Random.value, sizeVariation);
+            IcePiece piece = icePool.Spawn(pos, UnityEngine.Random.rotationUniform, size);
             if (piece != null && scoop != null && scoop.Body != null)
                 piece.Body.linearVelocity = scoop.Body.linearVelocity;
         }
