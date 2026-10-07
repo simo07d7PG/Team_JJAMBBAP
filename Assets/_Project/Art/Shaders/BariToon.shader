@@ -6,6 +6,7 @@ Shader "BariBarista/Toon"
 {
     Properties
     {
+        [MainTexture] _BaseMap("밝은 면 무늬(없으면 흰색)", 2D) = "white" {}
         [MainColor] _BaseColor("밝은 면 색", Color) = (1, 1, 1, 1)
         _ShadeStrength("어두운 면 밝기 비율", Range(0, 1)) = 0.62
         _ShadeTint("어두운 면 색 틴트", Color) = (0.95, 0.85, 0.8, 1)
@@ -71,6 +72,7 @@ Shader "BariBarista/Toon"
             {
                 float4 positionOS : POSITION;
                 float3 normalOS : NORMAL;
+                float2 uv : TEXCOORD0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -79,6 +81,7 @@ Shader "BariBarista/Toon"
                 float4 positionCS : SV_POSITION;
                 float3 positionWS : TEXCOORD0;
                 float3 normalWS : TEXCOORD1;
+                float2 uv : TEXCOORD2;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
@@ -93,6 +96,7 @@ Shader "BariBarista/Toon"
                 output.positionCS = pos.positionCS;
                 output.positionWS = pos.positionWS;
                 output.normalWS = TransformObjectToWorldNormal(input.normalOS);
+                output.uv = TRANSFORM_TEX(input.uv, _BaseMap);
                 return output;
             }
 
@@ -112,8 +116,9 @@ Shader "BariBarista/Toon"
 
                 half3 ambient = SampleSH(n);
                 half3 lightColor = mainLight.color;
-                half3 bright = _BaseColor.rgb * (lightColor * 0.8 + ambient * 0.6 + 0.2);
-                half3 shade = _BaseColor.rgb * _ShadeTint.rgb * _ShadeStrength * (ambient + lightColor * 0.25 + 0.25);
+                half3 baseRgb = _BaseColor.rgb * SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv).rgb;
+                half3 bright = baseRgb * (lightColor * 0.8 + ambient * 0.6 + 0.2);
+                half3 shade = baseRgb * _ShadeTint.rgb * _ShadeStrength * (ambient + lightColor * 0.25 + 0.25);
                 half3 col = lerp(shade, bright, lit);
 
                 // 하이라이트 띠: 반사 벡터가 가까울 때만 켜는 단일 계단
