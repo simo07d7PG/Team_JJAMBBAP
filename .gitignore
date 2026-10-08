@@ -110,3 +110,5 @@ InitTestScene*.unity*
 .claude/
 CLAUDE.md
 CLAUDE.local.md
+
+.vscode/
