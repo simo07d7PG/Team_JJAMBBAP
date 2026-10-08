@@ -4,6 +4,8 @@
     "references": [
         "BariBarista.Minigames",
         "BariBarista.Minigames.Logic",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI",
         "UnityEditor.TestRunner",
         "UnityEngine.TestRunner"
     ],

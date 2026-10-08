@@ -39,6 +39,14 @@ namespace BariBarista.Minigames
         [SerializeField] private Vector3 planeNormal = Vector3.up;
         [Tooltip("평면 기준점에서 벗어날 수 있는 최대 거리")]
         [SerializeField] private float maxDistanceFromOrigin = 1.5f;
+        [Tooltip("켜면 기준점의 월드 Z에 고정한다(목표점 제한 + 물리 충돌로도 밀리지 않음)")]
+        [SerializeField] private bool lockWorldZ;
+        [Tooltip("켜면 기준점 대비 월드 X 이동 범위를 제한한다")]
+        [SerializeField] private bool limitWorldX;
+        [Tooltip("기준점 대비 월드 X 최솟값(보통 음수)")]
+        [SerializeField] private float minXFromOrigin = -1f;
+        [Tooltip("기준점 대비 월드 X 최댓값")]
+        [SerializeField] private float maxXFromOrigin = 1f;
         [Tooltip("스프링 강도. 클수록 빨리 따라온다")]
         [SerializeField] private float springStrength = 150f;
         [Tooltip("감쇠. 작을수록 출렁인다 (임계 감쇠 ≈ 2·√강도)")]
@@ -93,6 +101,33 @@ namespace BariBarista.Minigames
             restRotation = transform.rotation;
             originPoint = planeOrigin != null ? planeOrigin.position : transform.position;
             holdTarget = transform.position;
+            ApplyZConstraint();
+        }
+
+        /// <summary>월드 Z 고정과 월드 X 범위를 코드로 정한다(테스트·도구용). 범위는 기준점 대비 값.</summary>
+        public void SetAxisLimits(bool lockZ, bool limitX, float minX, float maxX)
+        {
+            lockWorldZ = lockZ;
+            limitWorldX = limitX;
+            minXFromOrigin = minX;
+            maxXFromOrigin = maxX;
+            if (initialized) ApplyZConstraint();
+        }
+
+        private void ApplyZConstraint()
+        {
+            if (body == null) return;
+            if (lockWorldZ) body.constraints |= RigidbodyConstraints.FreezePositionZ;
+            else body.constraints &= ~RigidbodyConstraints.FreezePositionZ;
+        }
+
+        /// <summary>목표점에 축별 제한을 적용한다. 옵션이 꺼져 있으면 그대로 돌려준다.</summary>
+        private Vector3 ApplyAxisLimits(Vector3 point)
+        {
+            if (lockWorldZ) point.z = originPoint.z;
+            if (limitWorldX)
+                point.x = Mathf.Clamp(point.x, originPoint.x + minXFromOrigin, originPoint.x + maxXFromOrigin);
+            return point;
         }
 
         /// <summary>
@@ -146,8 +181,20 @@ namespace BariBarista.Minigames
             holdTarget = body.position;
         }
 
-        private void Update()
+        private void Update() => PollInput();
+
+        /// <summary>
+        /// 검증 도구용 수동 스텝: 입력 읽기 → 한 스텝 계산. 호출한 쪽이 이어서 Physics.Simulate(dt)를 부른다.
+        /// </summary>
+        public void SimulationStep(float dt)
         {
+            PollInput();
+            Step(dt);
+        }
+
+        private void PollInput()
+        {
+            EnsureInit();
             // 일시정지(timeScale 0) 중에 쌓인 입력이 재개 순간 한꺼번에 반영되지 않게
             if (!InputEnabled || Time.timeScale <= 0f) return;
 
@@ -179,16 +226,18 @@ namespace BariBarista.Minigames
             var plane = new Plane(planeNormal.normalized, originPoint);
             if (!plane.Raycast(ray, out float enter)) return false;
             point = ray.GetPoint(enter);
+            point = ApplyAxisLimits(point);
             Vector3 offset = point - originPoint;
             if (offset.sqrMagnitude > maxDistanceFromOrigin * maxDistanceFromOrigin)
                 point = originPoint + offset.normalized * maxDistanceFromOrigin;
             return true;
         }
 
-        private void FixedUpdate()
+        private void FixedUpdate() => Step(Time.fixedDeltaTime);
+
+        private void Step(float dt)
         {
             if (body == null || body.isKinematic) return;
-            float dt = Time.fixedDeltaTime;
 
             if (InputEnabled && tiltMode == TiltMode.HoldToTilt)
             {
@@ -199,6 +248,7 @@ namespace BariBarista.Minigames
             // 위치: 스프링-감쇠 가속도로 속도를 정하고 Rigidbody에 넣는다
             Vector3 accel = (holdTarget - body.position) * springStrength - velocity * damping;
             velocity += accel * dt;
+            if (lockWorldZ) velocity.z = 0f;
             if (velocity.sqrMagnitude > maxSpeed * maxSpeed) velocity = velocity.normalized * maxSpeed;
             body.linearVelocity = velocity;
 

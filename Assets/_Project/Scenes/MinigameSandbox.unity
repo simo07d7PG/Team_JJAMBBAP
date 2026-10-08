@@ -20,11 +20,11 @@ RenderSettings:
   m_FogDensity: 0.01
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
-  m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
-  m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
+  m_AmbientSkyColor: {r: 0.32, g: 0.36, b: 0.42, a: 1}
+  m_AmbientEquatorColor: {r: 0.27, g: 0.24, b: 0.2, a: 1}
+  m_AmbientGroundColor: {r: 0.1, g: 0.09, b: 0.08, a: 1}
   m_AmbientIntensity: 1
-  m_AmbientMode: 0
+  m_AmbientMode: 1
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
   m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
   m_HaloStrength: 0.5
@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &30267635
+--- !u!1 &374614891
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,8 +127,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 30267637}
-  - component: {fileID: 30267636}
+  - component: {fileID: 374614893}
+  - component: {fileID: 374614892}
   m_Layer: 0
   m_Name: Directional Light
   m_TagString: Untagged
@@ -136,18 +136,18 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!108 &30267636
+--- !u!108 &374614892
 Light:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 30267635}
+  m_GameObject: {fileID: 374614891}
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 1
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Intensity: 1.2
+  m_Color: {r: 1, g: 0.86, b: 0.7, a: 1}
+  m_Intensity: 1.5
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -156,7 +156,7 @@ Light:
     m_Type: 2
     m_Resolution: -1
     m_CustomResolution: -1
-    m_Strength: 1
+    m_Strength: 0.85
     m_Bias: 0.05
     m_NormalBias: 0.4
     m_NearPlane: 0.2
@@ -201,22 +201,22 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
---- !u!4 &30267637
+--- !u!4 &374614893
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 30267635}
+  m_GameObject: {fileID: 374614891}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.40821794, y: -0.23456973, z: 0.10938166, w: 0.8754261}
+  m_LocalRotation: {x: 0.23367861, y: 0.251131, z: -0.062613994, w: 0.9372337}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1513249950
+--- !u!1 &1638561913
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -224,9 +224,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1513249953}
-  - component: {fileID: 1513249952}
-  - component: {fileID: 1513249951}
+  - component: {fileID: 1638561916}
+  - component: {fileID: 1638561915}
+  - component: {fileID: 1638561914}
   m_Layer: 0
   m_Name: MicrogameRunner
   m_TagString: Untagged
@@ -234,44 +234,46 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1513249951
+--- !u!114 &1638561914
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1513249950}
+  m_GameObject: {fileID: 1638561913}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fb0bea3e9522d1247ae938c83914a0d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.StandaloneMicrogameRunner
   entries:
-  - microgame: {fileID: 6930057594469367076}
+  - microgame: {fileID: 9167332782007515589}
     definition: {fileID: 11400000, guid: 0e07158444e6adb46ad4a0802ef392d1, type: 2}
-  - microgame: {fileID: 1643428532996228144}
+  - microgame: {fileID: 2091237432550039442}
     definition: {fileID: 11400000, guid: b066eeb68f8490e4e9dd3000a6b84840, type: 2}
-  - microgame: {fileID: 209378442846097616}
+  - microgame: {fileID: 5503756797715939893}
     definition: {fileID: 11400000, guid: 5857a6ab41f864340ba91478fede83f3, type: 2}
   startIndex: 0
   autoStart: 1
   keepCupBetweenRuns: 0
   fallbackTimeLimit: 7
---- !u!81 &1513249952
+  instructionSeconds: 0.5
+  autoRestartDelay: 1
+--- !u!81 &1638561915
 AudioListener:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1513249950}
+  m_GameObject: {fileID: 1638561913}
   m_Enabled: 1
---- !u!4 &1513249953
+--- !u!4 &1638561916
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1513249950}
+  m_GameObject: {fileID: 1638561913}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -280,75 +282,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &209378442846097615
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 458489003686554954, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
-      propertyPath: m_Name
-      value: MilkPour
-      objectReference: {fileID: 0}
-    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 60
-      objectReference: {fileID: 0}
-    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
---- !u!114 &209378442846097616 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 3239885057227589666, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
-  m_PrefabInstance: {fileID: 209378442846097615}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 51d5e0952f51d2a4cae643764bb79564, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.MilkPourMicrogame
---- !u!1001 &1643428532996228143
+--- !u!1001 &2091237432550039441
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -405,10 +339,10 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b3ef7f3e7ae3e8d47b9e28ccbc27920d, type: 3}
---- !u!114 &1643428532996228144 stripped
+--- !u!114 &2091237432550039442 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 3274194201776307617, guid: b3ef7f3e7ae3e8d47b9e28ccbc27920d, type: 3}
-  m_PrefabInstance: {fileID: 1643428532996228143}
+  m_PrefabInstance: {fileID: 2091237432550039441}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
   m_Enabled: 1
@@ -416,7 +350,75 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 30c989493180b5f4fb3ec28a8e953046, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.IceScoopMicrogame
---- !u!1001 &6930057594469367075
+--- !u!1001 &5503756797715939892
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 458489003686554954, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
+      propertyPath: m_Name
+      value: MilkPour
+      objectReference: {fileID: 0}
+    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 60
+      objectReference: {fileID: 0}
+    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7680748900734555355, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
+--- !u!114 &5503756797715939893 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3239885057227589666, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
+  m_PrefabInstance: {fileID: 5503756797715939892}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 51d5e0952f51d2a4cae643764bb79564, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.MilkPourMicrogame
+--- !u!1001 &9167332782007515588
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -473,10 +475,10 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 54f7d8caa93b45e46958860ab677edc0, type: 3}
---- !u!114 &6930057594469367076 stripped
+--- !u!114 &9167332782007515589 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 8031438303724987602, guid: 54f7d8caa93b45e46958860ab677edc0, type: 3}
-  m_PrefabInstance: {fileID: 6930057594469367075}
+  m_PrefabInstance: {fileID: 9167332782007515588}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
   m_Enabled: 1
@@ -488,8 +490,8 @@ MonoBehaviour:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 30267637}
-  - {fileID: 6930057594469367075}
-  - {fileID: 1643428532996228143}
-  - {fileID: 209378442846097615}
-  - {fileID: 1513249953}
+  - {fileID: 374614893}
+  - {fileID: 9167332782007515588}
+  - {fileID: 2091237432550039441}
+  - {fileID: 5503756797715939892}
+  - {fileID: 1638561916}

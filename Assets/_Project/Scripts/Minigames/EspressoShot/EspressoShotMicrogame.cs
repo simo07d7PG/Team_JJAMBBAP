@@ -47,7 +47,7 @@ namespace BariBarista.Minigames
         [Tooltip("받침 아래 조리대 높이 기준 (컵 없이 추출할 때 줄기 길이)")]
         [SerializeField] private Transform counter;
         [SerializeField] private CupVisual cupVisual;
-        [SerializeField] private VerticalGauge gauge;
+        [SerializeField] private EspressoShotHud hud;
         [Tooltip("추출 줄기 피벗. 추출구에 두고 localScale.y = 길이")]
         [SerializeField] private Transform stream;
         [SerializeField] private ParticleSystem streamParticles;
@@ -73,6 +73,7 @@ namespace BariBarista.Minigames
         };
 
         private readonly ShotJudge judge = new ShotJudge();
+        private readonly GuideTimer guide = new GuideTimer();
         private Vector3 cupRestPos;
         private Quaternion cupRestRot;
         private Vector3 buttonRestLocal;
@@ -127,11 +128,7 @@ namespace BariBarista.Minigames
             if (streamParticles != null) streamParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             if (extractButton != null) extractButton.localPosition = buttonRestLocal;
 
-            if (gauge != null)
-            {
-                gauge.SetRange(lv.targetMinMl / lv.capacityMl, lv.targetMaxMl / lv.capacityMl);
-                gauge.SetValue(0f);
-            }
+            if (hud != null) hud.Configure(lv.targetMinMl, lv.targetMaxMl, lv.capacityMl, lv.misplacedCup);
         }
 
         private void PlaceCup(bool misplaced)
@@ -163,10 +160,17 @@ namespace BariBarista.Minigames
             return new Vector3(s.x, cupRestPos.y, s.z);
         }
 
-        protected override void OnBegin()
+        protected override void OnPrepare()
         {
+            guide.Reset();
+            if (hud != null) hud.ShowGuide(Ctx.Definition != null ? Ctx.Definition.instruction : PresentationRules.InstructionShot);
+            // 안내 단계에서도 컵 모델이 이번 컵 내용물을 보여 주도록
             UpdateCupVisual();
             if (cupVisual != null) cupVisual.SetIceVisible(Ctx.Cup.IceCount > 0);
+        }
+
+        protected override void OnBegin()
+        {
             // 메인 씬에서 기계를 클릭한 채로 들어와도 바로 추출되지 않게 현재 상태에서 시작
             wasHeld = Hand.GrabHeld;
         }
@@ -177,6 +181,12 @@ namespace BariBarista.Minigames
             bool held = Hand.GrabHeld;
             bool pressed = held && !wasHeld;
             wasHeld = held;
+            if (held) guide.MarkInput();
+            if (hud != null)
+            {
+                hud.SetGuideBig(guide.Tick(dt));
+                hud.SetCupHint(!cupPlaced);
+            }
 
             // Lv3: 받침 밖의 컵을 클릭하면 끌기 시작
             if (!cupPlaced && !dragging && !extracting && pressed && PointerOverCup())
@@ -271,7 +281,7 @@ namespace BariBarista.Minigames
                 SetStream(flow, StreamLengthTo(cup.position.y));
                 var outcome = judge.AddToCup(ml);
                 UpdateCupVisual();
-                if (gauge != null) gauge.SetValue(judge.Extracted / judge.Capacity);
+                if (hud != null) hud.SetAmount(judge.Extracted, judge.Capacity);
                 Complete(outcome);
             }
             else
@@ -342,6 +352,11 @@ namespace BariBarista.Minigames
         {
             result.Amount = judge.Extracted;
             result.Wasted = judge.Spilled + floorMl;
+        }
+
+        protected override void OnPresentStart(in MicrogameResult result)
+        {
+            if (hud != null) hud.ShowResult(result);
         }
 
         protected override void OnEnd(MicrogameResult result)

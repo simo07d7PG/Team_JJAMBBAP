@@ -32,10 +32,9 @@ namespace BariBarista.Minigames
         [Tooltip("바닥 높이 기준 (줄기 길이)")]
         [SerializeField] private Transform floor;
         [SerializeField] private CupVisual cupVisual;
-        [SerializeField] private VerticalGauge gauge;
+        [SerializeField] private MilkPourHud hud;
         [Tooltip("우유 줄기 피벗. localScale.y = 길이, 위쪽이 원점")]
         [SerializeField] private Transform stream;
-        [SerializeField] private ParticleSystem pourParticles;
 
         [Header("손맛")]
         [SerializeField] private float cupCapacityMl = 300f;
@@ -61,6 +60,7 @@ namespace BariBarista.Minigames
         };
 
         private readonly PourJudge judge = new PourJudge();
+        private readonly GuideTimer guide = new GuideTimer();
         private Vector3 cartonStartPos;
         private Quaternion cartonStartRot;
         private Vector3 streamRestScale;
@@ -98,19 +98,16 @@ namespace BariBarista.Minigames
             lastAngle = 0f;
             glugRemaining = 0f;
             SetStream(false, 0f);
-            if (pourParticles != null) pourParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 
             var lv = Level;
             judge.Reset(lv.targetMin01, lv.targetMax01, cupCapacityMl, 0f, lv.maxOutsideMl);
-            if (gauge != null)
-            {
-                gauge.SetRange(lv.targetMin01, lv.targetMax01);
-                gauge.SetValue(0f);
-            }
+            if (hud != null) hud.Configure(lv.targetMin01, lv.targetMax01);
         }
 
-        protected override void OnBegin()
+        protected override void OnPrepare()
         {
+            guide.Reset();
+            if (hud != null) hud.ShowGuide(Ctx.Definition != null ? Ctx.Definition.instruction : PresentationRules.InstructionPour);
             // 기존 내용물(에스프레소·얼음)을 액체 높이에 합산한다
             var cup = Ctx.Cup;
             var lv = Level;
@@ -119,6 +116,10 @@ namespace BariBarista.Minigames
 
             if (cupVisual != null) cupVisual.SetIceVisible(cup.IceCount > 0);
             UpdateCupDisplay();
+        }
+
+        protected override void OnBegin()
+        {
             if (carton != null) carton.InputEnabled = true;
         }
 
@@ -126,6 +127,8 @@ namespace BariBarista.Minigames
         {
             float dt = TickDelta;
             if (carton == null || dt <= 0f) return;
+            if (Hand.GrabHeld || Hand.TiltHeld) guide.MarkInput();
+            if (hud != null) hud.SetGuideBig(guide.Tick(dt));
 
             float angle = carton.ActualTilt;
             float tiltSpeed = (angle - lastAngle) / dt;
@@ -143,7 +146,6 @@ namespace BariBarista.Minigames
                 // 팩을 다시 세웠다 → 판정
                 pouring = false;
                 SetStream(false, 0f);
-                if (pourParticles != null) pourParticles.Stop(true, ParticleSystemStopBehavior.StopEmitting);
                 Complete(judge.StopPouring());
                 return;
             }
@@ -166,8 +168,6 @@ namespace BariBarista.Minigames
             float ml = flow * dt;
             if (ml <= 0f) { SetStream(false, 0f); return; }
 
-            if (pourParticles != null && !pourParticles.isEmitting) pourParticles.Play(true);
-
             JudgeOutcome outcome;
             if (TryHitCup(out float hitDistance))
             {
@@ -178,6 +178,7 @@ namespace BariBarista.Minigames
             else
             {
                 outcome = judge.AddOutside(ml);
+                if (hud != null) hud.SetSpill(judge.MaxOutsideMl > 0f ? judge.OutsideMl / judge.MaxOutsideMl : 1f);
                 SetStream(true, spout != null && floor != null ? Mathf.Max(0f, spout.position.y - floor.position.y) : 1f);
             }
             Complete(outcome);
@@ -212,7 +213,7 @@ namespace BariBarista.Minigames
                 cupVisual.SetFill(judge.Fill01);
                 cupVisual.SetColorFrom(Ctx.Cup, 0f, Mathf.Max(0f, judge.PouredInMl));
             }
-            if (gauge != null) gauge.SetValue(judge.Fill01);
+            if (hud != null) hud.SetFill(judge.Fill01);
         }
 
         protected override void OnTimeUp()
@@ -226,11 +227,15 @@ namespace BariBarista.Minigames
             result.Wasted = judge.OverflowMl + judge.OutsideMl;
         }
 
+        protected override void OnPresentStart(in MicrogameResult result)
+        {
+            if (hud != null) hud.ShowResult(result);
+        }
+
         protected override void OnEnd(MicrogameResult result)
         {
             pouring = false;
             SetStream(false, 0f);
-            if (pourParticles != null) pourParticles.Stop(true, ParticleSystemStopBehavior.StopEmitting);
             if (carton != null) carton.InputEnabled = false;
         }
 

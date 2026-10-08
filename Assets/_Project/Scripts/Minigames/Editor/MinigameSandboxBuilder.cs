@@ -18,33 +18,109 @@ namespace BariBarista.Minigames.EditorTools
         private const string DataDir = "Assets/_Project/Data/Minigames";
         private const string CeramicCupPath = "Assets/_Project/Art/Models/ceramic cup.fbx";
         private const string PaperCupPath = "Assets/_Project/Art/Models/Paper cup.fbx";
+        private const string ToonDir = "Assets/_Project/Art/Materials/Toon";
+        private const string CafeMaterialsDir = "Assets/_Project/Art/Cafe/Materials";
+        private const string ToonShaderName = "BariBarista/Toon";
         private const float Spacing = 30f;
 
+        private static readonly Color MilkColor = new Color(0.97f, 0.96f, 0.92f);
+        private static readonly Color EspressoColor = new Color(0.25f, 0.13f, 0.06f);
+        private static readonly Color IceColor = new Color(0.78f, 0.93f, 1f);
+        private const float IceCubeSize = 0.085f;
+
         private static readonly Dictionary<string, Material> materials = new Dictionary<string, Material>();
+        // 재생성 중이면 같은 경로를 덮어써서 GUID를 유지한다(새 이름 만들기 없음)
+        private static bool rebuilding;
 
         [MenuItem("Tools/BariBarista/Create Minigame Sandbox")]
-        public static void Create()
+        public static void Create() => Build(false);
+
+        /// <summary>
+        /// 프리팹·정의 에셋·샌드박스 씬을 코드대로 다시 만든다. 같은 경로를 덮어써서 GUID가 그대로다.
+        /// 프리팹을 손으로 고친 내용은 사라지므로, 바꾸고 싶은 값은 이 빌더에 적는다.
+        /// </summary>
+        [MenuItem("Tools/BariBarista/Rebuild Minigame Prefabs")]
+        public static void Rebuild() => Build(true);
+
+        private static string TargetPath(string path) => rebuilding ? path : AssetDatabase.GenerateUniqueAssetPath(path);
+
+        private static void Build(bool rebuild)
         {
-            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                Debug.LogWarning("[MinigameSandbox] 플레이 중에는 실행할 수 없습니다.");
+                return;
+            }
+
+            // 샌드박스 씬을 손으로 고친 채 저장하지 않았다면 다시 만들 때 사라지므로 어느 방식이든 취소한다
+            string sandboxPath = ScenesDir + "/MinigameSandbox.unity";
+            for (int i = 0; i < EditorSceneManager.sceneCount; i++)
+            {
+                var open = EditorSceneManager.GetSceneAt(i);
+                if (open.isDirty && open.path == sandboxPath)
+                {
+                    Debug.LogWarning("[MinigameSandbox] 샌드박스 씬에 저장하지 않은 변경이 있어 취소했습니다. 저장하거나 되돌린 뒤 다시 실행하세요.");
+                    return;
+                }
+            }
+
+            if (rebuild)
+            {
+                // 다른 씬의 저장 안 한 변경은 지키기 위해 취소한다
+                for (int i = 0; i < EditorSceneManager.sceneCount; i++)
+                {
+                    var open = EditorSceneManager.GetSceneAt(i);
+                    if (open.isDirty)
+                    {
+                        Debug.LogWarning($"[MinigameSandbox] 저장하지 않은 씬({open.path})이 있어 취소했습니다.");
+                        return;
+                    }
+                }
+            }
+            else if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
             {
                 Debug.LogWarning("[MinigameSandbox] 저장하지 않은 씬이 있어 취소했습니다.");
                 return;
             }
 
+            rebuilding = rebuild;
+            try
+            {
+                BuildAll();
+            }
+            finally
+            {
+                rebuilding = false;
+            }
+        }
+
+        private static void BuildAll()
+        {
             EnsureFolder(ScenesDir);
             EnsureFolder(PrefabsDir);
             EnsureFolder(MaterialsDir);
             EnsureFolder(DataDir);
+            EnsureFolder(ToonDir);
             materials.Clear();
+            MinigameUiBuilder.EnsureAssets();
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
+            // 주광·환경광은 GameScene 값에 맞춘다(GameScene은 읽기만 했다)
             var lightGo = new GameObject("Directional Light");
             var light = lightGo.AddComponent<Light>();
             light.type = LightType.Directional;
-            light.intensity = 1.2f;
+            light.color = new Color(1f, 0.86f, 0.7f);
+            light.intensity = 1.5f;
             light.shadows = LightShadows.Soft;
-            lightGo.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
+            light.shadowStrength = 0.85f;
+            lightGo.transform.rotation = new Quaternion(0.23367861f, 0.251131f, -0.062613994f, 0.9372337f);
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.32f, 0.36f, 0.42f);
+            RenderSettings.ambientEquatorColor = new Color(0.27f, 0.24f, 0.2f);
+            RenderSettings.ambientGroundColor = new Color(0.1f, 0.09f, 0.08f);
+            RenderSettings.ambientIntensity = 1f;
+            RenderSettings.fog = false;
 
             IcePiece icePrefab = CreateIcePrefab();
 
@@ -60,9 +136,9 @@ namespace BariBarista.Minigames.EditorTools
             var icePrefabRoot = SavePrefab(ice, "IceScoop");
             var milkPrefab = SavePrefab(milk, "MilkPour");
 
-            var espressoDef = CreateDefinition("EspressoShot", "espresso_shot", "샷 내려라!", "espresso", 7f, espressoPrefab);
-            var iceDef = CreateDefinition("IceScoop", "ice_scoop", "얼음 퍼라!", "ice", 8f, icePrefabRoot);
-            var milkDef = CreateDefinition("MilkPour", "milk_pour", "우유 부어라!", "milk", 7f, milkPrefab);
+            var espressoDef = CreateDefinition("EspressoShot", "espresso_shot", PresentationRules.InstructionShot, "espresso", 7f, espressoPrefab);
+            var iceDef = CreateDefinition("IceScoop", "ice_scoop", PresentationRules.InstructionIce, "ice", 8f, icePrefabRoot);
+            var milkDef = CreateDefinition("MilkPour", "milk_pour", PresentationRules.InstructionPour, "milk", 7f, milkPrefab);
 
             // 단독 실행기 (AudioListener는 여기 하나만 둔다. 미니게임 프리팹에는 넣지 않는다)
             var runnerGo = new GameObject("MicrogameRunner");
@@ -76,7 +152,7 @@ namespace BariBarista.Minigames.EditorTools
             SetEntry(entries.GetArrayElementAtIndex(2), milk.GetComponent<MicrogameBase>(), milkDef);
             so.ApplyModifiedPropertiesWithoutUndo();
 
-            string scenePath = AssetDatabase.GenerateUniqueAssetPath(ScenesDir + "/MinigameSandbox.unity");
+            string scenePath = TargetPath(ScenesDir + "/MinigameSandbox.unity");
             EditorSceneManager.SaveScene(scene, scenePath);
             AssetDatabase.SaveAssets();
             Debug.Log($"[MinigameSandbox] 생성 완료: {scenePath}\n프리팹: {AssetDatabase.GetAssetPath(espressoPrefab)}, {AssetDatabase.GetAssetPath(icePrefabRoot)}, {AssetDatabase.GetAssetPath(milkPrefab)}\n정의: {AssetDatabase.GetAssetPath(espressoDef)}, {AssetDatabase.GetAssetPath(iceDef)}, {AssetDatabase.GetAssetPath(milkDef)}");
@@ -91,7 +167,7 @@ namespace BariBarista.Minigames.EditorTools
             game.Id = "espresso_shot";
             Transform r = root.transform;
 
-            var cam = AddCamera(r, new Vector3(0.05f, 0.75f, -1.05f), new Vector3(0.1f, 0.3f, 0.05f));
+            var cam = AddCamera(r, new Vector3(0.05f, 0.9f, -1.2f), new Vector3(0.1f, 0.32f, 0.05f));
             var floor = AddFloor(r);
 
             Prim(PrimitiveType.Cube, "MachineBody", r, new Vector3(0f, 0.6f, 0.4f), new Vector3(0.8f, 1.2f, 0.5f), Mat("Machine", new Color(0.18f, 0.18f, 0.2f)), true);
@@ -105,7 +181,8 @@ namespace BariBarista.Minigames.EditorTools
             var cupGo = new GameObject("Cup");
             cupGo.transform.SetParent(r, false);
             cupGo.transform.localPosition = new Vector3(0f, 0.02f, 0f);
-            Vector3 cupSize = AddModel(CeramicCupPath, cupGo.transform, 0.2f);
+            var cupPivot = Empty("CupPivot", cupGo.transform, Vector3.zero);
+            Vector3 cupSize = AddModel(CeramicCupPath, cupPivot, 0.2f);
             var cupCol = cupGo.AddComponent<BoxCollider>();
             cupCol.center = new Vector3(0f, cupSize.y * 0.5f, 0f);
             cupCol.size = cupSize;
@@ -124,10 +201,11 @@ namespace BariBarista.Minigames.EditorTools
                 ("tiltSpeed", 0f),
                 ("maxTilt", 0f));
             float liquidDiameter = Mathf.Min(cupSize.x, cupSize.z) * 0.62f;
-            var cupVisual = AddCupVisual(cupGo, liquidDiameter, cupSize.y * 0.8f, 0.015f);
+            var cupVisual = AddCupVisual(cupGo, cupPivot, liquidDiameter, cupSize.y * 0.8f, 0.015f);
 
-            var stream = AddStream(r, spout.localPosition, Mat("Espresso", new Color(0.25f, 0.13f, 0.06f)));
-            var gauge = AddGauge(r, new Vector3(0.3f, 0.03f, -0.05f), 0.4f);
+            var stream = AddStream(r, spout.localPosition, ToonMat("Toon_Stream_Espresso", EspressoColor, new Color(0.07f, 0.035f, 0.02f), 0.005f, false, 0.14f, 70f, 0.1f));
+            AddCafeBackdrop(r);
+            var hud = MinigameUiBuilder.BuildEspressoUi(r);
 
             Configure(game,
                 ("viewCamera", cam),
@@ -138,7 +216,7 @@ namespace BariBarista.Minigames.EditorTools
                 ("cupFollower", cupFollower),
                 ("counter", floor.transform),
                 ("cupVisual", cupVisual),
-                ("gauge", gauge),
+                ("hud", hud),
                 ("stream", stream),
                 ("extractButton", button.transform));
             return root;
@@ -153,16 +231,17 @@ namespace BariBarista.Minigames.EditorTools
             game.Id = "ice_scoop";
             Transform r = root.transform;
 
-            var cam = AddCamera(r, new Vector3(-0.05f, 1.45f, -1.15f), new Vector3(-0.05f, 0.3f, 0.05f));
+            var cam = AddCamera(r, new Vector3(-0.05f, 1.0f, -1.5f), new Vector3(-0.05f, 0.35f, 0.05f));
             var floor = AddFloor(r);
 
             // 제빙기
-            var iceMat = Mat("Ice", new Color(0.8f, 0.93f, 1f));
-            Prim(PrimitiveType.Cube, "IceMachine", r, new Vector3(-0.5f, 0.25f, 0.1f), new Vector3(0.42f, 0.5f, 0.42f), Mat("Machine", new Color(0.18f, 0.18f, 0.2f)), true);
-            Prim(PrimitiveType.Cube, "IceBinVisual", r, new Vector3(-0.5f, 0.505f, 0.1f), new Vector3(0.36f, 0.01f, 0.36f), iceMat, false);
+            var iceMat = IceMat();
+            Prim(PrimitiveType.Cube, "IceMachine", r, new Vector3(-0.5f, 0.25f, 0.05f), new Vector3(0.42f, 0.5f, 0.42f), Mat("Machine", new Color(0.18f, 0.18f, 0.2f)), true);
+            Prim(PrimitiveType.Cube, "IceBinVisual", r, new Vector3(-0.5f, 0.505f, 0.05f), new Vector3(0.36f, 0.01f, 0.36f), iceMat, false);
+            AddIceMound(r, iceMat, new Vector3(-0.5f, 0.51f, 0.05f), 0.32f);
             var bin = new GameObject("IceBinZone");
             bin.transform.SetParent(r, false);
-            bin.transform.localPosition = new Vector3(-0.5f, 0.62f, 0.1f);
+            bin.transform.localPosition = new Vector3(-0.5f, 0.62f, 0.05f);
             bin.layer = 2; // Ignore Raycast
             var binCol = bin.AddComponent<BoxCollider>();
             binCol.isTrigger = true;
@@ -172,7 +251,8 @@ namespace BariBarista.Minigames.EditorTools
             var cupGo = new GameObject("Cup");
             cupGo.transform.SetParent(r, false);
             cupGo.transform.localPosition = new Vector3(0.3f, 0f, 0.05f);
-            Vector3 cupSize = AddModel(PaperCupPath, cupGo.transform, 0.36f, true);
+            var cupPivot = Empty("CupPivot", cupGo.transform, Vector3.zero);
+            Vector3 cupSize = AddModel(PaperCupPath, cupPivot, 0.36f, true);
             float radius = Mathf.Min(cupSize.x, cupSize.z) * 0.45f;
             AddCupWalls(cupGo.transform, radius, cupSize.y);
             var zone = new GameObject("CupZone");
@@ -182,12 +262,13 @@ namespace BariBarista.Minigames.EditorTools
             var zoneCol = zone.AddComponent<BoxCollider>();
             zoneCol.isTrigger = true;
             zoneCol.size = new Vector3(radius * 1.9f, cupSize.y * 1.1f, radius * 1.9f);
-            var cupVisual = AddCupVisual(cupGo, radius * 1.8f, cupSize.y * 0.9f, 0.01f);
+            var cupVisual = AddCupVisual(cupGo, cupPivot, radius * 1.8f, cupSize.y * 0.9f, 0.01f);
+            AddCafeBackdrop(r);
 
             // 스쿱: 앞(+X)이 열린 상자. 로컬 -Z축(뒤)으로 기울이면 앞이 내려가 쏟아진다
             var scoopGo = new GameObject("Scoop");
             scoopGo.transform.SetParent(r, false);
-            scoopGo.transform.localPosition = new Vector3(-0.1f, 0.62f, -0.1f);
+            scoopGo.transform.localPosition = new Vector3(-0.1f, 0.62f, 0.05f);
             var metal = Mat("Metal", new Color(0.75f, 0.75f, 0.78f));
             Prim(PrimitiveType.Cube, "Base", scoopGo.transform, new Vector3(0f, -0.05f, 0f), new Vector3(0.26f, 0.025f, 0.22f), metal, true);
             Prim(PrimitiveType.Cube, "BackWall", scoopGo.transform, new Vector3(-0.13f, 0.03f, 0f), new Vector3(0.02f, 0.17f, 0.22f), metal, true);
@@ -196,7 +277,7 @@ namespace BariBarista.Minigames.EditorTools
             // 낮은 앞턱: 들고 다닐 땐 얼음을 붙잡고, 기울이면 넘어간다
             Prim(PrimitiveType.Cube, "FrontLip", scoopGo.transform, new Vector3(0.13f, -0.025f, 0f), new Vector3(0.02f, 0.03f, 0.22f), metal, true);
             Prim(PrimitiveType.Cube, "Handle", scoopGo.transform, new Vector3(-0.22f, 0.02f, 0f), new Vector3(0.16f, 0.03f, 0.04f), Mat("Handle", new Color(0.2f, 0.2f, 0.22f)), false);
-            var fillPoint = Empty("FillPoint", scoopGo.transform, new Vector3(0f, 0.04f, 0f));
+            var fillPoint = Empty("FillPoint", scoopGo.transform, new Vector3(0f, 0.015f, 0f)); // 스쿱 바닥 위 오목한 안쪽
             var scoopZoneGo = new GameObject("ScoopZone");
             scoopZoneGo.transform.SetParent(scoopGo.transform, false);
             scoopZoneGo.transform.localPosition = new Vector3(0f, 0.02f, 0f);
@@ -214,6 +295,11 @@ namespace BariBarista.Minigames.EditorTools
                 ("viewCamera", cam),
                 ("grabMode", (int)MouseSpringFollower.GrabMode.Always),
                 ("maxDistanceFromOrigin", 0.9f),
+                // 시작 Z(컵 가운데 선)에 고정. X는 제빙기 왼쪽 끝~컵 오른쪽을 덮고 화면 밖으로는 안 나가는 범위
+                ("lockWorldZ", true),
+                ("limitWorldX", true),
+                ("minXFromOrigin", -0.55f),
+                ("maxXFromOrigin", 0.5f),
                 ("springStrength", 150f),
                 ("damping", 16f),
                 ("maxSpeed", 5f),
@@ -227,7 +313,7 @@ namespace BariBarista.Minigames.EditorTools
             var pool = poolGo.AddComponent<IcePiecePool>();
             Configure(pool, ("template", icePrefab));
 
-            var gauge = AddGauge(r, new Vector3(0.58f, 0.03f, 0f), 0.4f);
+            var hud = MinigameUiBuilder.BuildIceUi(r);
 
             Configure(game,
                 ("viewCamera", cam),
@@ -239,11 +325,39 @@ namespace BariBarista.Minigames.EditorTools
                 ("floor", floor.transform),
                 ("icePool", pool),
                 ("cupVisual", cupVisual),
-                ("countGauge", gauge));
+                ("hud", hud));
             return root;
         }
 
         // ───────────────────────── 우유 붓기 ─────────────────────────
+
+        /// <summary>제빙기 판 위의 장식 얼음 더미. 콜라이더 없이 같은 재질을 써서 배칭을 유지한다.</summary>
+        private static void AddIceMound(Transform parent, Material mat, Vector3 center, float width)
+        {
+            var mound = Empty("IceMound", parent, center);
+            var rng = new System.Random(7);
+            // 층마다 칸 수와 높이를 줄여 가운데가 솟은 더미 모양을 만든다 (4x4 + 3x3 + 2x2 = 29개)
+            int[] grid = { 4, 3, 2 };
+            float y = 0.035f;
+            for (int layer = 0; layer < grid.Length; layer++)
+            {
+                int n = grid[layer];
+                float step = width / 4f;
+                for (int ix = 0; ix < n; ix++)
+                {
+                    for (int iz = 0; iz < n; iz++)
+                    {
+                        float x = (ix - (n - 1) * 0.5f) * step + ((float)rng.NextDouble() - 0.5f) * 0.02f;
+                        float z = (iz - (n - 1) * 0.5f) * step + ((float)rng.NextDouble() - 0.5f) * 0.02f;
+                        float size = IceCubeSize * (0.85f + (float)rng.NextDouble() * 0.3f);
+                        var cube = Prim(PrimitiveType.Cube, "DecoIce", mound.transform,
+                            new Vector3(x, y + ((float)rng.NextDouble() - 0.5f) * 0.01f, z), Vector3.one * size, mat, false);
+                        cube.transform.localRotation = Quaternion.Euler((float)rng.NextDouble() * 360f, (float)rng.NextDouble() * 360f, (float)rng.NextDouble() * 360f);
+                    }
+                }
+                y += 0.055f;
+            }
+        }
 
         private static GameObject BuildMilk()
         {
@@ -252,13 +366,14 @@ namespace BariBarista.Minigames.EditorTools
             game.Id = "milk_pour";
             Transform r = root.transform;
 
-            var cam = AddCamera(r, new Vector3(0f, 1.15f, -1.1f), new Vector3(0f, 0.42f, 0f));
+            var cam = AddCamera(r, new Vector3(0f, 1.15f, -1.3f), new Vector3(0f, 0.42f, 0f));
             var floor = AddFloor(r);
 
             var cupGo = new GameObject("Cup");
             cupGo.transform.SetParent(r, false);
             cupGo.transform.localPosition = new Vector3(0.1f, 0f, 0f);
-            Vector3 cupSize = AddModel(PaperCupPath, cupGo.transform, 0.36f, true);
+            var cupPivot = Empty("CupPivot", cupGo.transform, Vector3.zero);
+            Vector3 cupSize = AddModel(PaperCupPath, cupPivot, 0.36f, true);
             float radius = Mathf.Min(cupSize.x, cupSize.z) * 0.45f;
             var mouthGo = new GameObject("CupMouth");
             mouthGo.transform.SetParent(cupGo.transform, false);
@@ -267,7 +382,8 @@ namespace BariBarista.Minigames.EditorTools
             var mouth = mouthGo.AddComponent<BoxCollider>();
             mouth.isTrigger = true;
             mouth.size = new Vector3(radius * 1.9f, 0.02f, radius * 1.9f);
-            var cupVisual = AddCupVisual(cupGo, radius * 1.8f, cupSize.y * 0.95f, 0.01f);
+            var cupVisual = AddCupVisual(cupGo, cupPivot, radius * 1.8f, cupSize.y * 0.95f, 0.01f);
+            AddCafeBackdrop(r);
 
             // 우유팩: +X 쪽에 입구. 로컬 -Z축으로 기울이면 입구가 내려간다
             var cartonGo = new GameObject("MilkCarton");
@@ -296,10 +412,9 @@ namespace BariBarista.Minigames.EditorTools
                 ("maxTilt", 110f),
                 ("rotationGain", 9f));
 
-            var milkMat = Mat("Milk", new Color(0.97f, 0.96f, 0.92f));
-            var stream = AddStream(r, Vector3.zero, milkMat);
-            var particles = AddParticles(spout, milkMat.color);
-            var gauge = AddGauge(r, new Vector3(0.38f, 0.03f, 0f), 0.4f);
+            var streamMat = ToonMat("Toon_Stream_Milk", MilkColor, new Color(0.35f, 0.3f, 0.28f), 0.005f, false, 0.22f, 40f, 0.14f);
+            var stream = AddStream(r, Vector3.zero, streamMat);
+            var hud = MinigameUiBuilder.BuildMilkUi(r);
 
             Configure(game,
                 ("viewCamera", cam),
@@ -308,9 +423,8 @@ namespace BariBarista.Minigames.EditorTools
                 ("cupMouth", mouth),
                 ("floor", floor.transform),
                 ("cupVisual", cupVisual),
-                ("gauge", gauge),
-                ("stream", stream),
-                ("pourParticles", particles));
+                ("hud", hud),
+                ("stream", stream));
             return root;
         }
 
@@ -326,14 +440,74 @@ namespace BariBarista.Minigames.EditorTools
             cam.fieldOfView = 50f;
             cam.nearClipPlane = 0.02f;
             cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(0.55f, 0.47f, 0.4f);
+            // 배경 벽이 화면을 덮으므로 빈 곳이 보여도 옛 단색이 아닌 어두운 실내색이 되게 한다
+            cam.backgroundColor = new Color(0.1f, 0.075f, 0.06f);
             return cam;
         }
 
+        /// <summary>조리대 상판. 판정용 바닥 평면(콜라이더 유지)이고 재질은 카페 상판 돌.</summary>
         private static GameObject AddFloor(Transform parent)
         {
-            var floor = Prim(PrimitiveType.Plane, "Floor", parent, Vector3.zero, new Vector3(0.4f, 1f, 0.4f), Mat("Floor", new Color(0.78f, 0.66f, 0.5f)), true);
+            var floor = Prim(PrimitiveType.Plane, "Floor", parent, Vector3.zero, new Vector3(0.4f, 1f, 0.4f), CafeMat("Stone_Tan", new Color(0.78f, 0.66f, 0.5f)), true);
             return floor;
+        }
+
+        /// <summary>
+        /// 뒷벽·조리대 앞판·선반·펜던트 등·따뜻한 점광원. 콜라이더 없음.
+        /// 재질은 카페 재질 중 WP6b 뒤에도 남는 이름(Wall_Cream, Wood_Oak, Stone_Tan, Floor_A, Ceramic, Brass, Shade_Glow)만 참조한다.
+        /// </summary>
+        private static void AddCafeBackdrop(Transform parent)
+        {
+            var root = Empty("CafeBackdrop", parent, Vector3.zero);
+            var wall = CafeMat("Wall_Cream", new Color(0.93f, 0.88f, 0.78f));
+            var oak = CafeMat("Wood_Oak", new Color(0.55f, 0.38f, 0.22f));
+            var stone = CafeMat("Stone_Tan", new Color(0.78f, 0.66f, 0.5f));
+            var floorMat = CafeMat("Floor_A", new Color(0.5f, 0.38f, 0.28f));
+            var ceramic = CafeMat("Ceramic", new Color(0.95f, 0.93f, 0.9f));
+            var brass = CafeMat("Brass", new Color(0.8f, 0.6f, 0.25f));
+            var glow = CafeMat("Shade_Glow", new Color(1f, 0.85f, 0.55f));
+
+            // 뒷벽과 카페 바닥
+            Prim(PrimitiveType.Cube, "BackWall", root, new Vector3(0f, 1.4f, 1.35f), new Vector3(6f, 2.8f, 0.1f), wall, false);
+            Prim(PrimitiveType.Cube, "SideWallL", root, new Vector3(-2.2f, 1.4f, 0f), new Vector3(0.1f, 2.8f, 5f), wall, false);
+            Prim(PrimitiveType.Cube, "SideWallR", root, new Vector3(2.2f, 1.4f, 0f), new Vector3(0.1f, 2.8f, 5f), wall, false);
+            Prim(PrimitiveType.Plane, "CafeFloor", root, new Vector3(0f, -0.9f, 0f), new Vector3(0.6f, 1f, 0.6f), floorMat, false);
+
+            // 뒤쪽 낮은 찬장(나무) + 상판(돌)
+            Prim(PrimitiveType.Cube, "BackCabinet", root, new Vector3(0f, 0.3f, 1.12f), new Vector3(4.2f, 0.6f, 0.42f), oak, false);
+            Prim(PrimitiveType.Cube, "BackCounterTop", root, new Vector3(0f, 0.615f, 1.12f), new Vector3(4.3f, 0.03f, 0.48f), stone, false);
+
+            // 벽 선반과 컵
+            Prim(PrimitiveType.Cube, "Shelf", root, new Vector3(0.1f, 1.15f, 1.2f), new Vector3(2.6f, 0.04f, 0.22f), oak, false);
+            float[] cupX = { -0.9f, -0.5f, -0.1f, 0.3f, 0.7f, 1.05f };
+            for (int i = 0; i < cupX.Length; i++)
+            {
+                float h = (i % 2 == 0) ? 0.11f : 0.09f;
+                Prim(PrimitiveType.Cylinder, "ShelfCup" + i, root, new Vector3(0.1f + cupX[i], 1.17f + h * 0.5f, 1.2f), new Vector3(0.09f, h * 0.5f, 0.09f), ceramic, false);
+            }
+            // 조리대 위 컵 더미
+            Prim(PrimitiveType.Cylinder, "StackCup0", root, new Vector3(-1.3f, 0.66f, 1.1f), new Vector3(0.12f, 0.05f, 0.12f), ceramic, false);
+            Prim(PrimitiveType.Cylinder, "StackCup1", root, new Vector3(-1.3f, 0.76f, 1.1f), new Vector3(0.12f, 0.05f, 0.12f), ceramic, false);
+
+            // 펜던트 등(황동 줄 + 빛나는 갓)
+            float[] lampX = { -0.8f, 0.9f };
+            for (int i = 0; i < lampX.Length; i++)
+            {
+                Prim(PrimitiveType.Cylinder, "LampCord" + i, root, new Vector3(lampX[i], 2.2f, 0.9f), new Vector3(0.012f, 0.45f, 0.012f), brass, false);
+                Prim(PrimitiveType.Cylinder, "LampCap" + i, root, new Vector3(lampX[i], 1.74f, 0.9f), new Vector3(0.05f, 0.025f, 0.05f), brass, false);
+                Prim(PrimitiveType.Sphere, "LampShade" + i, root, new Vector3(lampX[i], 1.62f, 0.9f), new Vector3(0.24f, 0.22f, 0.24f), glow, false);
+            }
+
+            // 따뜻한 점광원 1개: 그림자 없음
+            var lightGo = new GameObject("WarmPointLight");
+            lightGo.transform.SetParent(root, false);
+            lightGo.transform.localPosition = new Vector3(0.1f, 1.2f, 0.3f);
+            var pl = lightGo.AddComponent<Light>();
+            pl.type = LightType.Point;
+            pl.color = new Color(1f, 0.78f, 0.5f);
+            pl.intensity = 1.0f;
+            pl.range = 2.5f;
+            pl.shadows = LightShadows.None;
         }
 
         /// <summary>모델을 목표 높이로 맞추고 바닥 중앙을 부모 원점에 둔다. 콜라이더는 제거. 반환값은 최종 크기.</summary>
@@ -403,25 +577,37 @@ namespace BariBarista.Minigames.EditorTools
             }
         }
 
-        private static CupVisual AddCupVisual(GameObject cup, float diameter, float maxHeight, float bottomY)
+        /// <summary>컵 액체·얼음 표시를 보이는 피벗(CupPivot) 아래에 만든다. CupVisual은 컵 루트에 붙는다.</summary>
+        private static CupVisual AddCupVisual(GameObject cup, Transform cupPivot, float diameter, float maxHeight, float bottomY)
         {
             var root = new GameObject("Liquid");
-            root.transform.SetParent(cup.transform, false);
+            root.transform.SetParent(cupPivot, false);
             root.transform.localPosition = new Vector3(0f, bottomY, 0f);
             root.transform.localScale = new Vector3(diameter, maxHeight, diameter);
             var pivot = Empty("Pivot", root.transform, Vector3.zero);
-            var body = Prim(PrimitiveType.Cylinder, "Surface", pivot, new Vector3(0f, 0.5f, 0f), new Vector3(1f, 0.5f, 1f), Mat("Liquid", Color.white), false);
+            var liquidMat = ToonMat("Toon_Liquid", Color.white, new Color(0.2f, 0.1f, 0.06f), 0.004f, false, 0.16f, 50f, 0.1f);
+            var body = Prim(PrimitiveType.Cylinder, "Surface", pivot, new Vector3(0f, 0.5f, 0f), new Vector3(1f, 0.5f, 1f), liquidMat, false);
             pivot.localScale = new Vector3(1f, 0.0001f, 1f);
             pivot.gameObject.SetActive(false);
 
-            var ice = Prim(PrimitiveType.Cube, "IceIndicator", cup.transform, new Vector3(0f, bottomY + maxHeight * 0.6f, 0f), new Vector3(diameter * 0.7f, maxHeight * 0.25f, diameter * 0.7f), Mat("Ice", new Color(0.8f, 0.93f, 1f)), false);
+            // 크레마·거품 원판. 액체 루트 아래에 두어 높이를 따라 올라온다
+            var cremaMat = ToonMat("Toon_Crema", new Color(0.72f, 0.45f, 0.2f), new Color(0.25f, 0.12f, 0.05f), 0.004f, false, 0.3f, 25f, 0.2f);
+            var foamMat = ToonMat("Toon_Foam", new Color(1f, 0.98f, 0.92f), new Color(0.4f, 0.32f, 0.26f), 0.004f, false, 0.35f, 20f, 0.25f);
+            var layer = Prim(PrimitiveType.Cylinder, "TopLayer", root.transform, Vector3.zero, new Vector3(1f, 0.01f, 1f), cremaMat, false);
+            layer.SetActive(false);
+
+            var ice = Prim(PrimitiveType.Cube, "IceIndicator", cupPivot, new Vector3(0f, bottomY + maxHeight * 0.6f, 0f), new Vector3(diameter * 0.7f, maxHeight * 0.25f, diameter * 0.7f), IceMat(), false);
             ice.SetActive(false);
 
             var visual = cup.AddComponent<CupVisual>();
             Configure(visual,
                 ("liquid", pivot),
                 ("liquidRenderer", body.GetComponent<Renderer>()),
-                ("iceIndicator", ice));
+                ("iceIndicator", ice),
+                ("topLayer", layer.transform),
+                ("topLayerRenderer", layer.GetComponent<Renderer>()),
+                ("cremaMaterial", cremaMat),
+                ("foamMaterial", foamMat));
             return visual;
         }
 
@@ -433,53 +619,6 @@ namespace BariBarista.Minigames.EditorTools
             pivot.localScale = new Vector3(0.02f, 0.1f, 0.02f);
             pivot.gameObject.SetActive(false);
             return pivot;
-        }
-
-        private static VerticalGauge AddGauge(Transform parent, Vector3 localPos, float height)
-        {
-            var root = new GameObject("Gauge");
-            root.transform.SetParent(parent, false);
-            root.transform.localPosition = localPos;
-            root.transform.localScale = new Vector3(0.04f, height, 0.02f);
-            Prim(PrimitiveType.Cube, "Background", root.transform, new Vector3(0f, 0.5f, 0f), Vector3.one, Mat("GaugeBg", new Color(0.12f, 0.12f, 0.12f)), false);
-            var band = Empty("Band", root.transform, new Vector3(0f, 0f, -0.6f));
-            Prim(PrimitiveType.Cube, "Body", band, new Vector3(0f, 0.5f, 0f), new Vector3(1.4f, 1f, 0.4f), Mat("GaugeBand", new Color(0.2f, 0.8f, 0.3f)), false);
-            var fill = Empty("Fill", root.transform, new Vector3(0f, 0f, -1.1f));
-            Prim(PrimitiveType.Cube, "Body", fill, new Vector3(0f, 0.5f, 0f), new Vector3(0.6f, 1f, 0.4f), Mat("GaugeFill", new Color(1f, 0.6f, 0.1f)), false);
-            fill.localScale = new Vector3(1f, 0.0001f, 1f);
-            fill.gameObject.SetActive(false);
-
-            var gauge = root.AddComponent<VerticalGauge>();
-            Configure(gauge, ("fill", fill), ("band", band));
-            return gauge;
-        }
-
-        private static ParticleSystem AddParticles(Transform spout, Color color)
-        {
-            var go = new GameObject("PourParticles");
-            go.transform.SetParent(spout, false);
-            go.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            var ps = go.AddComponent<ParticleSystem>();
-            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            var main = ps.main;
-            main.playOnAwake = false;
-            main.loop = true;
-            main.startLifetime = 0.5f;
-            main.startSpeed = 0.3f;
-            main.startSize = 0.025f;
-            main.startColor = color;
-            main.gravityModifier = 1f;
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.maxParticles = 200;
-            var emission = ps.emission;
-            emission.rateOverTime = 80f;
-            var shape = ps.shape;
-            shape.shapeType = ParticleSystemShapeType.Cone;
-            shape.angle = 6f;
-            shape.radius = 0.008f;
-            var renderer = go.GetComponent<ParticleSystemRenderer>();
-            renderer.sharedMaterial = ParticleMat("MilkParticle", color);
-            return ps;
         }
 
         private static Transform Empty(string name, Transform parent, Vector3 localPos)
@@ -506,16 +645,18 @@ namespace BariBarista.Minigames.EditorTools
 
         private static IcePiece CreateIcePrefab()
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "IceCube";
-            go.transform.localScale = Vector3.one * 0.085f;
-            go.GetComponent<Renderer>().sharedMaterial = Mat("Ice", new Color(0.8f, 0.93f, 1f));
+            // 콜라이더는 루트에 최종 크기로 두고, 보이는 모델만 자식으로 두어 커지게 한다
+            var go = new GameObject("IceCube");
+            var col = go.AddComponent<BoxCollider>();
+            col.size = Vector3.one * IceCubeSize;
+            var model = Prim(PrimitiveType.Cube, "Model", go.transform, Vector3.zero, Vector3.one * IceCubeSize, IceMat(), false);
             var rb = go.AddComponent<Rigidbody>();
             rb.mass = 0.05f;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            go.AddComponent<IcePiece>();
-            string path = AssetDatabase.GenerateUniqueAssetPath(PrefabsDir + "/IceCube.prefab");
+            var piece = go.AddComponent<IcePiece>();
+            Configure(piece, ("visual", model.transform));
+            string path = TargetPath(PrefabsDir + "/IceCube.prefab");
             var prefab = PrefabUtility.SaveAsPrefabAsset(go, path);
             Object.DestroyImmediate(go);
             return prefab.GetComponent<IcePiece>();
@@ -523,13 +664,16 @@ namespace BariBarista.Minigames.EditorTools
 
         private static GameObject SavePrefab(GameObject root, string name)
         {
-            string path = AssetDatabase.GenerateUniqueAssetPath($"{PrefabsDir}/{name}.prefab");
+            string path = TargetPath($"{PrefabsDir}/{name}.prefab");
             return PrefabUtility.SaveAsPrefabAssetAndConnect(root, path, InteractionMode.AutomatedAction);
         }
 
         private static MicrogameDefinition CreateDefinition(string fileName, string id, string instruction, string stationId, float timeLimit, GameObject prefab)
         {
-            var def = ScriptableObject.CreateInstance<MicrogameDefinition>();
+            string path = TargetPath($"{DataDir}/{fileName}.asset");
+            // 재생성이면 기존 에셋을 불러와 필드만 갱신한다(GUID 유지)
+            var existing = rebuilding ? AssetDatabase.LoadAssetAtPath<MicrogameDefinition>(path) : null;
+            var def = existing != null ? existing : ScriptableObject.CreateInstance<MicrogameDefinition>();
             def.id = id;
             def.instruction = instruction;
             def.stationId = stationId;
@@ -537,8 +681,8 @@ namespace BariBarista.Minigames.EditorTools
             def.prefab = prefab;
             def.successOnTimeout = false;
             def.defaultDifficulty = 1;
-            string path = AssetDatabase.GenerateUniqueAssetPath($"{DataDir}/{fileName}.asset");
-            AssetDatabase.CreateAsset(def, path);
+            if (existing != null) EditorUtility.SetDirty(def);
+            else AssetDatabase.CreateAsset(def, path);
             return def;
         }
 
@@ -554,23 +698,65 @@ namespace BariBarista.Minigames.EditorTools
                 SetColor(mat, color);
                 AssetDatabase.CreateAsset(mat, path);
             }
+            else
+            {
+                // 다시 만들 때 빌더에 적은 색이 기존 재질에도 반영되게 한다
+                SetColor(mat, color);
+                EditorUtility.SetDirty(mat);
+            }
             materials[name] = mat;
             return mat;
         }
 
-        private static Material ParticleMat(string name, Color color)
+        /// <summary>
+        /// 카페 재질을 이름으로 참조만 한다(수정하지 않는다). 없으면 경고하고 같은 색의 임시 재질로 대체한다.
+        /// </summary>
+        private static Material CafeMat(string name, Color fallback)
         {
-            if (materials.TryGetValue(name, out var cached)) return cached;
-            string path = $"{MaterialsDir}/{name}.mat";
-            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            string key = "cafe:" + name;
+            if (materials.TryGetValue(key, out var cached)) return cached;
+            var mat = AssetDatabase.LoadAssetAtPath<Material>($"{CafeMaterialsDir}/{name}.mat");
             if (mat == null)
             {
-                var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Universal Render Pipeline/Unlit");
-                mat = new Material(shader) { name = name };
-                SetColor(mat, color);
-                AssetDatabase.CreateAsset(mat, path);
+                Debug.LogWarning($"[MinigameSandbox] 카페 재질을 찾지 못해 대체 재질을 씁니다: {name}");
+                mat = Mat("Backdrop_" + name, fallback);
             }
-            materials[name] = mat;
+            materials[key] = mat;
+            return mat;
+        }
+
+        /// <summary>얼음 공용 재질. 개별 색 변경(MaterialPropertyBlock) 없이 모든 얼음이 같은 재질을 써서 SRP Batcher로 묶인다.</summary>
+        private static Material IceMat()
+        {
+            return ToonMat("Toon_Ice", IceColor, new Color(0.12f, 0.28f, 0.42f), 0.0035f, true, 0.38f, 18f, 0.22f, new Color(0.55f, 0.72f, 1f));
+        }
+
+        /// <summary>BariToon 재질을 Art/Materials/Toon에 만든다. 다시 만들 때도 같은 경로에 값을 덮어써 GUID를 유지한다.</summary>
+        private static Material ToonMat(string name, Color baseColor, Color outlineColor, float outlineWidth, bool outlineFromPosition,
+            float highlightSize, float highlightGloss, float rimAmount, Color? shadeTint = null)
+        {
+            string key = "toon:" + name;
+            if (materials.TryGetValue(key, out var cached)) return cached;
+            EnsureFolder(ToonDir);
+            string path = $"{ToonDir}/{name}.mat";
+            var shader = Shader.Find(ToonShaderName);
+            if (shader == null) Debug.LogError($"[MinigameSandbox] 셰이더 '{ToonShaderName}'를 찾지 못했습니다.");
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            bool isNew = mat == null;
+            if (isNew) mat = new Material(shader != null ? shader : Shader.Find("Universal Render Pipeline/Lit")) { name = name };
+            else if (shader != null) mat.shader = shader;
+
+            mat.SetColor("_BaseColor", baseColor);
+            mat.SetColor("_ShadeTint", shadeTint ?? new Color(0.95f, 0.85f, 0.8f));
+            mat.SetColor("_OutlineColor", outlineColor);
+            mat.SetFloat("_OutlineWidth", outlineWidth);
+            mat.SetFloat("_OutlineUsePosition", outlineFromPosition ? 1f : 0f);
+            mat.SetFloat("_HighlightSize", highlightSize);
+            mat.SetFloat("_HighlightGloss", highlightGloss);
+            mat.SetFloat("_RimAmount", rimAmount);
+            if (isNew) AssetDatabase.CreateAsset(mat, path);
+            else EditorUtility.SetDirty(mat);
+            materials[key] = mat;
             return mat;
         }
 
@@ -597,7 +783,7 @@ namespace BariBarista.Minigames.EditorTools
             entry.FindPropertyRelative("definition").objectReferenceValue = def;
         }
 
-        private static void Configure(Object target, params (string name, object value)[] values)
+        internal static void Configure(Object target, params (string name, object value)[] values)
         {
             var so = new SerializedObject(target);
             foreach (var (name, value) in values)
@@ -611,6 +797,10 @@ namespace BariBarista.Minigames.EditorTools
                 switch (value)
                 {
                     case Object o: p.objectReferenceValue = o; break;
+                    case Object[] arr:
+                        p.arraySize = arr.Length;
+                        for (int k = 0; k < arr.Length; k++) p.GetArrayElementAtIndex(k).objectReferenceValue = arr[k];
+                        break;
                     case int i when p.propertyType == SerializedPropertyType.Enum: p.enumValueIndex = i; break;
                     case int i: p.intValue = i; break;
                     case float f: p.floatValue = f; break;
