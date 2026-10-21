@@ -1003,7 +1003,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.MouseSpringFollower
   viewCamera: {fileID: 1493221102635341720}
-  handInputSource: {fileID: 0}
   planeOrigin: {fileID: 0}
   grabMode: 2
   planeNormal: {x: 0, y: 1, z: 0}
@@ -1016,14 +1015,18 @@ MonoBehaviour:
   damping: 14
   maxSpeed: 3
   tiltAxisLocal: {x: 1, y: 0, z: 0}
-  tiltMode: 0
   tiltSpeed: 0
   tiltReturnSpeed: 180
-  tiltPerNotch: 15
   minTilt: 0
   maxTilt: 0
   rotationGain: 12
   maxAngularSpeed: 12
+  inputEnabled: 0
+  pointerPosition: {x: 0, y: 0}
+  grabHeld: 0
+  tiltHeld: 0
+  isGrabbed: 0
+  targetTilt: 0
 --- !u!114 &8093995715620278790
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1048,7 +1051,6 @@ MonoBehaviour:
   espressoColor: {r: 0.25, g: 0.13, b: 0.06, a: 1}
   milkColor: {r: 0.96, g: 0.94, b: 0.88, a: 1}
   waterColor: {r: 0.6, g: 0.75, b: 0.9, a: 1}
-  syrupColor: {r: 0.8, g: 0.5, b: 0.15, a: 1}
 --- !u!1 &1572711757628193894
 GameObject:
   m_ObjectHideFlags: 0
@@ -1407,17 +1409,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 19b09452c8c02cb4895b2d1c4687d79c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.EspressoShotHud
-  guideBig: {fileID: 8598269410438579863}
-  instructionText: {fileID: 650627342974083842}
-  guideCupRow: {fileID: 8223492681087681694}
-  hintRoot: {fileID: 6264638382094578261}
-  hintText: {fileID: 4462010021694465062}
   fill: {fileID: 1078947034524400393}
   band: {fileID: 7830682215228287167}
   bandLabel: {fileID: 2326327881389941024}
   capacityText: {fileID: 9198410759917814680}
   valueText: {fileID: 6295972641106004924}
-  banner: {fileID: 3446939826254263422}
 --- !u!1 &1892928597298031708
 GameObject:
   m_ObjectHideFlags: 0
@@ -2006,7 +2002,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 9061045595505348967}
-  - component: {fileID: 3446939826254263422}
   m_Layer: 0
   m_Name: ResultBanner
   m_TagString: Untagged
@@ -2034,19 +2029,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 330}
   m_SizeDelta: {x: 1500, y: 280}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &3446939826254263422
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3054866182192929994}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1d2053c6d1a1d674da3939edcb2ef209, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.ResultBanner
-  label: {fileID: 5657030328550793080}
 --- !u!1 &3092251360180070149
 GameObject:
   m_ObjectHideFlags: 0
@@ -3039,59 +3021,36 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c3a69baa53f5ca345a20f636331e8885, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.EspressoShotMicrogame
-  Id: espresso_shot
-  handInputSource: {fileID: 0}
+  stationId: espresso
+  instruction: "\uC0F7 \uB0B4\uB824\uB77C!"
+  timeLimit: 7
   viewCamera: {fileID: 1493221102635341720}
+  pointAction: {fileID: 1054132383583890850, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  clickAction: {fileID: 8056856818456041789, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  rightClickAction: {fileID: 3837173908680883260, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  isPlaying: 0
+  isFinished: 0
+  isSuccess: 0
+  resultText: 
+  cup:
+    espresso: 0
+    milk: 0
+    water: 0
+    ice: 0
   spout: {fileID: 5692741353174212365}
-  saucer: {fileID: 206967820694450947}
-  cup: {fileID: 2194741244784047919}
-  cupCollider: {fileID: 1949735179734662842}
-  cupFollower: {fileID: 3269031812945234786}
-  counter: {fileID: 8095848815241178270}
+  cupModel: {fileID: 2194741244784047919}
   cupVisual: {fileID: 8093995715620278790}
   hud: {fileID: 5842136681024015735}
   stream: {fileID: 5357155129110302751}
-  streamParticles: {fileID: 0}
   extractButton: {fileID: 9041872732138404257}
   buttonPressDepth: 0.02
-  misplacedOffset: {x: 0.45, y: 0, z: -0.15}
-  misplacedYaw: 35
-  snapRadius: 0.12
   streamWidthPerFlow: 0.02
-  levels:
-  - targetMinMl: 25
-    targetMaxMl: 40
-    capacityMl: 60
-    flowMlPerSec: 12
-    flowNoise: 0.25
-    noiseFrequency: 2
-    delayMin: 0
-    delayMax: 0
-    burstMultiplier: 1
-    burstSeconds: 0
-    misplacedCup: 0
-  - targetMinMl: 27
-    targetMaxMl: 37
-    capacityMl: 50
-    flowMlPerSec: 14
-    flowNoise: 0.35
-    noiseFrequency: 2.5
-    delayMin: 0.3
-    delayMax: 0.6
-    burstMultiplier: 2.5
-    burstSeconds: 0.3
-    misplacedCup: 0
-  - targetMinMl: 28
-    targetMaxMl: 34
-    capacityMl: 45
-    flowMlPerSec: 16
-    flowNoise: 0.4
-    noiseFrequency: 3
-    delayMin: 0.3
-    delayMax: 0.6
-    burstMultiplier: 3
-    burstSeconds: 0.3
-    misplacedCup: 1
+  targetMinMl: 25
+  targetMaxMl: 40
+  capacityMl: 60
+  flowMlPerSec: 12
+  flowNoise: 0.25
+  noiseFrequency: 2
 --- !u!1 &4711971039459013307
 GameObject:
   m_ObjectHideFlags: 0
@@ -5749,7 +5708,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &8687280476870333810
 RectTransform:
   m_ObjectHideFlags: 0

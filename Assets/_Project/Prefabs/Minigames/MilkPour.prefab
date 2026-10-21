@@ -411,9 +411,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 51d5e0952f51d2a4cae643764bb79564, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.MilkPourMicrogame
-  Id: milk_pour
-  handInputSource: {fileID: 0}
+  stationId: milk
+  instruction: "\uC6B0\uC720 \uBD80\uC5B4\uB77C!"
+  timeLimit: 7
   viewCamera: {fileID: 8548602222900680991}
+  pointAction: {fileID: 1054132383583890850, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  clickAction: {fileID: 8056856818456041789, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  rightClickAction: {fileID: 3837173908680883260, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  isPlaying: 0
+  isFinished: 0
+  isSuccess: 0
+  resultText: 
+  cup:
+    espresso: 0
+    milk: 0
+    water: 0
+    ice: 0
   carton: {fileID: 1720349148578535429}
   spout: {fileID: 50976635408412465}
   cupMouth: {fileID: 1211368365210217992}
@@ -429,22 +442,11 @@ MonoBehaviour:
   glugTiltSpeed: 120
   glugSeconds: 0.35
   streamWidth: 0.025
-  levels:
-  - targetMin01: 0.6
-    targetMax01: 0.85
-    maxFlowMlPerSec: 140
-    maxOutsideMl: 60
-    glugMultiplier: 2
-  - targetMin01: 0.68
-    targetMax01: 0.8
-    maxFlowMlPerSec: 160
-    maxOutsideMl: 40
-    glugMultiplier: 2.5
-  - targetMin01: 0.72
-    targetMax01: 0.78
-    maxFlowMlPerSec: 180
-    maxOutsideMl: 25
-    glugMultiplier: 3
+  targetMin01: 0.6
+  targetMax01: 0.85
+  maxFlowMlPerSec: 140
+  maxOutsideMl: 60
+  glugMultiplier: 2
 --- !u!1 &584756028506143582
 GameObject:
   m_ObjectHideFlags: 0
@@ -1058,7 +1060,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.MouseSpringFollower
   viewCamera: {fileID: 8548602222900680991}
-  handInputSource: {fileID: 0}
   planeOrigin: {fileID: 0}
   grabMode: 1
   planeNormal: {x: 0, y: 1, z: 0}
@@ -1071,14 +1072,18 @@ MonoBehaviour:
   damping: 13
   maxSpeed: 4
   tiltAxisLocal: {x: 0, y: 0, z: -1}
-  tiltMode: 0
   tiltSpeed: 70
   tiltReturnSpeed: 400
-  tiltPerNotch: 15
   minTilt: 0
   maxTilt: 110
   rotationGain: 9
   maxAngularSpeed: 12
+  inputEnabled: 0
+  pointerPosition: {x: 0, y: 0}
+  grabHeld: 0
+  tiltHeld: 0
+  isGrabbed: 0
+  targetTilt: 0
 --- !u!1 &1420712769430249806
 GameObject:
   m_ObjectHideFlags: 0
@@ -2362,7 +2367,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4844201677814298776}
-  - component: {fileID: 3376661578286275153}
   m_Layer: 0
   m_Name: ResultBanner
   m_TagString: Untagged
@@ -2390,19 +2394,6 @@ RectTransform:
   m_AnchoredPosition: {x: 180, y: 330}
   m_SizeDelta: {x: 1500, y: 280}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &3376661578286275153
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3131386631440689314}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1d2053c6d1a1d674da3939edcb2ef209, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.ResultBanner
-  label: {fileID: 9129449840238270383}
 --- !u!1 &3189222284069324466
 GameObject:
   m_ObjectHideFlags: 0
@@ -3556,7 +3547,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &8214698493090230697
 RectTransform:
   m_ObjectHideFlags: 0
@@ -6041,7 +6032,6 @@ MonoBehaviour:
   espressoColor: {r: 0.25, g: 0.13, b: 0.06, a: 1}
   milkColor: {r: 0.96, g: 0.94, b: 0.88, a: 1}
   waterColor: {r: 0.6, g: 0.75, b: 0.9, a: 1}
-  syrupColor: {r: 0.8, g: 0.5, b: 0.15, a: 1}
 --- !u!1 &8761716310303684947
 GameObject:
   m_ObjectHideFlags: 0
@@ -6308,15 +6298,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 152a6a09ce364ee42b89f6aaa3b978b8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.MilkPourHud
-  guideBig: {fileID: 5185780820411585395}
-  instructionText: {fileID: 4990848860659788597}
-  hintRoot: {fileID: 290127172968976540}
   fill: {fileID: 3127054401351308894}
   band: {fileID: 2380681083221996571}
   bandLabel: {fileID: 4525161301002921415}
   percentText: {fileID: 4252405792140569019}
   spillFill: {fileID: 4245075542420737060}
-  banner: {fileID: 3376661578286275153}
 --- !u!1001 &5241319462755290730
 PrefabInstance:
   m_ObjectHideFlags: 0

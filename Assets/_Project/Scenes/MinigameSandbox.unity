@@ -246,19 +246,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fb0bea3e9522d1247ae938c83914a0d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.StandaloneMicrogameRunner
-  entries:
-  - microgame: {fileID: 9167332782007515589}
-    definition: {fileID: 11400000, guid: 0e07158444e6adb46ad4a0802ef392d1, type: 2}
-  - microgame: {fileID: 2091237432550039442}
-    definition: {fileID: 11400000, guid: b066eeb68f8490e4e9dd3000a6b84840, type: 2}
-  - microgame: {fileID: 5503756797715939893}
-    definition: {fileID: 11400000, guid: 5857a6ab41f864340ba91478fede83f3, type: 2}
-  startIndex: 0
-  autoStart: 1
-  keepCupBetweenRuns: 0
-  fallbackTimeLimit: 7
-  instructionSeconds: 0.5
-  autoRestartDelay: 1
+  games:
+  - {fileID: 9167332782007515589}
+  - {fileID: 2091237432550039442}
+  - {fileID: 5503756797715939893}
+  instructionSeconds: 1.5
+  keepCup: 0
 --- !u!81 &1638561915
 AudioListener:
   m_ObjectHideFlags: 0

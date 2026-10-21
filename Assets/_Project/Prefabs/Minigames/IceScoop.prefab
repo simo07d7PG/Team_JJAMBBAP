@@ -2285,7 +2285,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.IcePiecePool
   template: {fileID: 274569498385691007, guid: fd43ee129b451d64b838950aef6e6aec, type: 3}
   capacity: 60
-  fallbackSize: 0.085
+  active: []
 --- !u!1 &2010265239930617233
 GameObject:
   m_ObjectHideFlags: 0
@@ -2521,41 +2521,39 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 30c989493180b5f4fb3ec28a8e953046, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.IceScoopMicrogame
-  Id: ice_scoop
-  handInputSource: {fileID: 0}
+  stationId: ice
+  instruction: "\uC5BC\uC74C \uD37C\uB77C!"
+  timeLimit: 8
   viewCamera: {fileID: 6587269267273873600}
+  pointAction: {fileID: 1054132383583890850, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  clickAction: {fileID: 8056856818456041789, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  rightClickAction: {fileID: 3837173908680883260, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  isPlaying: 0
+  isFinished: 0
+  isSuccess: 0
+  resultText: 
+  cup:
+    espresso: 0
+    milk: 0
+    water: 0
+    ice: 0
   scoop: {fileID: 2104042762703142796}
   scoopFillPoint: {fileID: 5477084603243931141}
   scoopZone: {fileID: 5614789368942608406}
   binZone: {fileID: 4020220727232664547}
   cupZone: {fileID: 7155696399255495232}
-  floor: {fileID: 2634450232929283118}
   icePool: {fileID: 528656989557957191}
   cupVisual: {fileID: 3743250640796777891}
   hud: {fileID: 3511745267119276639}
-  dropHeight: 0.06
   spawnJitter: 0.03
   sizeVariation: 0.15
   cupCapacityMl: 300
-  levels:
-  - targetMin: 4
-    targetMax: 7
-    cupMax: 10
-    holdSeconds: 1
-    scoopRate: 8
-    scoopCapacity: 8
-  - targetMin: 5
-    targetMax: 6
-    cupMax: 9
-    holdSeconds: 1
-    scoopRate: 10
-    scoopCapacity: 9
-  - targetMin: 5
-    targetMax: 5
-    cupMax: 8
-    holdSeconds: 1
-    scoopRate: 12
-    scoopCapacity: 10
+  targetMin: 4
+  targetMax: 7
+  cupMax: 10
+  holdSeconds: 1
+  scoopRate: 8
+  scoopCapacity: 8
 --- !u!1 &2107102076287330557
 GameObject:
   m_ObjectHideFlags: 0
@@ -3232,7 +3230,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3082455566869702665}
-  - component: {fileID: 3247071217610768314}
   m_Layer: 0
   m_Name: ResultBanner
   m_TagString: Untagged
@@ -3260,19 +3257,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 330}
   m_SizeDelta: {x: 1500, y: 280}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &3247071217610768314
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2703399552201665019}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1d2053c6d1a1d674da3939edcb2ef209, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.ResultBanner
-  label: {fileID: 3661388286709795799}
 --- !u!1 &2729789312810178527
 GameObject:
   m_ObjectHideFlags: 0
@@ -7371,7 +7355,6 @@ MonoBehaviour:
   espressoColor: {r: 0.25, g: 0.13, b: 0.06, a: 1}
   milkColor: {r: 0.96, g: 0.94, b: 0.88, a: 1}
   waterColor: {r: 0.6, g: 0.75, b: 0.9, a: 1}
-  syrupColor: {r: 0.8, g: 0.5, b: 0.15, a: 1}
 --- !u!1 &5386949316905201125
 GameObject:
   m_ObjectHideFlags: 0
@@ -9008,9 +8991,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bb460b011b0936a4eace63f754d40aa6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.IceScoopHud
-  guideBig: {fileID: 7953959114721638808}
-  instructionText: {fileID: 3417999101764783668}
-  hintRoot: {fileID: 6215309074127703821}
   slotRoots:
   - {fileID: 213137303939239547}
   - {fileID: 269249351355141980}
@@ -9046,7 +9026,6 @@ MonoBehaviour:
   - {fileID: 5984037601095099235}
   countText: {fileID: 8332474420793538290}
   holdFill: {fileID: 5825097689891076798}
-  banner: {fileID: 3247071217610768314}
 --- !u!1 &6696625447861536111
 GameObject:
   m_ObjectHideFlags: 0
@@ -10588,7 +10567,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.MouseSpringFollower
   viewCamera: {fileID: 6587269267273873600}
-  handInputSource: {fileID: 0}
   planeOrigin: {fileID: 0}
   grabMode: 0
   planeNormal: {x: 0, y: 1, z: 0}
@@ -10601,14 +10579,18 @@ MonoBehaviour:
   damping: 16
   maxSpeed: 5
   tiltAxisLocal: {x: 0, y: 0, z: -1}
-  tiltMode: 0
   tiltSpeed: 150
   tiltReturnSpeed: 200
-  tiltPerNotch: 15
   minTilt: 0
   maxTilt: 110
   rotationGain: 12
   maxAngularSpeed: 12
+  inputEnabled: 0
+  pointerPosition: {x: 0, y: 0}
+  grabHeld: 0
+  tiltHeld: 0
+  isGrabbed: 0
+  targetTilt: 0
 --- !u!1 &7644555912727196648
 GameObject:
   m_ObjectHideFlags: 0
@@ -11469,7 +11451,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &4952417652635731201
 RectTransform:
   m_ObjectHideFlags: 0

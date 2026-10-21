@@ -108,7 +108,14 @@ InitTestScene*.unity*
 # Claude Code / oh-my-claudecode
 .omc/
 .claude/
-CLAUDE.md
-CLAUDE.local.md
+
+*.md
+!/README.md
+*.md.meta
 
 .vscode/
+.idea/
+
+.DS_Store
+Thumbs.db
+Desktop.ini

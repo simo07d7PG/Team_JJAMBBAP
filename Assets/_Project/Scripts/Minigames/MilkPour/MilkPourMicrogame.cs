@@ -1,249 +1,236 @@
-using System;
 using UnityEngine;
 
-namespace BariBarista.Minigames
+// "우유 부어라!" — 좌클릭으로 우유팩을 잡고 우클릭으로 기울여 컵을 목표 선까지 채운 뒤 다시 세운다.
+// 유체 시뮬레이션 없이 "레이 판정 + 양 계산"으로 하고, 줄기는 보이기용이다.
+public class MilkPourMicrogame : Minigame
 {
-    /// <summary>
-    /// "우유 부어라!" — 우유팩을 잡고 우클릭으로 기울여 컵을 목표 선까지 채운 뒤 다시 세운다.
-    /// 유체 시뮬레이션 없이 "레이 판정 + 양 데이터"로 계산하고 파티클은 보이기용이다.
-    /// </summary>
-    public class MilkPourMicrogame : MicrogameBase
+    [Header("참조")]
+    [SerializeField] private MouseSpringFollower carton;
+    [Tooltip("우유팩 입구")]
+    [SerializeField] private Transform spout;
+    [Tooltip("컵 입구를 덮는 콜라이더. 입구에서 아래로 쏜 레이가 여기 맞으면 컵에 들어간 것")]
+    [SerializeField] private Collider cupMouth;
+    [Tooltip("바닥 높이 기준 (줄기 길이)")]
+    [SerializeField] private Transform floor;
+    [SerializeField] private CupVisual cupVisual;
+    [SerializeField] private MilkPourHud hud;
+    [Tooltip("우유 줄기 피벗. localScale.y = 길이, 위쪽이 원점")]
+    [SerializeField] private Transform stream;
+
+    [Header("손맛")]
+    [SerializeField] private float cupCapacityMl = 300f;
+    [Tooltip("얼음 1개가 차지하는 부피(ml). 액체 높이 계산에 더한다")]
+    [SerializeField] private float iceDisplacementMl = 8f;
+    [Tooltip("이 각도부터 우유가 나온다")]
+    [SerializeField] private float pourStartAngle = 45f;
+    [Tooltip("이 각도에서 최대 속도")]
+    [SerializeField] private float pourFullAngle = 110f;
+    [Tooltip("붓기 시작 각도보다 이만큼 세우면 '다시 세웠다'로 본다")]
+    [SerializeField] private float stopHysteresis = 8f;
+    [Tooltip("이 속도(도/초) 이상으로 기울이며 붓기 시작하면 콸 구간")]
+    [SerializeField] private float glugTiltSpeed = 120f;
+    [SerializeField] private float glugSeconds = 0.35f;
+    [SerializeField] private float streamWidth = 0.025f;
+
+    [Header("수치")]
+    [Tooltip("목표 높이 구간(컵 용량 대비 0~1)")]
+    [Range(0f, 1f)] [SerializeField] private float targetMin01 = 0.6f;
+    [Range(0f, 1f)] [SerializeField] private float targetMax01 = 0.85f;
+    [Tooltip("최대로 기울였을 때 초당 붓는 양(ml)")]
+    [SerializeField] private float maxFlowMlPerSec = 140f;
+    [Tooltip("컵 밖으로 부어도 되는 한도(ml)")]
+    [SerializeField] private float maxOutsideMl = 60f;
+    [Tooltip("휙 기울였을 때 처음에 콸 쏟아지는 배율")]
+    [SerializeField] private float glugMultiplier = 2f;
+
+    // 경계값을 성공으로 인정하는 여유
+    private const float Epsilon = 0.0001f;
+
+    private Vector3 cartonStartPos;
+    private Quaternion cartonStartRot;
+    private Vector3 streamRestScale;
+
+    private bool pouring;
+    private float lastAngle;
+    private float glugRemaining;
+    // 시작할 때 컵에 이미 있던 양과 지금 컵 안의 총량(ml 환산, 용량을 넘지 않음)
+    private float initialMl;
+    private float liquidMl;
+    private float outsideMl;
+
+    private void Awake()
     {
-        [Serializable]
-        public struct LevelSettings
+        cartonStartPos = carton.transform.position;
+        cartonStartRot = carton.transform.rotation;
+        streamRestScale = stream.localScale;
+    }
+
+    protected override void ResetGame()
+    {
+        carton.viewCamera = viewCamera;
+        carton.ResetTo(cartonStartPos, cartonStartRot);
+        carton.inputEnabled = true;
+        pouring = false;
+        lastAngle = 0f;
+        glugRemaining = 0f;
+        SetStream(false, 0f);
+
+        // 기존 내용물(에스프레소·얼음)을 액체 높이에 더한다
+        initialMl = Mathf.Clamp(cup.TotalLiquid() + cup.ice * iceDisplacementMl, 0f, cupCapacityMl);
+        liquidMl = initialMl;
+        outsideMl = 0f;
+
+        hud.Configure(targetMin01, targetMax01);
+        cupVisual.SetIceVisible(cup.ice > 0);
+        UpdateCupDisplay();
+    }
+
+    private void Update()
+    {
+        if (!isPlaying)
         {
-            [Range(0f, 1f)] public float targetMin01;
-            [Range(0f, 1f)] public float targetMax01;
-            [Tooltip("최대로 기울였을 때 초당 붓는 양(ml)")]
-            public float maxFlowMlPerSec;
-            [Tooltip("컵 밖으로 부어도 되는 한도(ml)")]
-            public float maxOutsideMl;
-            [Tooltip("휙 기울였을 때 처음에 콸 쏟아지는 배율")]
-            public float glugMultiplier;
+            carton.inputEnabled = false;
+            return;
         }
 
-        [Header("참조")]
-        [SerializeField] private Camera viewCamera;
-        [SerializeField] private MouseSpringFollower carton;
-        [Tooltip("우유팩 입구")]
-        [SerializeField] private Transform spout;
-        [Tooltip("컵 입구를 덮는 콜라이더. 입구에서 아래로 쏜 레이가 여기 맞으면 컵에 들어간 것")]
-        [SerializeField] private Collider cupMouth;
-        [Tooltip("바닥 높이 기준 (줄기 길이)")]
-        [SerializeField] private Transform floor;
-        [SerializeField] private CupVisual cupVisual;
-        [SerializeField] private MilkPourHud hud;
-        [Tooltip("우유 줄기 피벗. localScale.y = 길이, 위쪽이 원점")]
-        [SerializeField] private Transform stream;
+        carton.pointerPosition = PointerPosition();
+        carton.grabHeld = ClickHeld();
+        carton.tiltHeld = RightHeld();
 
-        [Header("손맛")]
-        [SerializeField] private float cupCapacityMl = 300f;
-        [Tooltip("얼음 1개가 차지하는 부피(ml). 액체 높이 계산에 더한다")]
-        [SerializeField] private float iceDisplacementMl = 8f;
-        [Tooltip("이 각도부터 우유가 나온다")]
-        [SerializeField] private float pourStartAngle = 45f;
-        [Tooltip("이 각도에서 최대 속도")]
-        [SerializeField] private float pourFullAngle = 110f;
-        [Tooltip("붓기 시작 각도보다 이만큼 세우면 '다시 세웠다'로 본다")]
-        [SerializeField] private float stopHysteresis = 8f;
-        [Tooltip("이 속도(도/초) 이상으로 기울이며 붓기 시작하면 콸 구간")]
-        [SerializeField] private float glugTiltSpeed = 120f;
-        [SerializeField] private float glugSeconds = 0.35f;
-        [SerializeField] private float streamWidth = 0.025f;
+        float dt = Time.deltaTime;
+        if (dt <= 0f) return;
 
-        [Header("난이도 (Lv1~3)")]
-        [SerializeField] private LevelSettings[] levels =
+        float angle = carton.ActualTilt();
+        float tiltSpeed = (angle - lastAngle) / dt;
+        lastAngle = angle;
+
+        if (!pouring)
         {
-            new LevelSettings { targetMin01 = 0.60f, targetMax01 = 0.85f, maxFlowMlPerSec = 140f, maxOutsideMl = 60f, glugMultiplier = 2f },
-            new LevelSettings { targetMin01 = 0.68f, targetMax01 = 0.80f, maxFlowMlPerSec = 160f, maxOutsideMl = 40f, glugMultiplier = 2.5f },
-            new LevelSettings { targetMin01 = 0.72f, targetMax01 = 0.78f, maxFlowMlPerSec = 180f, maxOutsideMl = 25f, glugMultiplier = 3f },
-        };
-
-        private readonly PourJudge judge = new PourJudge();
-        private readonly GuideTimer guide = new GuideTimer();
-        private Vector3 cartonStartPos;
-        private Quaternion cartonStartRot;
-        private Vector3 streamRestScale;
-        private bool startCaptured;
-
-        private bool pouring;
-        private float lastAngle;
-        private float glugRemaining;
-
-        public float Fill01 => judge.Fill01;
-
-        private LevelSettings Level => levels[Mathf.Clamp(Difficulty - 1, 0, levels.Length - 1)];
-
-        private void Awake() => CaptureStart();
-
-        private void CaptureStart()
-        {
-            if (startCaptured) return;
-            startCaptured = true;
-            if (carton != null) { cartonStartPos = carton.transform.position; cartonStartRot = carton.transform.rotation; }
-            if (stream != null) streamRestScale = stream.localScale;
-        }
-
-        protected override void ResetState()
-        {
-            CaptureStart();
-            if (carton != null)
-            {
-                carton.Hand = Hand;
-                if (viewCamera != null) carton.ViewCamera = viewCamera;
-                carton.ResetTo(cartonStartPos, cartonStartRot);
-                carton.InputEnabled = false;
-            }
-            pouring = false;
-            lastAngle = 0f;
+            if (angle < pourStartAngle) return;
+            pouring = true;
+            // 휙 기울이면 처음에 콸 쏟아진다
             glugRemaining = 0f;
-            SetStream(false, 0f);
-
-            var lv = Level;
-            judge.Reset(lv.targetMin01, lv.targetMax01, cupCapacityMl, 0f, lv.maxOutsideMl);
-            if (hud != null) hud.Configure(lv.targetMin01, lv.targetMax01);
+            if (tiltSpeed >= glugTiltSpeed) glugRemaining = glugSeconds;
         }
-
-        protected override void OnPrepare()
+        else if (angle < pourStartAngle - stopHysteresis)
         {
-            guide.Reset();
-            if (hud != null) hud.ShowGuide(Ctx.Definition != null ? Ctx.Definition.instruction : PresentationRules.InstructionPour);
-            // 기존 내용물(에스프레소·얼음)을 액체 높이에 합산한다
-            var cup = Ctx.Cup;
-            var lv = Level;
-            float initial = cup.TotalLiquid + cup.IceCount * iceDisplacementMl;
-            judge.Reset(lv.targetMin01, lv.targetMax01, cupCapacityMl, initial, lv.maxOutsideMl);
-
-            if (cupVisual != null) cupVisual.SetIceVisible(cup.IceCount > 0);
-            UpdateCupDisplay();
-        }
-
-        protected override void OnBegin()
-        {
-            if (carton != null) carton.InputEnabled = true;
-        }
-
-        protected override void OnTick(float remaining01)
-        {
-            float dt = TickDelta;
-            if (carton == null || dt <= 0f) return;
-            if (Hand.GrabHeld || Hand.TiltHeld) guide.MarkInput();
-            if (hud != null) hud.SetGuideBig(guide.Tick(dt));
-
-            float angle = carton.ActualTilt;
-            float tiltSpeed = (angle - lastAngle) / dt;
-            lastAngle = angle;
-
-            if (!pouring)
-            {
-                if (angle < pourStartAngle) return;
-                pouring = true;
-                // 휙 기울이면 처음에 콸 쏟아진다
-                glugRemaining = tiltSpeed >= glugTiltSpeed ? glugSeconds : 0f;
-            }
-            else if (angle < pourStartAngle - stopHysteresis)
-            {
-                // 팩을 다시 세웠다 → 판정
-                pouring = false;
-                SetStream(false, 0f);
-                Complete(judge.StopPouring());
-                return;
-            }
-
-            if (angle < pourStartAngle)
-            {
-                // 히스테리시스 구간: 아직 멈춘 건 아니지만 나오지는 않는다
-                SetStream(false, 0f);
-                return;
-            }
-
-            var lv = Level;
-            float t = Mathf.InverseLerp(pourStartAngle, pourFullAngle, angle);
-            float flow = lv.maxFlowMlPerSec * t;
-            if (glugRemaining > 0f)
-            {
-                flow *= lv.glugMultiplier;
-                glugRemaining -= dt;
-            }
-            float ml = flow * dt;
-            if (ml <= 0f) { SetStream(false, 0f); return; }
-
-            JudgeOutcome outcome;
-            if (TryHitCup(out float hitDistance))
-            {
-                outcome = judge.AddToCup(ml);
-                SetStream(true, hitDistance);
-                UpdateCupDisplay();
-            }
-            else
-            {
-                outcome = judge.AddOutside(ml);
-                if (hud != null) hud.SetSpill(judge.MaxOutsideMl > 0f ? judge.OutsideMl / judge.MaxOutsideMl : 1f);
-                SetStream(true, spout != null && floor != null ? Mathf.Max(0f, spout.position.y - floor.position.y) : 1f);
-            }
-            Complete(outcome);
-        }
-
-        /// <summary>입구에서 아래로 레이를 쏴서 컵 입구 콜라이더에 맞는지. 다른 콜라이더는 보지 않는다.</summary>
-        private bool TryHitCup(out float distance)
-        {
-            distance = 0f;
-            if (spout == null || cupMouth == null) return false;
-            var ray = new Ray(spout.position, Vector3.down);
-            if (!cupMouth.Raycast(ray, out RaycastHit hit, 5f)) return false;
-            distance = hit.distance;
-            return true;
-        }
-
-        private void SetStream(bool on, float length)
-        {
-            if (stream == null) return;
-            on &= length > 0f && spout != null;
-            if (stream.gameObject.activeSelf != on) stream.gameObject.SetActive(on);
-            if (!on) { stream.localScale = streamRestScale; return; }
-            // 줄기는 항상 수직 아래로
-            stream.SetPositionAndRotation(spout.position, Quaternion.identity);
-            stream.localScale = new Vector3(streamWidth, length, streamWidth);
-        }
-
-        private void UpdateCupDisplay()
-        {
-            if (cupVisual != null)
-            {
-                cupVisual.SetFill(judge.Fill01);
-                cupVisual.SetColorFrom(Ctx.Cup, 0f, Mathf.Max(0f, judge.PouredInMl));
-            }
-            if (hud != null) hud.SetFill(judge.Fill01);
-        }
-
-        protected override void OnTimeUp()
-        {
-            Complete(judge.TimeUp());
-        }
-
-        protected override void WriteResultStats(ref MicrogameResult result)
-        {
-            result.Amount = Mathf.Max(0f, judge.PouredInMl);
-            result.Wasted = judge.OverflowMl + judge.OutsideMl;
-        }
-
-        protected override void OnPresentStart(in MicrogameResult result)
-        {
-            if (hud != null) hud.ShowResult(result);
-        }
-
-        protected override void OnEnd(MicrogameResult result)
-        {
+            // 팩을 다시 세웠다 → 판정
             pouring = false;
             SetStream(false, 0f);
-            if (carton != null) carton.InputEnabled = false;
+            StopPouring();
+            return;
         }
 
-        protected override void ApplyResult(in MicrogameResult result)
+        if (angle < pourStartAngle)
         {
-            MicrogameStats.Report(StatKeys.MilkSpilledMl, judge.OverflowMl);
-            MicrogameStats.Report(StatKeys.MilkFloorMl, judge.OutsideMl);
-            Ctx.Cup.Add(Ingredient.Milk, Mathf.Max(0f, judge.PouredInMl));
+            // 히스테리시스 구간: 아직 멈춘 건 아니지만 나오지는 않는다
+            SetStream(false, 0f);
+            return;
         }
+
+        float flow = maxFlowMlPerSec * Mathf.InverseLerp(pourStartAngle, pourFullAngle, angle);
+        if (glugRemaining > 0f)
+        {
+            flow *= glugMultiplier;
+            glugRemaining -= dt;
+        }
+        float ml = flow * dt;
+        if (ml <= 0f)
+        {
+            SetStream(false, 0f);
+            return;
+        }
+
+        float hitDistance;
+        if (TryHitCup(out hitDistance))
+        {
+            SetStream(true, hitDistance);
+            liquidMl += ml;
+            bool overflow = liquidMl > cupCapacityMl + Epsilon;
+            if (overflow) liquidMl = cupCapacityMl;
+            UpdateCupDisplay();
+            if (overflow) EndGame(false, "우유가 넘쳤어!");
+        }
+        else
+        {
+            SetStream(true, Mathf.Max(0f, spout.position.y - floor.position.y));
+            outsideMl += ml;
+            hud.SetSpill(outsideMl / maxOutsideMl);
+            if (outsideMl > maxOutsideMl + Epsilon) EndGame(false, "우유를 흘렸어!");
+        }
+    }
+
+    private float PouredInMl()
+    {
+        return liquidMl - initialMl;
+    }
+
+    private float Fill01()
+    {
+        return liquidMl / cupCapacityMl;
+    }
+
+    private bool InTarget()
+    {
+        float fill = Fill01();
+        return fill >= targetMin01 - Epsilon && fill <= targetMax01 + Epsilon;
+    }
+
+    // 팩을 다시 세웠을 때. 모자라거나 컵에 한 방울도 안 들어갔으면 계속 진행
+    private void StopPouring()
+    {
+        if (PouredInMl() <= 0f) return;
+        if (InTarget()) EndGame(true, "성공!");
+        else if (Fill01() > targetMax01) EndGame(false, "너무 많이 부었어!");
+    }
+
+    public override void TimeOver()
+    {
+        if (PouredInMl() <= 0f) EndGame(false, "시간 초과!");
+        else if (InTarget()) EndGame(true, "성공!");
+        else if (Fill01() > targetMax01) EndGame(false, "너무 많이 부었어!");
+        else EndGame(false, "너무 적게 부었어!");
+    }
+
+    private void EndGame(bool success, string text)
+    {
+        if (!isPlaying) return;
+        pouring = false;
+        SetStream(false, 0f);
+        carton.inputEnabled = false;
+        if (success) cup.milk += Mathf.Max(0f, PouredInMl());
+        Finish(success, text);
+    }
+
+    // 입구에서 아래로 레이를 쏴서 컵 입구 콜라이더에 맞는지. 다른 콜라이더는 보지 않는다
+    private bool TryHitCup(out float distance)
+    {
+        distance = 0f;
+        Ray ray = new Ray(spout.position, Vector3.down);
+        RaycastHit hit;
+        if (!cupMouth.Raycast(ray, out hit, 5f)) return false;
+        distance = hit.distance;
+        return true;
+    }
+
+    private void SetStream(bool on, float length)
+    {
+        on = on && length > 0f;
+        stream.gameObject.SetActive(on);
+        if (!on)
+        {
+            stream.localScale = streamRestScale;
+            return;
+        }
+        // 줄기는 항상 수직 아래로
+        stream.SetPositionAndRotation(spout.position, Quaternion.identity);
+        stream.localScale = new Vector3(streamWidth, length, streamWidth);
+    }
+
+    private void UpdateCupDisplay()
+    {
+        cupVisual.SetFill(Fill01());
+        cupVisual.SetColorFrom(cup, 0f, Mathf.Max(0f, PouredInMl()));
+        hud.SetFill(Fill01());
     }
 }
