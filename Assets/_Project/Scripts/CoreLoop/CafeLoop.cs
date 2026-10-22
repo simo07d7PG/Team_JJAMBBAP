@@ -17,6 +17,12 @@ public class CafeLoop : MonoBehaviour
     public Station[] stations;
     [Tooltip("손님이 떠나거나 제공받은 뒤 다음 손님까지(초)")]
     public float nextCustomerSeconds = 3f;
+    [Tooltip("인내도(초). 주문을 수락하면 줄기 시작한다")]
+    public float patienceSeconds = 90f;
+    [Tooltip("미니게임 중 화면 위 인내도 막대 전체")]
+    public GameObject minigamePatienceBar;
+    [Tooltip("미니게임 중 줄어드는 막대. 왼쪽 기준(pivot x = 0)")]
+    public RectTransform minigamePatienceFill;
 
     [Header("글자 (코어 루프 Canvas)")]
     public TMP_Text instructionText;
@@ -47,6 +53,7 @@ public class CafeLoop : MonoBehaviour
     private int stepIndex;
     private int successCount;
     private float nextCustomerTimer;
+    private float patience;
     private int income;
     private float noticeTimer;
     private Station customerStation;
@@ -62,6 +69,7 @@ public class CafeLoop : MonoBehaviour
         order = 0;
         nextCustomerTimer = nextCustomerSeconds;
         noticeText.gameObject.SetActive(false);
+        minigamePatienceBar.SetActive(false);
         ShowIncome();
         UpdateTargets();
         ShowTexts();
@@ -71,7 +79,9 @@ public class CafeLoop : MonoBehaviour
     private void Update()
     {
         UpdateCustomer();
+        UpdatePatience();
         UpdateNotice();
+        if (order == 0) return;
 
         switch (state)
         {
@@ -150,6 +160,7 @@ public class CafeLoop : MonoBehaviour
         order = 2;
         stepIndex = 0;
         successCount = 0;
+        patience = patienceSeconds;
         UpdateTargets();
         Debug.Log("[CafeLoop] 주문 수락: " + menu.menuName);
     }
@@ -171,6 +182,27 @@ public class CafeLoop : MonoBehaviour
         menu = null;
         nextCustomerTimer = nextCustomerSeconds;
         UpdateTargets();
+    }
+
+    // 인내도는 카페 화면과 미니게임 플레이 중에만 준다 (지시어·결과 표시 중에는 정지)
+    private void UpdatePatience()
+    {
+        bool accepted = order == 2 || order == 3;
+        if (accepted && (state == 0 || state == 2)) patience -= Time.deltaTime;
+
+        float ratio = patience / patienceSeconds;
+        customer.SetPatience(accepted, ratio);
+        minigamePatienceBar.SetActive(accepted && state != 0);
+        minigamePatienceFill.localScale = new Vector3(Mathf.Clamp01(ratio), 1f, 1f);
+
+        if (accepted && patience <= 0f)
+        {
+            // 미니게임 중이면 바로 중단하고 카페로 돌아온다
+            if (state != 0) CloseMinigame();
+            ShowNotice("손님이 떠났어요");
+            Debug.Log("[CafeLoop] 인내도 초과, 손님 떠남");
+            CustomerLeave();
+        }
     }
 
     // 다음 단계의 대상만 클릭할 수 있게 한다
