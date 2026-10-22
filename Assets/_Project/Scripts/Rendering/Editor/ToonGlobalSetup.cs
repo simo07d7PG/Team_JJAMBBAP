@@ -21,7 +21,7 @@ namespace BariBarista.Rendering.Editor
         static readonly string[] MaterialFolders =
         {
             "Assets/_Project/Art/Cafe/Materials",
-            "Assets/_Project/Prefabs/Minigames/Materials",
+            "Assets/_Project/Art/Materials/Minigames",
         };
 
         [MenuItem("Tools/BariBarista/Toon/전역 적용 (후처리 + 재질)")]
