@@ -9,10 +9,15 @@ Shader "BariBarista/ToonPost"
         _EdgeWidth("외곽선 두께(픽셀)", Range(0.5, 4)) = 1.2
         _DepthThreshold("깊이 경계(거리 비율)", Range(0.001, 0.2)) = 0.02
         _NormalThreshold("노멀 경계", Range(0.05, 2)) = 0.5
-        _EdgeStrength("외곽선 세기", Range(0, 1)) = 1
+        _EdgeStrength("외곽선 세기", Range(0, 1)) = 0.7
+        _EdgeTint("외곽선을 바탕색에 맞추는 정도", Range(0, 1)) = 0.6
+        _EdgeDarken("바탕색을 어둡게 하는 비율", Range(0, 1)) = 0.45
+        _FadeStart("외곽선 흐려지기 시작 거리", Float) = 4
+        _FadeEnd("외곽선 가장 흐린 거리", Float) = 12
+        _FarEdgeStrength("먼 외곽선 세기 비율", Range(0, 1)) = 0.35
         _BandCount("명암 단계 수", Range(2, 8)) = 4
         _BandStrength("명암 단계 적용 비율", Range(0, 1)) = 0.5
-        _Saturation("채도 배율", Range(0.5, 1.5)) = 1.1
+        _Saturation("채도 배율", Range(0.5, 1.5)) = 1
     }
 
     SubShader
@@ -41,6 +46,11 @@ Shader "BariBarista/ToonPost"
             half _DepthThreshold;
             half _NormalThreshold;
             half _EdgeStrength;
+            half _EdgeTint;
+            half _EdgeDarken;
+            float _FadeStart;
+            float _FadeEnd;
+            half _FarEdgeStrength;
             half _BandCount;
             half _BandStrength;
             half _Saturation;
@@ -90,10 +100,17 @@ Shader "BariBarista/ToonPost"
             #else
                 float isSky = step(0.99999, rawDepth);
             #endif
-                float edge = saturate(max(step(_DepthThreshold, depthEdge), step(_NormalThreshold, normalEdge * 2.0)));
-                edge *= _EdgeStrength * (1.0 - isSky);
+                // 경계를 0/1로 끊지 않고 문턱 근처에서 부드럽게 올려 지글거림을 줄인다
+                float depthLine = smoothstep(_DepthThreshold * 0.5, _DepthThreshold * 1.5, depthEdge);
+                float normalLine = smoothstep(_NormalThreshold * 0.75, _NormalThreshold * 1.25, normalEdge * 2.0);
+                float edge = saturate(max(depthLine, normalLine));
+                // 멀리 있는 선은 흐리게
+                float far = smoothstep(_FadeStart, _FadeEnd, d0);
+                edge *= _EdgeStrength * lerp(1.0, _FarEdgeStrength, far) * (1.0 - isSky);
 
-                col = lerp(col, _EdgeColor.rgb, edge);
+                // 선 색: 고정색과 바탕색을 어둡게 한 색을 섞어 대비를 낮춘다
+                half3 edgeCol = lerp(_EdgeColor.rgb, col * _EdgeDarken, _EdgeTint);
+                col = lerp(col, edgeCol, edge);
                 return half4(col, src.a);
             }
             ENDHLSL
