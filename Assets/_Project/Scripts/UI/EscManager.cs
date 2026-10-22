@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
-
+using UnityEngine.UI;
 public class EscManager : MonoBehaviour
 {
     [Header("Panel to Toggle with ESC")]
