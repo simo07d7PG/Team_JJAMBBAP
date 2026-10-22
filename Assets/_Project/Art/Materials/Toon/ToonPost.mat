@@ -28,10 +28,15 @@ Material:
     - _BandCount: 4
     - _BandStrength: 0.5
     - _DepthThreshold: 0.02
-    - _EdgeStrength: 1
+    - _EdgeDarken: 0.45
+    - _EdgeStrength: 0.7
+    - _EdgeTint: 0.6
     - _EdgeWidth: 1.2
+    - _FadeEnd: 12
+    - _FadeStart: 4
+    - _FarEdgeStrength: 0.35
     - _NormalThreshold: 0.5
-    - _Saturation: 1.1
+    - _Saturation: 1
     m_Colors:
     - _EdgeColor: {r: 0.15999997, g: 0.089999996, b: 0.059999965, a: 1}
   m_BuildTextureStacks: []
