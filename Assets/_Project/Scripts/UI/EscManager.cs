@@ -8,6 +8,7 @@ public class EscManager : MonoBehaviour
     [SerializeField] private GameObject targetPanel;
     public void RetryGame()
     {
+        SetCursorState(false);
         Time.timeScale = 1f; // 게임 시간 다시 흐르게
 
         // 다시 로드
@@ -51,6 +52,7 @@ public class EscManager : MonoBehaviour
         {
             targetPanel.SetActive(true);
             Time.timeScale = 0f;
+            SetCursorState(true);
         }
     }
 
@@ -60,6 +62,20 @@ public class EscManager : MonoBehaviour
         {
             targetPanel.SetActive(false);
             Time.timeScale = 1f;
+            SetCursorState(false);
+        }
+    }
+    private void SetCursorState(bool isMenuOpen)
+    {
+        if (isMenuOpen)
+        {
+            Cursor.lockState = CursorLockMode.None; // 마우스 풀기
+            Cursor.visible = true;                  // 마우스 보이기
+        }
+        else
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = true;
         }
     }
 
