@@ -6235,6 +6235,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b3ef7f3e7ae3e8d47b9e28ccbc27920d, type: 3}
+--- !u!114 &144699457 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3274194201776307617, guid: b3ef7f3e7ae3e8d47b9e28ccbc27920d, type: 3}
+  m_PrefabInstance: {fileID: 144699456}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c989493180b5f4fb3ec28a8e953046, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.IceScoopMicrogame
 --- !u!1 &147275247
 GameObject:
   m_ObjectHideFlags: 0
@@ -18631,6 +18642,56 @@ Transform:
   - {fileID: 2035196478}
   - {fileID: 1388122007}
   m_Father: {fileID: 513604765}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &436604642
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 436604644}
+  - component: {fileID: 436604643}
+  m_Layer: 0
+  m_Name: CafeLoop
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &436604643
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 436604642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7bb8a7f8d31e08947abbd60236212d90, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CafeLoop
+  minigames:
+  - {fileID: 1313508277}
+  - {fileID: 144699457}
+  - {fileID: 1835942094}
+  view: {fileID: 1486357736}
+  cafeCamera: {fileID: 1486357733}
+--- !u!4 &436604644
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 436604642}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &436830938
 GameObject:
@@ -53019,6 +53080,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 54f7d8caa93b45e46958860ab677edc0, type: 3}
+--- !u!114 &1313508277 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8031438303724987602, guid: 54f7d8caa93b45e46958860ab677edc0, type: 3}
+  m_PrefabInstance: {fileID: 1313508276}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c3a69baa53f5ca345a20f636331e8885, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.EspressoShotMicrogame
 --- !u!1 &1317214442
 GameObject:
   m_ObjectHideFlags: 0
@@ -76936,6 +77008,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
+--- !u!114 &1835942094 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3239885057227589666, guid: 10962a823f1f6e24c9fb32e440c72e60, type: 3}
+  m_PrefabInstance: {fileID: 1835942093}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 51d5e0952f51d2a4cae643764bb79564, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.MilkPourMicrogame
 --- !u!1 &1840743013
 GameObject:
   m_ObjectHideFlags: 0
@@ -88769,3 +88852,4 @@ SceneRoots:
   - {fileID: 1313508276}
   - {fileID: 144699456}
   - {fileID: 1835942093}
+  - {fileID: 436604644}
