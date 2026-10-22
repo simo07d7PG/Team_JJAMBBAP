@@ -6,7 +6,14 @@ public class EscManager : MonoBehaviour
 {
     [Header("Panel to Toggle with ESC")]
     [SerializeField] private GameObject targetPanel;
+    public void RetryGame()
+    {
+        Time.timeScale = 1f; // 게임 시간 다시 흐르게
 
+        // 다시 로드
+        string currentSceneName = SceneManager.GetActiveScene().name;
+        SceneManager.LoadScene(currentSceneName);
+    }
     public void GameOut()
     {
         Time.timeScale = 1f; // 일시정지 상태로 메인씬으로 돌아가지 않도록 복구
