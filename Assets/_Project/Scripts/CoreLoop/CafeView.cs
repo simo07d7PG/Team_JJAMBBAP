@@ -46,6 +46,8 @@ public class CafeView : MonoBehaviour
     private float yaw;
     private float pitch;
     private bool cursorLocked;
+    // 마지막으로 일시정지였던 프레임. ESC 메뉴 버튼 클릭이 재개 직후 기계 클릭으로 넘어가지 않게
+    private int pausedFrame = -10;
 
     private void Start()
     {
@@ -61,6 +63,14 @@ public class CafeView : MonoBehaviour
 
     private void Update()
     {
+        // 일시정지(timeScale 0) 중에는 시야·클릭 입력을 버린다. 쌓인 회전이 재개 순간 반영되지 않게
+        if (Time.timeScale <= 0f)
+        {
+            pausedFrame = Time.frameCount;
+            return;
+        }
+        // ESC 메뉴가 닫히며 커서를 잠그므로, 재개 직후 카페·미니게임·영수증에 맞게 다시 둔다
+        if (Time.frameCount == pausedFrame + 1) SetCursorLocked(viewEnabled);
         if (viewEnabled != cursorLocked) SetCursorLocked(viewEnabled);
         if (!viewEnabled)
         {
@@ -69,7 +79,7 @@ public class CafeView : MonoBehaviour
         }
         Look();
         Hover();
-        if (hovered != null && clickAction.action.WasPressedThisFrame())
+        if (hovered != null && clickAction.action.WasPressedThisFrame() && Time.frameCount > pausedFrame + 1)
         {
             clickedStation = hovered;
         }
@@ -100,15 +110,31 @@ public class CafeView : MonoBehaviour
     }
 
     // 화면 가운데 아래 클릭 가능한 기계만 하이라이트
+    // 클릭할 수 없는 기계는 통과해 뒤의 손님·기계까지 찾고, 벽 같은 기계 아닌 물체에서는 멈춘다
     private void Hover()
     {
         Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
-        Station found = null;
-        RaycastHit hit;
-        if (Physics.Raycast(ray, out hit, rayDistance))
+        RaycastHit[] hits = Physics.RaycastAll(ray, rayDistance);
+
+        float blocked = rayDistance;
+        for (int i = 0; i < hits.Length; i++)
         {
-            found = hit.collider.GetComponentInParent<Station>();
-            if (found != null && !found.clickable) found = null;
+            if (hits[i].collider.GetComponentInParent<Station>() == null && hits[i].distance < blocked)
+            {
+                blocked = hits[i].distance;
+            }
+        }
+
+        Station found = null;
+        float nearest = blocked;
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Station station = hits[i].collider.GetComponentInParent<Station>();
+            if (station != null && station.clickable && hits[i].distance <= nearest)
+            {
+                found = station;
+                nearest = hits[i].distance;
+            }
         }
         SetHovered(found);
     }
