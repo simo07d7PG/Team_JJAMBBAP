@@ -184,6 +184,12 @@ public class CafeLoop : MonoBehaviour
         ShowDay();
     }
 
+    // 하루 진행 비율 (0 = 시작, 1 = 마감). 하루 조명이 읽는다
+    public float DayProgress()
+    {
+        return 1f - dayTimer / daySeconds;
+    }
+
     private void ShowDay()
     {
         if (dayOver)

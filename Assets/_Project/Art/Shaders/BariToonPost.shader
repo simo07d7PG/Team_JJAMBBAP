@@ -17,6 +17,9 @@ Shader "BariBarista/ToonPost"
         _FarEdgeStrength("먼 외곽선 세기 비율", Range(0, 1)) = 0.35
         _BandCount("명암 단계 수", Range(2, 8)) = 4
         _BandStrength("명암 단계 적용 비율", Range(0, 1)) = 0.5
+        _BandBlur("명암 경계 노이즈 제거 반경(픽셀)", Range(0, 6)) = 3
+        _BandLineWidth("명암 경계 선 두께(픽셀)", Range(0, 4)) = 1.2
+        _BandLineDarken("명암 경계 선 어둡기", Range(0, 1)) = 0.55
         _Saturation("채도 배율", Range(0.5, 1.5)) = 1
     }
 
@@ -53,6 +56,9 @@ Shader "BariBarista/ToonPost"
             half _FarEdgeStrength;
             half _BandCount;
             half _BandStrength;
+            half _BandBlur;
+            half _BandLineWidth;
+            half _BandLineDarken;
             half _Saturation;
 
             float EyeDepth(float2 uv)
@@ -67,11 +73,28 @@ Shader "BariBarista/ToonPost"
                 half4 src = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv);
                 half3 col = src.rgb;
 
-                // 1) 밝기 단계: 밝기를 몇 칸으로 나눠 만화처럼 끊는다. 색 비율은 유지한다.
-                half lum = max(Luminance(col), 1e-4h);
-                half banded = floor(lum * _BandCount + 0.5h) / _BandCount;
-                half3 bandCol = col * (max(banded, 0.02h) / lum);
+                // 1) 밝기 단계(셀 채색): 밝기를 몇 칸으로 칼같이 끊고 경계에 선을 긋는다. 색 비율은 유지한다.
+                // 어느 칸인지는 주변 픽셀 밝기 평균으로 정한다. SSAO·그림자의 픽셀 노이즈가 경계 모양을 갉아먹지 않게
+                float2 bt = _BlitTexture_TexelSize.xy * _BandBlur;
+                half lumBlur = Luminance(col) * 0.2h;
+                [unroll] for (int k = 0; k < 8; k++)
+                {
+                    float a = k * 0.785398;
+                    float2 o = float2(cos(a), sin(a)) * bt;
+                    lumBlur += Luminance(SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv + o).rgb) * 0.06h;
+                    lumBlur += Luminance(SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv + o * 2.0).rgb) * 0.04h;
+                }
+                lumBlur = max(lumBlur, 1e-4h);
+                float t = lumBlur * _BandCount;
+                float tw = max(fwidth(t), 1e-4);
+                float f = frac(t) - 0.5;
+                // 경계는 1픽셀 안에서 끊는다(계단 없이 칼같이)
+                half banded = (floor(t) + saturate(f / tw + 0.5)) / _BandCount;
+                half3 bandCol = col * (max(banded, 0.02h) / lumBlur);
                 col = lerp(col, bandCol, _BandStrength);
+                // 경계 선: 칸이 바뀌는 곳에서 화면 기준 일정한 두께
+                half bandLine = 1.0h - saturate(abs(f) / tw - _BandLineWidth * 0.5h + 0.5h);
+                col *= lerp(1.0h, _BandLineDarken, bandLine * _BandStrength);
 
                 // 2) 채도 배율
                 half gray = Luminance(col);
