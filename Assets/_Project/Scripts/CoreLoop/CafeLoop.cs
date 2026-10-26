@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 
@@ -35,6 +36,13 @@ public class CafeLoop : MonoBehaviour
     public GameObject receiptPanel;
     public TMP_Text receiptText;
 
+    [Header("연출")]
+    public CafeEffects effects;
+    [Tooltip("결제 때 손님 위로 떠오르는 글자")]
+    public TMP_Text floatText;
+    [Tooltip("영수증 상자. 아래에서 올라온다")]
+    public RectTransform receiptBox;
+
     [Header("글자 (코어 루프 Canvas)")]
     public TMP_Text instructionText;
     public TMP_Text timeText;
@@ -52,7 +60,7 @@ public class CafeLoop : MonoBehaviour
     [Tooltip("결제·떠남 알림을 보여 주는 시간(초)")]
     public float noticeSeconds = 1.5f;
 
-    // 화면 상태: 0 = 카페, 1 = 지시어, 2 = 미니게임 플레이, 3 = 결과
+    // 화면 상태: 0 = 카페, 1 = 지시어, 2 = 미니게임 플레이, 3 = 결과, 4 = 페이드 전환 중(시간 정지)
     private int state;
     private Minigame current;
     private float timer;
@@ -90,6 +98,7 @@ public class CafeLoop : MonoBehaviour
         noticeText.gameObject.SetActive(false);
         minigamePatienceBar.SetActive(false);
         receiptPanel.SetActive(false);
+        floatText.gameObject.SetActive(false);
         dayTimer = daySeconds;
         ShowDay();
         ShowIncome();
@@ -161,7 +170,11 @@ public class CafeLoop : MonoBehaviour
             return;
         }
         Minigame game = FindMinigame(clicked.stationId);
-        if (game != null) OpenMinigame(game);
+        if (game != null)
+        {
+            effects.Play(effects.clickClip);
+            OpenMinigame(game);
+        }
     }
 
     // 하루 시계는 인내도처럼 카페 화면과 미니게임 플레이 중에만 흐른다
@@ -178,7 +191,7 @@ public class CafeLoop : MonoBehaviour
             if (order == 1)
             {
                 ShowNotice("오늘 영업 끝!");
-                CustomerLeave();
+                CustomerLeave("내일 올게요");
             }
         }
         ShowDay();
@@ -220,6 +233,7 @@ public class CafeLoop : MonoBehaviour
             fixedMenuIndex++;
         }
         customer.Show(menu);
+        effects.Play(effects.bellClip);
         order = 1;
         UpdateTargets();
         Debug.Log("[CafeLoop] 손님 등장: " + menu.menuName);
@@ -227,6 +241,7 @@ public class CafeLoop : MonoBehaviour
 
     private void AcceptOrder()
     {
+        effects.Play(effects.clickClip);
         order = 2;
         stepIndex = 0;
         successCount = 0;
@@ -238,17 +253,23 @@ public class CafeLoop : MonoBehaviour
     private void Serve()
     {
         int price = menu.price * successCount / menu.steps.Length;
+        int before = income;
         income += price;
         salesCount++;
-        ShowIncome();
-        ShowNotice("+" + price + "원 (" + successCount + "/" + menu.steps.Length + " 성공)");
+        // 수입 숫자가 굴러 올라가고, 손님 머리 위로 +원이 떠오른다
+        StartCoroutine(effects.CountUp(incomeText, "수입 ", before, income, "원", 0.6f));
+        StartCoroutine(effects.FloatUp(floatText, "+" + price + "원", customer.bubble.position, cafeCamera));
+        effects.Play(effects.coinClip);
+        ShowNotice(successCount + "/" + menu.steps.Length + " 성공");
         Debug.Log("[CafeLoop] 제공: " + menu.menuName + " " + price + "원");
-        CustomerLeave();
+        if (successCount == menu.steps.Length) CustomerLeave("고마워요!");
+        else CustomerLeave("음… 다음엔 잘해 줘요");
     }
 
-    private void CustomerLeave()
+    // 손님이 한마디 남기고 떠난다
+    private void CustomerLeave(string message)
     {
-        customer.Hide();
+        customer.Leave(message);
         order = 0;
         menu = null;
         nextCustomerTimer = nextCustomerSeconds;
@@ -273,7 +294,7 @@ public class CafeLoop : MonoBehaviour
             ShowNotice("손님이 떠났어요");
             leftCount++;
             Debug.Log("[CafeLoop] 인내도 초과, 손님 떠남");
-            CustomerLeave();
+            CustomerLeave("너무 오래 걸려요!");
         }
     }
 
@@ -284,9 +305,14 @@ public class CafeLoop : MonoBehaviour
         if (order == 2) nextStation = menu.steps[stepIndex];
         for (int i = 0; i < stations.Length; i++)
         {
+            bool was = stations[i].clickable;
             stations[i].clickable = stations[i].stationId == nextStation;
+            // 새로 차례가 된 기계는 깜빡여서 알린다
+            if (!was && stations[i].clickable) stations[i].Blink();
         }
+        bool customerWas = customerStation.clickable;
         customerStation.clickable = order == 1 || order == 3;
+        if (!customerWas && customerStation.clickable) customerStation.Blink();
     }
 
     private Minigame FindMinigame(string stationId)
@@ -301,6 +327,15 @@ public class CafeLoop : MonoBehaviour
 
     private void OpenMinigame(Minigame game)
     {
+        StartCoroutine(SwitchToMinigame(game));
+    }
+
+    // 검게 → 카메라 전환 → 밝게. 전환 중(state 4)에는 시계·인내도·입력이 멈춘다
+    private IEnumerator SwitchToMinigame(Minigame game)
+    {
+        state = 4;
+        ShowTexts();
+        yield return effects.FadeTo(1f);
         current = game;
         view.viewEnabled = false;
         game.gameObject.SetActive(true);
@@ -311,6 +346,7 @@ public class CafeLoop : MonoBehaviour
         timer = instructionSeconds;
         state = 1;
         ShowTexts();
+        yield return effects.FadeTo(0f);
     }
 
     // 미니게임 하나가 끝남 → 다음 단계로 (실패해도 진행)
@@ -325,11 +361,20 @@ public class CafeLoop : MonoBehaviour
 
     private void CloseMinigame()
     {
+        StartCoroutine(SwitchToCafe());
+    }
+
+    private IEnumerator SwitchToCafe()
+    {
+        state = 4;
+        ShowTexts();
+        yield return effects.FadeTo(1f);
         current.StopGame();
         current.gameObject.SetActive(false);
         current = null;
         cafeCamera.enabled = true;
         view.viewEnabled = true;
+        yield return effects.FadeTo(0f);
         returnFrame = Time.frameCount;
         state = 0;
         ShowTexts();
@@ -355,7 +400,9 @@ public class CafeLoop : MonoBehaviour
     {
         receiptPanel.SetActive(true);
         view.viewEnabled = false;
-        receiptText.text = day + "일차 영수증\n\n판매 " + salesCount + "잔\n떠난 손님 " + leftCount + "명\n\n수입 " + income + "원";
+        // 상자가 아래에서 올라오고, 수입 숫자가 굴러 올라간다
+        StartCoroutine(effects.SlideUp(receiptBox, 500f, 0.35f));
+        StartCoroutine(effects.CountUp(receiptText, day + "일차 영수증\n\n판매 " + salesCount + "잔\n떠난 손님 " + leftCount + "명\n\n수입 ", 0, income, "원", 0.8f));
         Debug.Log("[CafeLoop] 영수증: 판매 " + salesCount + ", 떠남 " + leftCount + ", 수입 " + income);
     }
 
@@ -392,7 +439,21 @@ public class CafeLoop : MonoBehaviour
         if (state == 3)
         {
             resultText.text = current.resultText;
-            if (current.isSuccess) resultText.text = "성공!";
+            // 성공은 노랗게 튕기고, 실패는 붉게 흔들린다
+            if (current.isSuccess)
+            {
+                resultText.text = "성공!";
+                resultText.color = new Color(1f, 0.88f, 0.35f);
+                StartCoroutine(effects.Pop(resultText.rectTransform, 1.5f));
+                effects.Play(effects.successClip);
+            }
+            else
+            {
+                resultText.color = new Color(1f, 0.6f, 0.55f);
+                StartCoroutine(effects.Pop(resultText.rectTransform, 1.2f));
+                StartCoroutine(effects.Shake(resultText.rectTransform, 18f));
+                effects.Play(effects.failClip);
+            }
         }
     }
 }
