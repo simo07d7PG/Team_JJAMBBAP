@@ -23,6 +23,17 @@ public class CafeLoop : MonoBehaviour
     public GameObject minigamePatienceBar;
     [Tooltip("미니게임 중 줄어드는 막대. 왼쪽 기준(pivot x = 0)")]
     public RectTransform minigamePatienceFill;
+    [Tooltip("손님 메뉴 순서 (데모용). 비우면 menus에서 무작위")]
+    public MenuData[] fixedMenus;
+
+    [Header("하루")]
+    [Tooltip("하루 길이(초). 카페 화면과 미니게임 플레이 중에만 흐른다")]
+    public float daySeconds = 360f;
+    [Tooltip("날짜와 남은 시간")]
+    public TMP_Text dayText;
+    [Tooltip("하루가 끝나면 켜는 영수증 패널 (다음날 버튼 → NextDay)")]
+    public GameObject receiptPanel;
+    public TMP_Text receiptText;
 
     [Header("글자 (코어 루프 Canvas)")]
     public TMP_Text instructionText;
@@ -58,6 +69,14 @@ public class CafeLoop : MonoBehaviour
     private float noticeTimer;
     private Station customerStation;
 
+    private int day = 1;
+    private float dayTimer;
+    // 시간이 다 됨. 새 손님은 오지 않고, 진행 중인 주문이 끝나면 영수증
+    private bool dayOver;
+    private int salesCount;
+    private int leftCount;
+    private int fixedMenuIndex;
+
     private void Start()
     {
         for (int i = 0; i < minigames.Length; i++)
@@ -70,6 +89,9 @@ public class CafeLoop : MonoBehaviour
         nextCustomerTimer = nextCustomerSeconds;
         noticeText.gameObject.SetActive(false);
         minigamePatienceBar.SetActive(false);
+        receiptPanel.SetActive(false);
+        dayTimer = daySeconds;
+        ShowDay();
         ShowIncome();
         UpdateTargets();
         ShowTexts();
@@ -78,6 +100,7 @@ public class CafeLoop : MonoBehaviour
 
     private void Update()
     {
+        UpdateDay();
         UpdateCustomer();
         UpdatePatience();
         UpdateNotice();
@@ -141,14 +164,55 @@ public class CafeLoop : MonoBehaviour
         if (game != null) OpenMinigame(game);
     }
 
-    // 손님이 없으면 시간을 세다가 새 손님을 부른다
+    // 하루 시계는 인내도처럼 카페 화면과 미니게임 플레이 중에만 흐른다
+    private void UpdateDay()
+    {
+        if (dayOver) return;
+        if (state == 0 || state == 2) dayTimer -= Time.deltaTime;
+        if (dayTimer <= 0f)
+        {
+            dayTimer = 0f;
+            dayOver = true;
+            Debug.Log("[CafeLoop] " + day + "일차 마감");
+            // 수락한 주문만 끝까지 한다. 수락 전 손님은 돌려보낸다
+            if (order == 1)
+            {
+                ShowNotice("오늘 영업 끝!");
+                CustomerLeave();
+            }
+        }
+        ShowDay();
+    }
+
+    private void ShowDay()
+    {
+        if (dayOver)
+        {
+            dayText.text = day + "일차 마감";
+            return;
+        }
+        int seconds = Mathf.CeilToInt(dayTimer);
+        dayText.text = day + "일차  " + (seconds / 60) + ":" + (seconds % 60).ToString("00");
+    }
+
+    // 손님이 없으면 시간을 세다가 새 손님을 부른다. 하루가 끝났으면 영수증
     private void UpdateCustomer()
     {
         if (order != 0) return;
+        if (dayOver)
+        {
+            if (!receiptPanel.activeSelf) ShowReceipt();
+            return;
+        }
         nextCustomerTimer -= Time.deltaTime;
         if (nextCustomerTimer > 0f) return;
 
         menu = menus[Random.Range(0, menus.Length)];
+        if (fixedMenus.Length > 0)
+        {
+            menu = fixedMenus[fixedMenuIndex % fixedMenus.Length];
+            fixedMenuIndex++;
+        }
         customer.Show(menu);
         order = 1;
         UpdateTargets();
@@ -169,6 +233,7 @@ public class CafeLoop : MonoBehaviour
     {
         int price = menu.price * successCount / menu.steps.Length;
         income += price;
+        salesCount++;
         ShowIncome();
         ShowNotice("+" + price + "원 (" + successCount + "/" + menu.steps.Length + " 성공)");
         Debug.Log("[CafeLoop] 제공: " + menu.menuName + " " + price + "원");
@@ -200,6 +265,7 @@ public class CafeLoop : MonoBehaviour
             // 미니게임 중이면 바로 중단하고 카페로 돌아온다
             if (state != 0) CloseMinigame();
             ShowNotice("손님이 떠났어요");
+            leftCount++;
             Debug.Log("[CafeLoop] 인내도 초과, 손님 떠남");
             CustomerLeave();
         }
@@ -276,6 +342,32 @@ public class CafeLoop : MonoBehaviour
         if (noticeTimer <= 0f) return;
         noticeTimer -= Time.deltaTime;
         if (noticeTimer <= 0f) noticeText.gameObject.SetActive(false);
+    }
+
+    // 영수증 동안은 시야를 끄고 커서를 보여 준다
+    private void ShowReceipt()
+    {
+        receiptPanel.SetActive(true);
+        view.viewEnabled = false;
+        receiptText.text = day + "일차 영수증\n\n판매 " + salesCount + "잔\n떠난 손님 " + leftCount + "명\n\n수입 " + income + "원";
+        Debug.Log("[CafeLoop] 영수증: 판매 " + salesCount + ", 떠남 " + leftCount + ", 수입 " + income);
+    }
+
+    // 영수증의 '다음날' 버튼
+    public void NextDay()
+    {
+        receiptPanel.SetActive(false);
+        view.viewEnabled = true;
+        day++;
+        dayTimer = daySeconds;
+        dayOver = false;
+        salesCount = 0;
+        leftCount = 0;
+        income = 0;
+        fixedMenuIndex = 0;
+        nextCustomerTimer = nextCustomerSeconds;
+        ShowDay();
+        ShowIncome();
     }
 
     private void ShowIncome()
