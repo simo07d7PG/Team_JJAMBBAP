@@ -36,6 +36,8 @@ public class MilkPourMicrogame : Minigame
     [Tooltip("목표 높이 구간(컵 용량 대비 0~1)")]
     [Range(0f, 1f)] [SerializeField] private float targetMin01 = 0.6f;
     [Range(0f, 1f)] [SerializeField] private float targetMax01 = 0.85f;
+    [Tooltip("주문 변형(우유 적게·많이)마다 목표 구간을 옮기는 비율")]
+    [SerializeField] private float variantShift01 = 0.15f;
     [Tooltip("최대로 기울였을 때 초당 붓는 양(ml)")]
     [SerializeField] private float maxFlowMlPerSec = 140f;
     [Tooltip("컵 밖으로 부어도 되는 한도(ml)")]
@@ -57,6 +59,9 @@ public class MilkPourMicrogame : Minigame
     private float initialMl;
     private float liquidMl;
     private float outsideMl;
+    // 이번 주문의 목표 구간 (variant 반영)
+    private float curMin01;
+    private float curMax01;
 
     private void Awake()
     {
@@ -80,7 +85,9 @@ public class MilkPourMicrogame : Minigame
         liquidMl = initialMl;
         outsideMl = 0f;
 
-        hud.Configure(targetMin01, targetMax01);
+        curMin01 = Mathf.Clamp(targetMin01 + variant * variantShift01, 0.1f, 0.85f);
+        curMax01 = Mathf.Clamp(targetMax01 + variant * variantShift01, curMin01 + 0.1f, 0.96f);
+        hud.Configure(curMin01, curMax01);
         cupVisual.SetIceVisible(cup.ice > 0);
         UpdateCupDisplay();
     }
@@ -173,7 +180,7 @@ public class MilkPourMicrogame : Minigame
     private bool InTarget()
     {
         float fill = Fill01();
-        return fill >= targetMin01 - Epsilon && fill <= targetMax01 + Epsilon;
+        return fill >= curMin01 - Epsilon && fill <= curMax01 + Epsilon;
     }
 
     // 팩을 다시 세웠을 때. 모자라거나 컵에 한 방울도 안 들어갔으면 계속 진행
@@ -181,14 +188,14 @@ public class MilkPourMicrogame : Minigame
     {
         if (PouredInMl() <= 0f) return;
         if (InTarget()) EndGame(true, "성공!");
-        else if (Fill01() > targetMax01) EndGame(false, "너무 많이 부었어!");
+        else if (Fill01() > curMax01) EndGame(false, "너무 많이 부었어!");
     }
 
     public override void TimeOver()
     {
         if (PouredInMl() <= 0f) EndGame(false, "시간 초과!");
         else if (InTarget()) EndGame(true, "성공!");
-        else if (Fill01() > targetMax01) EndGame(false, "너무 많이 부었어!");
+        else if (Fill01() > curMax01) EndGame(false, "너무 많이 부었어!");
         else EndGame(false, "너무 적게 부었어!");
     }
 
@@ -198,7 +205,11 @@ public class MilkPourMicrogame : Minigame
         pouring = false;
         SetStream(false, 0f);
         carton.inputEnabled = false;
-        if (success) cup.milk += Mathf.Max(0f, PouredInMl());
+        if (success)
+        {
+            cup.milk += Mathf.Max(0f, PouredInMl());
+            quality = QualityOf(Fill01(), curMin01, curMax01);
+        }
         Finish(success, text);
     }
 

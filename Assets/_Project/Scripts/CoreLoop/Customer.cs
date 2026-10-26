@@ -24,7 +24,8 @@ public class Customer : MonoBehaviour
     private bool scaleSaved;
     private bool leaving;
 
-    public void Show(MenuData menu)
+    // request: 주문 변형 글자 ("진하게, 우유 적게"). 비어 있으면 메뉴 이름만
+    public void Show(MenuData menu, string request)
     {
         StopAllCoroutines();
         leaving = false;
@@ -35,6 +36,7 @@ public class Customer : MonoBehaviour
             scaleSaved = true;
         }
         menuText.text = menu.menuName;
+        if (request != "") menuText.text = menu.menuName + "\n<size=70%>" + request + "</size>";
         patienceBar.SetActive(false);
         StartCoroutine(PopBubble());
     }

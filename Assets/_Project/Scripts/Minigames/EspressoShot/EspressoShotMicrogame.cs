@@ -24,6 +24,8 @@ public class EspressoShotMicrogame : Minigame
     [Tooltip("목표 구간(ml). 이 안에서 떼면 성공")]
     [SerializeField] private float targetMinMl = 25f;
     [SerializeField] private float targetMaxMl = 40f;
+    [Tooltip("주문 변형(연하게·진하게)마다 목표 구간을 옮기는 양(ml)")]
+    [SerializeField] private float variantShiftMl = 10f;
     [Tooltip("컵 용량(ml). 넘으면 넘침 실패")]
     [SerializeField] private float capacityMl = 60f;
     [Tooltip("평균 추출 속도(ml/초)")]
@@ -42,6 +44,9 @@ public class EspressoShotMicrogame : Minigame
     private float extracted;
     private float noiseTime;
     private float noiseSeed;
+    // 이번 주문의 목표 구간 (variant 반영)
+    private float curMinMl;
+    private float curMaxMl;
 
     private void Awake()
     {
@@ -59,7 +64,9 @@ public class EspressoShotMicrogame : Minigame
         SetStream(0f, 0f);
         extractButton.localPosition = buttonRestLocal;
 
-        hud.Configure(targetMinMl, targetMaxMl, capacityMl);
+        curMinMl = Mathf.Clamp(targetMinMl + variant * variantShiftMl, 5f, capacityMl - 10f);
+        curMaxMl = Mathf.Clamp(targetMaxMl + variant * variantShiftMl, curMinMl + 5f, capacityMl - 5f);
+        hud.Configure(curMinMl, curMaxMl, capacityMl);
         UpdateCupVisual();
         cupVisual.SetIceVisible(cup.ice > 0);
     }
@@ -119,28 +126,32 @@ public class EspressoShotMicrogame : Minigame
     private void Release()
     {
         if (InTarget()) EndGame(true, "성공!");
-        else if (extracted > targetMaxMl) EndGame(false, "너무 많이 뽑았어!");
+        else if (extracted > curMaxMl) EndGame(false, "너무 많이 뽑았어!");
     }
 
     // 시간 초과. 구간 안이면 성공으로 인정
     public override void TimeOver()
     {
         if (InTarget()) EndGame(true, "성공!");
-        else if (extracted > targetMaxMl) EndGame(false, "너무 많이 뽑았어!");
+        else if (extracted > curMaxMl) EndGame(false, "너무 많이 뽑았어!");
         else if (extracted > 0f) EndGame(false, "샷이 모자라!");
         else EndGame(false, "시간 초과!");
     }
 
     private bool InTarget()
     {
-        return extracted >= targetMinMl - Epsilon && extracted <= targetMaxMl + Epsilon;
+        return extracted >= curMinMl - Epsilon && extracted <= curMaxMl + Epsilon;
     }
 
     private void EndGame(bool success, string text)
     {
         if (!isPlaying) return;
         if (extracting) StopExtraction();
-        if (success) cup.espresso += extracted;
+        if (success)
+        {
+            cup.espresso += extracted;
+            quality = QualityOf(extracted, curMinMl, curMaxMl);
+        }
         Finish(success, text);
     }
 

@@ -36,6 +36,22 @@ public class CafeLoop : MonoBehaviour
     public GameObject receiptPanel;
     public TMP_Text receiptText;
 
+    [Header("주문 변형·등급·콤보")]
+    [Tooltip("단계마다 '적게/많이' 변형이 붙을 확률 (0 = 항상 보통)")]
+    [Range(0f, 1f)]
+    public float variantChance = 0.6f;
+    [Tooltip("quality가 이 이상이면 완벽")]
+    public float perfectQuality = 0.7f;
+    [Tooltip("quality가 이 이상이면 좋아요, 아니면 아슬아슬")]
+    public float goodQuality = 0.3f;
+    [Tooltip("등급별 가격 배율: 완벽 / 좋아요 / 아슬아슬")]
+    public float perfectPrice = 1.2f;
+    public float goodPrice = 1f;
+    public float closePrice = 0.7f;
+    [Tooltip("콤보 1단계당 팁 비율. 좋아요 이상이 연속될 때 쌓이고 실패·아슬아슬에 끊긴다")]
+    public float comboTip = 0.1f;
+    public int comboTipMax = 5;
+
     [Header("연출")]
     public CafeEffects effects;
     [Tooltip("결제 때 손님 위로 떠오르는 글자")]
@@ -84,6 +100,12 @@ public class CafeLoop : MonoBehaviour
     private int salesCount;
     private int leftCount;
     private int fixedMenuIndex;
+
+    // 이번 주문의 단계별 변형(-1/0/1), 단계 가격 배율 합, 방금 끝난 단계 배율, 연속 성공
+    private int[] stepVariants = new int[0];
+    private float priceSum;
+    private float stepMultiplier;
+    private int combo;
 
     private void Start()
     {
@@ -143,7 +165,8 @@ public class CafeLoop : MonoBehaviour
                 timeText.text = "남은 시간 " + Mathf.Max(0f, timer).ToString("0.0") + "초";
                 if (current.isFinished)
                 {
-                    Debug.Log("[CafeLoop] " + current.stationId + " 결과: " + (current.isSuccess ? "성공" : "실패") + " / " + current.resultText);
+                    JudgeStep();
+                    Debug.Log("[CafeLoop] " + current.stationId + " 결과: " + (current.isSuccess ? "성공 q=" + current.quality.ToString("0.00") + " x" + stepMultiplier : "실패") + " / " + current.resultText + " 콤보 " + combo);
                     timer = failSeconds;
                     if (current.isSuccess) timer = successSeconds;
                     state = 3;
@@ -232,11 +255,50 @@ public class CafeLoop : MonoBehaviour
             menu = fixedMenus[fixedMenuIndex % fixedMenus.Length];
             fixedMenuIndex++;
         }
-        customer.Show(menu);
+        // 단계마다 변형을 정한다 (예: 추출 '진하게', 우유 '적게')
+        stepVariants = new int[menu.steps.Length];
+        string request = "";
+        for (int i = 0; i < menu.steps.Length; i++)
+        {
+            stepVariants[i] = 0;
+            if (Random.value < variantChance) stepVariants[i] = Random.value < 0.5f ? -1 : 1;
+            string label = VariantLabel(menu.steps[i], stepVariants[i]);
+            if (label == "") continue;
+            if (request != "") request += ", ";
+            request += label;
+        }
+        customer.Show(menu, request);
         effects.Play(effects.bellClip);
         order = 1;
         UpdateTargets();
         Debug.Log("[CafeLoop] 손님 등장: " + menu.menuName);
+    }
+
+    // 변형 글자. 기계 id마다 '적게/많이'에 해당하는 말
+    private string VariantLabel(string stationId, int variant)
+    {
+        if (variant == 0) return "";
+        switch (stationId)
+        {
+            case "espresso": return variant < 0 ? "연하게" : "진하게";
+            case "ice": return variant < 0 ? "얼음 적게" : "얼음 많이";
+            case "milk": return variant < 0 ? "우유 적게" : "우유 많이";
+        }
+        return "";
+    }
+
+    // 방금 끝난 단계의 등급 → 가격 배율과 콤보
+    private void JudgeStep()
+    {
+        stepMultiplier = 0f;
+        if (current.isSuccess)
+        {
+            if (current.quality >= perfectQuality) stepMultiplier = perfectPrice;
+            else if (current.quality >= goodQuality) stepMultiplier = goodPrice;
+            else stepMultiplier = closePrice;
+        }
+        if (current.isSuccess && current.quality >= goodQuality) combo++;
+        else combo = 0;
     }
 
     private void AcceptOrder()
@@ -245,6 +307,7 @@ public class CafeLoop : MonoBehaviour
         order = 2;
         stepIndex = 0;
         successCount = 0;
+        priceSum = 0f;
         patience = patienceSeconds;
         UpdateTargets();
         Debug.Log("[CafeLoop] 주문 수락: " + menu.menuName);
@@ -252,16 +315,21 @@ public class CafeLoop : MonoBehaviour
 
     private void Serve()
     {
-        int price = menu.price * successCount / menu.steps.Length;
+        // 가격 = 정가 × 단계 등급 배율 평균 (100원 단위), 콤보 팁은 그 위에
+        int price = Mathf.RoundToInt(menu.price * priceSum / menu.steps.Length / 100f) * 100;
+        int tip = 0;
+        if (combo >= 2) tip = Mathf.RoundToInt(price * comboTip * Mathf.Min(combo - 1, comboTipMax) / 100f) * 100;
         int before = income;
-        income += price;
+        income += price + tip;
         salesCount++;
         // 수입 숫자가 굴러 올라가고, 손님 머리 위로 +원이 떠오른다
         StartCoroutine(effects.CountUp(incomeText, "수입 ", before, income, "원", 0.6f));
-        StartCoroutine(effects.FloatUp(floatText, "+" + price + "원", customer.bubble.position, cafeCamera));
+        StartCoroutine(effects.FloatUp(floatText, "+" + (price + tip) + "원", customer.bubble.position, cafeCamera));
         effects.Play(effects.coinClip);
-        ShowNotice(successCount + "/" + menu.steps.Length + " 성공");
-        Debug.Log("[CafeLoop] 제공: " + menu.menuName + " " + price + "원");
+        string notice = successCount + "/" + menu.steps.Length + " 성공";
+        if (tip > 0) notice += " · 콤보 ×" + combo + " 팁 +" + tip + "원";
+        ShowNotice(notice);
+        Debug.Log("[CafeLoop] 제공: " + menu.menuName + " " + price + "원 + 팁 " + tip);
         if (successCount == menu.steps.Length) CustomerLeave("고마워요!");
         else CustomerLeave("음… 다음엔 잘해 줘요");
     }
@@ -337,6 +405,7 @@ public class CafeLoop : MonoBehaviour
         ShowTexts();
         yield return effects.FadeTo(1f);
         current = game;
+        game.variant = stepVariants[stepIndex];
         view.viewEnabled = false;
         game.gameObject.SetActive(true);
         // 카메라 컴포넌트만 끈다 (AudioListener는 카페 카메라에 남김)
@@ -353,6 +422,7 @@ public class CafeLoop : MonoBehaviour
     private void FinishStep()
     {
         if (current.isSuccess) successCount++;
+        priceSum += stepMultiplier;
         stepIndex++;
         if (stepIndex >= menu.steps.Length) order = 3;
         CloseMinigame();
@@ -434,7 +504,12 @@ public class CafeLoop : MonoBehaviour
         instructionText.gameObject.SetActive(state == 1);
         timeText.gameObject.SetActive(state == 2);
         resultText.gameObject.SetActive(state == 3);
-        if (state == 1) instructionText.text = current.instruction;
+        if (state == 1)
+        {
+            instructionText.text = current.instruction;
+            string label = VariantLabel(current.stationId, current.variant);
+            if (label != "") instructionText.text = current.instruction + "\n<size=60%>" + label + "</size>";
+        }
         if (state == 2) timeText.text = "남은 시간 " + current.timeLimit.ToString("0.0") + "초";
         if (state == 3)
         {
@@ -442,9 +517,26 @@ public class CafeLoop : MonoBehaviour
             // 성공은 노랗게 튕기고, 실패는 붉게 흔들린다
             if (current.isSuccess)
             {
-                resultText.text = "성공!";
-                resultText.color = new Color(1f, 0.88f, 0.35f);
-                StartCoroutine(effects.Pop(resultText.rectTransform, 1.5f));
+                // 등급: 완벽(금색, 크게 튕김) / 좋아요(노랑) / 아슬아슬(주황)
+                if (current.quality >= perfectQuality)
+                {
+                    resultText.text = "완벽!";
+                    resultText.color = new Color(1f, 0.82f, 0.2f);
+                    StartCoroutine(effects.Pop(resultText.rectTransform, 1.9f));
+                }
+                else if (current.quality >= goodQuality)
+                {
+                    resultText.text = "좋아요!";
+                    resultText.color = new Color(1f, 0.92f, 0.45f);
+                    StartCoroutine(effects.Pop(resultText.rectTransform, 1.5f));
+                }
+                else
+                {
+                    resultText.text = "아슬아슬!";
+                    resultText.color = new Color(1f, 0.7f, 0.4f);
+                    StartCoroutine(effects.Pop(resultText.rectTransform, 1.3f));
+                }
+                if (combo >= 2) resultText.text += "\n<size=45%>콤보 ×" + combo + "</size>";
                 effects.Play(effects.successClip);
             }
             else
