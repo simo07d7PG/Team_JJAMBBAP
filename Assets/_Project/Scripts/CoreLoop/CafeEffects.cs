@@ -23,23 +23,62 @@ public class CafeEffects : MonoBehaviour
     [Tooltip("결제")]
     public AudioClip coinClip;
 
+    [Header("배경 음악 (비우면 무음)")]
+    [Tooltip("loop로 재생할 AudioSource (효과음과 따로)")]
+    public AudioSource bgmSource;
+    public AudioClip bgmClip;
+    [Range(0f, 1f)]
+    public float bgmVolume = 0.6f;
+
     public void Play(AudioClip clip)
     {
         if (clip == null || audioSource == null) return;
         audioSource.PlayOneShot(clip);
     }
 
+    // 배경 음악을 seconds 동안 서서히 키우며 시작한다
+    public IEnumerator StartBgm(float seconds)
+    {
+        if (bgmSource == null || bgmClip == null) yield break;
+        bgmSource.clip = bgmClip;
+        bgmSource.loop = true;
+        bgmSource.volume = 0f;
+        bgmSource.Play();
+        float t = 0f;
+        while (t < seconds)
+        {
+            t += Time.deltaTime;
+            bgmSource.volume = bgmVolume * Mathf.Clamp01(t / seconds);
+            yield return null;
+        }
+        bgmSource.volume = bgmVolume;
+    }
+
+    // 화면을 바로 검게 (씬 시작 때 첫 프레임부터 가리기)
+    public void SetBlack()
+    {
+        fadeImage.gameObject.SetActive(true);
+        Color color = fadeImage.color;
+        color.a = 1f;
+        fadeImage.color = color;
+    }
+
     // 검정 정도를 target(0~1)까지. 0이 되면 Image를 끈다
     public IEnumerator FadeTo(float target)
+    {
+        yield return FadeTo(target, fadeSeconds);
+    }
+
+    public IEnumerator FadeTo(float target, float seconds)
     {
         fadeImage.gameObject.SetActive(true);
         Color color = fadeImage.color;
         float start = color.a;
         float t = 0f;
-        while (t < fadeSeconds)
+        while (t < seconds)
         {
             t += Time.deltaTime;
-            color.a = Mathf.Lerp(start, target, t / fadeSeconds);
+            color.a = Mathf.Lerp(start, target, t / seconds);
             fadeImage.color = color;
             yield return null;
         }

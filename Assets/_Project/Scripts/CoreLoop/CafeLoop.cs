@@ -77,6 +77,14 @@ public class CafeLoop : MonoBehaviour
     public float successSeconds = 1.4f;
     [Tooltip("결제·떠남 알림을 보여 주는 시간(초)")]
     public float noticeSeconds = 1.5f;
+    [Tooltip("마감 후 손님·알림이 다 사라지고 영수증이 뜨기까지(초)")]
+    public float receiptDelay = 0.6f;
+
+    [Header("하루 시작 연출")]
+    [Tooltip("씬 시작 때 검은 화면에서 밝아지는 시간(초)")]
+    public float openFadeSeconds = 0.8f;
+    [Tooltip("'영업 시작' 알림 뒤 첫 손님까지(초)")]
+    public float firstCustomerSeconds = 2f;
 
     // 화면 상태: 0 = 카페, 1 = 지시어, 2 = 미니게임 플레이, 3 = 결과, 4 = 페이드 전환 중(시간 정지)
     private int state;
@@ -100,8 +108,13 @@ public class CafeLoop : MonoBehaviour
     // 시간이 다 됨. 새 손님은 오지 않고, 진행 중인 주문이 끝나면 영수증
     private bool dayOver;
     private int salesCount;
+    private int failCount;
     private int leftCount;
     private int fixedMenuIndex;
+    // 마감 후 영수증까지 남은 시간. 손님 퇴장·알림·수입 굴리기가 다 끝난 뒤부터 센다
+    private float receiptTimer;
+    // 하루 시작 연출 중 (페이드·"영업 시작" 알림). 이 동안 시계·입력이 멈춘다
+    private bool opening;
 
     // 이번 주문의 단계별 변형(-1/0/1), 단계 가격 배율 합, 방금 끝난 단계 배율, 연속 성공
     private int[] stepVariants = new int[0];
@@ -127,8 +140,31 @@ public class CafeLoop : MonoBehaviour
         ShowDay();
         ShowIncome();
         UpdateTargets();
-        ShowTexts();
         state = 0;
+        ShowTexts();
+        // 로비에서 넘어오면 검은 화면에서 밝아지며 음악이 커진다
+        effects.SetBlack();
+        StartCoroutine(effects.StartBgm(openFadeSeconds * 2f));
+        StartCoroutine(OpenDay(true));
+    }
+
+    // 하루 시작: (씬 시작이면 페이드 인) → "N일차 영업 시작!" → firstCustomerSeconds 뒤 첫 손님
+    // 페이드 동안(state 4) 시계·입력이 멈춘다
+    private IEnumerator OpenDay(bool fadeIn)
+    {
+        opening = true;
+        if (fadeIn)
+        {
+            state = 4;
+            ShowTexts();
+            yield return effects.FadeTo(0f, openFadeSeconds);
+            state = 0;
+            ShowTexts();
+        }
+        ShowNotice(day + "일차 영업 시작!");
+        nextCustomerTimer = firstCustomerSeconds;
+        opening = false;
+        Debug.Log("[CafeLoop] " + day + "일차 영업 시작");
     }
 
     private void Update()
@@ -137,7 +173,12 @@ public class CafeLoop : MonoBehaviour
         UpdateCustomer();
         UpdatePatience();
         UpdateNotice();
-        if (order == 0) return;
+        if (order == 0)
+        {
+            // 주문이 없는 프레임에 들어온 클릭은 버린다 (다음 손님 때 저절로 걸어가지 않게)
+            view.clickedStation = null;
+            return;
+        }
 
         switch (state)
         {
@@ -209,11 +250,15 @@ public class CafeLoop : MonoBehaviour
             dayOver = true;
             Debug.Log("[CafeLoop] " + day + "일차 마감");
             // 수락한 주문만 끝까지 한다. 수락 전 손님은 돌려보낸다
-            if (order == 1)
+            if (order == 1) CustomerLeave("내일 올게요");
+            // 미니게임 중이면 결과 글자와 겹치니 알림을 띄우지 않는다 (시계가 "마감"으로 바뀐다)
+            if (order == 2 || order == 3)
             {
-                ShowNotice("오늘 영업 끝!");
-                CustomerLeave("내일 올게요");
+                if (state == 0) ShowNotice("영업 끝! 마지막 손님만 마무리해요");
             }
+            // 방금 뜬 결제·팁 알림을 덮지 않는다
+            else if (noticeTimer <= 0f) ShowNotice("오늘 영업 끝!");
+            receiptTimer = receiptDelay;
         }
         ShowDay();
     }
@@ -241,9 +286,19 @@ public class CafeLoop : MonoBehaviour
         if (order != 0) return;
         if (dayOver)
         {
-            if (!receiptPanel.activeSelf) ShowReceipt();
+            // 손님 퇴장·알림·미니게임 복귀가 다 끝나고 receiptDelay 뒤에 영수증 (겹쳐 뜨지 않게)
+            if (receiptPanel.activeSelf) return;
+            bool busy = state != 0 || customer.gameObject.activeSelf || noticeTimer > 0f;
+            if (busy)
+            {
+                receiptTimer = receiptDelay;
+                return;
+            }
+            receiptTimer -= Time.deltaTime;
+            if (receiptTimer <= 0f) ShowReceipt();
             return;
         }
+        if (opening) return;
         nextCustomerTimer -= Time.deltaTime;
         if (nextCustomerTimer > 0f) return;
 
@@ -313,6 +368,16 @@ public class CafeLoop : MonoBehaviour
 
     private void Serve()
     {
+        // 모든 단계를 실패한 음료는 팔지 않는다 (0원 판매·"+0원"이 뜨지 않게)
+        if (successCount == 0)
+        {
+            failCount++;
+            effects.Play(effects.failClip);
+            ShowNotice("제조 실패 · 0원");
+            Debug.Log("[CafeLoop] 제공 실패: " + menu.menuName);
+            CustomerLeave("이건 못 마시겠어요…");
+            return;
+        }
         // 가격 = 정가 × 단계 등급 배율 평균 (100원 단위), 콤보 팁은 그 위에
         int price = Mathf.RoundToInt(menu.price * priceSum / menu.steps.Length / 100f) * 100;
         int tip = 0;
@@ -484,10 +549,19 @@ public class CafeLoop : MonoBehaviour
     {
         receiptPanel.SetActive(true);
         view.viewEnabled = false;
-        // 상자가 아래에서 올라오고, 수입 숫자가 굴러 올라간다
+        // 상자가 아래에서 올라오고, 수입 숫자가 굴러 올라간다 (0원이면 굴리지 않는다)
         StartCoroutine(effects.SlideUp(receiptBox, 500f, 0.35f));
-        StartCoroutine(effects.CountUp(receiptText, day + "일차 영수증\n\n판매 " + salesCount + "잔\n떠난 손님 " + leftCount + "명\n\n수입 ", 0, income, "원", 0.8f));
-        Debug.Log("[CafeLoop] 영수증: 판매 " + salesCount + ", 떠남 " + leftCount + ", 수입 " + income);
+        string head = day + "일차 영수증\n\n판매 " + salesCount + "잔 · 실패 " + failCount + "잔\n떠난 손님 " + leftCount + "명\n\n수입 ";
+        if (income > 0)
+        {
+            StartCoroutine(effects.CountUp(receiptText, head, 0, income, "원", 0.8f));
+            effects.Play(effects.coinClip);
+        }
+        else
+        {
+            receiptText.text = head + "0원";
+        }
+        Debug.Log("[CafeLoop] 영수증: 판매 " + salesCount + ", 실패 " + failCount + ", 떠남 " + leftCount + ", 수입 " + income);
     }
 
     // 영수증의 '다음날' 버튼
@@ -499,12 +573,13 @@ public class CafeLoop : MonoBehaviour
         dayTimer = daySeconds;
         dayOver = false;
         salesCount = 0;
+        failCount = 0;
         leftCount = 0;
         income = 0;
         fixedMenuIndex = 0;
-        nextCustomerTimer = nextCustomerSeconds;
         ShowDay();
         ShowIncome();
+        StartCoroutine(OpenDay(false));
     }
 
     private void ShowIncome()
@@ -518,6 +593,12 @@ public class CafeLoop : MonoBehaviour
         instructionText.gameObject.SetActive(state == 1);
         timeText.gameObject.SetActive(state == 2);
         resultText.gameObject.SetActive(state == 3);
+        // 지시어·결과는 알림과 같은 자리라 겹치지 않게 알림을 숨긴다
+        if (state == 1 || state == 3)
+        {
+            noticeTimer = 0f;
+            noticeText.gameObject.SetActive(false);
+        }
         if (state == 1)
         {
             instructionText.text = current.instruction;
