@@ -1,8 +1,12 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 // 코어 루프 관리. 손님이 오면 주문을 받고, 메뉴 단계 순서대로 기계(미니게임)를 거쳐 손님에게 제공·결제한다
+// 하루: 시간이 다 되거나 그날 손님을 다 받으면 마감 → 영수증(저장) → 상점 → 다음날
 public class CafeLoop : MonoBehaviour
 {
     [Tooltip("씬에 꺼 둔 미니게임들 (카페 밖 먼 곳)")]
@@ -12,7 +16,7 @@ public class CafeLoop : MonoBehaviour
 
     [Header("손님·주문")]
     public Customer customer;
-    [Tooltip("손님이 고를 메뉴 (무작위)")]
+    [Tooltip("손님이 고를 메뉴 (무작위). 상점에서 파는 레시피는 산 뒤에만 나온다")]
     public MenuData[] menus;
     [Tooltip("카페의 기계들. 다음 단계 기계만 클릭할 수 있게 된다")]
     public Station[] stations;
@@ -24,15 +28,17 @@ public class CafeLoop : MonoBehaviour
     public GameObject minigamePatienceBar;
     [Tooltip("미니게임 중 줄어드는 막대. 왼쪽 기준(pivot x = 0)")]
     public RectTransform minigamePatienceFill;
-    [Tooltip("손님 메뉴 순서 (데모용). 비우면 menus에서 무작위")]
-    public MenuData[] fixedMenus;
 
     [Header("하루")]
     [Tooltip("하루 길이(초). 카페 화면과 미니게임 플레이 중에만 흐른다")]
-    public float daySeconds = 360f;
+    public float daySeconds = 75f;
+    [Tooltip("1일차 손님 수. 하루마다 customersPerDayStep씩 늘고 maxCustomersPerDay에서 멈춘다")]
+    public int firstDayCustomers = 3;
+    public int customersPerDayStep = 1;
+    public int maxCustomersPerDay = 6;
     [Tooltip("날짜와 남은 시간")]
     public TMP_Text dayText;
-    [Tooltip("하루가 끝나면 켜는 영수증 패널 (다음날 버튼 → NextDay)")]
+    [Tooltip("하루가 끝나면 켜는 영수증 패널 (상점 버튼 → OpenShop)")]
     public GameObject receiptPanel;
     public TMP_Text receiptText;
 
@@ -80,11 +86,19 @@ public class CafeLoop : MonoBehaviour
     [Tooltip("마감 후 손님·알림이 다 사라지고 영수증이 뜨기까지(초)")]
     public float receiptDelay = 0.6f;
 
+    [Header("진행·상점·로딩")]
+    [Tooltip("저장·상점 (영수증 다음에 열림, 시작 버튼 → NextDay)")]
+    public CafeShop shop;
+    [Tooltip("씬 시작 때 덮는 로딩 화면")]
+    public LoadingScreen loading;
+    [Tooltip("가운데 점 둘레의 다음 대상 방향 표시")]
+    public TargetPointer pointer;
+
     [Header("하루 시작 연출")]
-    [Tooltip("씬 시작 때 검은 화면에서 밝아지는 시간(초)")]
-    public float openFadeSeconds = 0.8f;
+    [Tooltip("로딩이 끝난 뒤 배경 음악이 커지는 시간(초)")]
+    public float bgmFadeSeconds = 1.6f;
     [Tooltip("'영업 시작' 알림 뒤 첫 손님까지(초)")]
-    public float firstCustomerSeconds = 2f;
+    public float firstCustomerSeconds = 1f;
 
     // 화면 상태: 0 = 카페, 1 = 지시어, 2 = 미니게임 플레이, 3 = 결과, 4 = 페이드 전환 중(시간 정지)
     private int state;
@@ -110,10 +124,13 @@ public class CafeLoop : MonoBehaviour
     private int salesCount;
     private int failCount;
     private int leftCount;
-    private int fixedMenuIndex;
+    // 오늘 온 손님 수 (지금 손님 포함)
+    private int customersToday;
     // 마감 후 영수증까지 남은 시간. 손님 퇴장·알림·수입 굴리기가 다 끝난 뒤부터 센다
     private float receiptTimer;
-    // 하루 시작 연출 중 (페이드·"영업 시작" 알림). 이 동안 시계·입력이 멈춘다
+    // 오늘 영수증을 이미 띄웠다 (상점으로 넘어가도 다시 띄우지 않게)
+    private bool receiptShown;
+    // 하루 시작 전 (로딩 화면). 이 동안 손님이 오지 않는다
     private bool opening;
 
     // 이번 주문의 단계별 변형(-1/0/1), 단계 가격 배율 합, 방금 끝난 단계 배율, 연속 성공
@@ -124,6 +141,9 @@ public class CafeLoop : MonoBehaviour
 
     private void Start()
     {
+        // 저장된 날·돈·산 기계를 읽는다 (하루 도중 나갔으면 그날 아침부터)
+        shop.Load();
+        day = shop.SavedDay();
         for (int i = 0; i < minigames.Length; i++)
         {
             minigames[i].gameObject.SetActive(false);
@@ -140,35 +160,56 @@ public class CafeLoop : MonoBehaviour
         ShowDay();
         ShowIncome();
         UpdateTargets();
-        state = 0;
-        ShowTexts();
-        // 로비에서 넘어오면 검은 화면에서 밝아지며 음악이 커진다
-        effects.SetBlack();
-        StartCoroutine(effects.StartBgm(openFadeSeconds * 2f));
-        StartCoroutine(OpenDay(true));
+        StartCoroutine(BeginGame());
     }
 
-    // 하루 시작: (씬 시작이면 페이드 인) → "N일차 영업 시작!" → firstCustomerSeconds 뒤 첫 손님
-    // 페이드 동안(state 4) 시계·입력이 멈춘다
-    private IEnumerator OpenDay(bool fadeIn)
+    // 씬 시작: 로딩 화면 → 배경 음악 → 하루 시작. 로딩 동안(state 4) 시계·입력이 멈춘다
+    private IEnumerator BeginGame()
     {
         opening = true;
-        if (fadeIn)
+        state = 4;
+        ShowTexts();
+        view.viewEnabled = false;
+        yield return loading.Run(day);
+        StartCoroutine(effects.StartBgm(bgmFadeSeconds));
+        state = 0;
+        ShowTexts();
+        // 영수증·상점에서 나갔으면 상점부터 다시 연다 (저장된 날은 이미 다음날)
+        if (shop.ShopPending())
         {
-            state = 4;
-            ShowTexts();
-            yield return effects.FadeTo(0f, openFadeSeconds);
-            state = 0;
-            ShowTexts();
+            day--;
+            dayOver = true;
+            receiptShown = true;
+            ShowDay();
+            shop.Open(day + 1);
+            yield break;
         }
+        view.viewEnabled = true;
+        OpenDay();
+    }
+
+    // 하루 시작: "N일차 영업 시작!" → firstCustomerSeconds 뒤 첫 손님
+    private void OpenDay()
+    {
         ShowNotice(day + "일차 영업 시작!");
         nextCustomerTimer = firstCustomerSeconds;
         opening = false;
-        Debug.Log("[CafeLoop] " + day + "일차 영업 시작");
+        Debug.Log("[CafeLoop] " + day + "일차 영업 시작, 손님 " + CustomersPerDay() + "명");
     }
 
     private void Update()
     {
+        // 치트 키(발표·테스트용): F9 = 저장을 지우고 1일차부터, F10 = 돈 +10000원
+        if (Keyboard.current != null)
+        {
+            if (Keyboard.current.f9Key.wasPressedThisFrame)
+            {
+                shop.ResetSave();
+                SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+                return;
+            }
+            if (Keyboard.current.f10Key.wasPressedThisFrame) shop.AddMoney(10000);
+        }
         UpdateDay();
         UpdateCustomer();
         UpdatePatience();
@@ -247,20 +288,33 @@ public class CafeLoop : MonoBehaviour
         if (dayTimer <= 0f)
         {
             dayTimer = 0f;
-            dayOver = true;
-            Debug.Log("[CafeLoop] " + day + "일차 마감");
-            // 수락한 주문만 끝까지 한다. 수락 전 손님은 돌려보낸다
-            if (order == 1) CustomerLeave("내일 올게요");
-            // 미니게임 중이면 결과 글자와 겹치니 알림을 띄우지 않는다 (시계가 "마감"으로 바뀐다)
-            if (order == 2 || order == 3)
-            {
-                if (state == 0) ShowNotice("영업 끝! 마지막 손님만 마무리해요");
-            }
-            // 방금 뜬 결제·팁 알림을 덮지 않는다
-            else if (noticeTimer <= 0f) ShowNotice("오늘 영업 끝!");
-            receiptTimer = receiptDelay;
+            EndDay();
         }
         ShowDay();
+    }
+
+    // 마감: 시간이 다 됐거나 오늘 손님을 다 받았다. 새 손님은 오지 않고, 진행 중인 주문이 끝나면 영수증
+    private void EndDay()
+    {
+        dayOver = true;
+        Debug.Log("[CafeLoop] " + day + "일차 마감");
+        // 수락한 주문만 끝까지 한다. 수락 전 손님은 돌려보낸다
+        if (order == 1) CustomerLeave("내일 올게요");
+        // 미니게임 중이면 결과 글자와 겹치니 알림을 띄우지 않는다 (시계가 "마감"으로 바뀐다)
+        if (order == 2 || order == 3)
+        {
+            if (state == 0) ShowNotice("영업 끝! 마지막 손님만 마무리해요");
+        }
+        // 방금 뜬 결제·팁 알림을 덮지 않는다
+        else if (noticeTimer <= 0f) ShowNotice("오늘 영업 끝!");
+        receiptTimer = receiptDelay;
+        ShowDay();
+    }
+
+    // 오늘 받을 손님 수
+    private int CustomersPerDay()
+    {
+        return Mathf.Min(maxCustomersPerDay, firstDayCustomers + (day - 1) * customersPerDayStep);
     }
 
     // 하루 진행 비율 (0 = 시작, 1 = 마감). 하루 조명이 읽는다
@@ -271,13 +325,14 @@ public class CafeLoop : MonoBehaviour
 
     private void ShowDay()
     {
+        string count = "   손님 " + customersToday + "/" + CustomersPerDay();
         if (dayOver)
         {
-            dayText.text = day + "일차 마감";
+            dayText.text = day + "일차 마감" + count;
             return;
         }
         int seconds = Mathf.CeilToInt(dayTimer);
-        dayText.text = day + "일차  " + (seconds / 60) + ":" + (seconds % 60).ToString("00");
+        dayText.text = day + "일차  " + (seconds / 60) + ":" + (seconds % 60).ToString("00") + count;
     }
 
     // 손님이 없으면 시간을 세다가 새 손님을 부른다. 하루가 끝났으면 영수증
@@ -287,7 +342,7 @@ public class CafeLoop : MonoBehaviour
         if (dayOver)
         {
             // 손님 퇴장·알림·미니게임 복귀가 다 끝나고 receiptDelay 뒤에 영수증 (겹쳐 뜨지 않게)
-            if (receiptPanel.activeSelf) return;
+            if (receiptShown) return;
             bool busy = state != 0 || customer.gameObject.activeSelf || noticeTimer > 0f;
             if (busy)
             {
@@ -299,15 +354,17 @@ public class CafeLoop : MonoBehaviour
             return;
         }
         if (opening) return;
+        // 오늘 손님을 다 받았다 (마지막 손님이 떠난 뒤) → 마감
+        if (customersToday >= CustomersPerDay())
+        {
+            EndDay();
+            return;
+        }
         nextCustomerTimer -= Time.deltaTime;
         if (nextCustomerTimer > 0f) return;
 
-        menu = menus[Random.Range(0, menus.Length)];
-        if (fixedMenus.Length > 0)
-        {
-            menu = fixedMenus[fixedMenuIndex % fixedMenus.Length];
-            fixedMenuIndex++;
-        }
+        menu = PickMenu();
+        customersToday++;
         // 단계마다 변형을 정한다 (예: 추출 '진하게', 우유 '적게')
         stepVariants = new int[menu.steps.Length];
         string request = "";
@@ -322,9 +379,24 @@ public class CafeLoop : MonoBehaviour
         }
         customer.Show(menu, request);
         effects.Play(effects.bellClip);
+        if (customersToday == CustomersPerDay()) ShowNotice("오늘 마지막 손님이에요!");
         order = 1;
         UpdateTargets();
-        Debug.Log("[CafeLoop] 손님 등장: " + menu.menuName);
+        ShowDay();
+        Debug.Log("[CafeLoop] 손님 등장(" + customersToday + "/" + CustomersPerDay() + "): " + menu.menuName);
+    }
+
+    // 어제 상점에서 산 레시피가 있으면 첫 손님이 그것을 주문한다. 아니면 열린 메뉴 중 무작위
+    private MenuData PickMenu()
+    {
+        MenuData fresh = shop.TakeNewMenu();
+        if (fresh != null) return fresh;
+        List<MenuData> open = new List<MenuData>();
+        for (int i = 0; i < menus.Length; i++)
+        {
+            if (shop.IsMenuOpen(menus[i])) open.Add(menus[i]);
+        }
+        return open[Random.Range(0, open.Count)];
     }
 
     // 변형 글자. 기계 id마다 '적게/많이'에 해당하는 말
@@ -429,21 +501,49 @@ public class CafeLoop : MonoBehaviour
         }
     }
 
-    // 다음 단계의 대상만 클릭할 수 있게 한다
+    // 다음 단계의 대상만 클릭할 수 있게 하고, 가운데 점 둘레 화살표가 그쪽을 가리키게 한다
     private void UpdateTargets()
     {
         string nextStation = "";
         if (order == 2) nextStation = menu.steps[stepIndex];
+        Station next = null;
+        string what = "";
         for (int i = 0; i < stations.Length; i++)
         {
             bool was = stations[i].clickable;
             stations[i].clickable = stations[i].stationId == nextStation;
+            if (!stations[i].clickable) continue;
+            next = stations[i];
+            what = StepLabel(nextStation);
             // 새로 차례가 된 기계는 깜빡여서 알린다
-            if (!was && stations[i].clickable) stations[i].Blink();
+            if (!was && stations[i].gameObject.activeInHierarchy) stations[i].Blink();
         }
         bool customerWas = customerStation.clickable;
         customerStation.clickable = order == 1 || order == 3;
         if (!customerWas && customerStation.clickable) customerStation.Blink();
+        if (order == 1)
+        {
+            next = customerStation;
+            what = "주문 받기";
+        }
+        if (order == 3)
+        {
+            next = customerStation;
+            what = "음료 건네기";
+        }
+        pointer.SetTarget(next, what);
+    }
+
+    // 방향 표시 아래 글자
+    private string StepLabel(string stationId)
+    {
+        switch (stationId)
+        {
+            case "espresso": return "샷 추출";
+            case "ice": return "얼음 담기";
+            case "milk": return "우유 붓기";
+        }
+        return "";
     }
 
     private Minigame FindMinigame(string stationId)
@@ -544,42 +644,58 @@ public class CafeLoop : MonoBehaviour
         if (noticeTimer <= 0f) noticeText.gameObject.SetActive(false);
     }
 
-    // 영수증 동안은 시야를 끄고 커서를 보여 준다
+    // 영수증 동안은 시야를 끄고 커서를 보여 준다. 이때 번 돈을 더해 다음날로 저장한다
     private void ShowReceipt()
     {
+        receiptShown = true;
+        shop.SaveEndOfDay(day + 1, income);
         receiptPanel.SetActive(true);
         view.viewEnabled = false;
+        pointer.SetTarget(null, "");
         // 상자가 아래에서 올라오고, 수입 숫자가 굴러 올라간다 (0원이면 굴리지 않는다)
         StartCoroutine(effects.SlideUp(receiptBox, 500f, 0.35f));
         string head = day + "일차 영수증\n\n판매 " + salesCount + "잔 · 실패 " + failCount + "잔\n떠난 손님 " + leftCount + "명\n\n수입 ";
+        string tail = "원\n<size=80%>보유 " + shop.Money().ToString("N0") + "원</size>";
         if (income > 0)
         {
-            StartCoroutine(effects.CountUp(receiptText, head, 0, income, "원", 0.8f));
+            StartCoroutine(effects.CountUp(receiptText, head, 0, income, tail, 0.8f));
             effects.Play(effects.coinClip);
         }
         else
         {
-            receiptText.text = head + "0원";
+            receiptText.text = head + "0" + tail;
         }
-        Debug.Log("[CafeLoop] 영수증: 판매 " + salesCount + ", 실패 " + failCount + ", 떠남 " + leftCount + ", 수입 " + income);
+        Debug.Log("[CafeLoop] 영수증: 판매 " + salesCount + ", 실패 " + failCount + ", 떠남 " + leftCount + ", 수입 " + income + ", 보유 " + shop.Money());
     }
 
-    // 영수증의 '다음날' 버튼
+    // 영수증의 '상점' 버튼
+    public void OpenShop()
+    {
+        receiptPanel.SetActive(false);
+        shop.Open(day + 1);
+    }
+
+    // 상점의 'N일차 영업 시작' 버튼
     public void NextDay()
     {
+        shop.Close();
+        shop.ClearPending();
         receiptPanel.SetActive(false);
         view.viewEnabled = true;
         day++;
         dayTimer = daySeconds;
         dayOver = false;
+        receiptShown = false;
+        combo = 0;
         salesCount = 0;
         failCount = 0;
         leftCount = 0;
         income = 0;
-        fixedMenuIndex = 0;
+        customersToday = 0;
         ShowDay();
         ShowIncome();
-        StartCoroutine(OpenDay(false));
+        UpdateTargets();
+        OpenDay();
     }
 
     private void ShowIncome()

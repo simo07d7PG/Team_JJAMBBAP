@@ -118,8 +118,20 @@ public class CafeView : MonoBehaviour
         walking = false;
     }
 
+    public bool IsWalking()
+    {
+        return walking;
+    }
+
+    // 지금 가운데 점이 가리키는 기계 (없으면 null)
+    public Station HoveredStation()
+    {
+        return hovered;
+    }
+
     // 대상에서 바라볼 곳: 보이는 범위(하이라이트 렌더러 → 콜라이더 순)의 가운데, 높이는 65% (손님은 몸통 위쪽)
-    private Vector3 LookPoint(Station station)
+    // 방향 표시(TargetPointer)도 이 점을 가리킨다
+    public Vector3 LookPoint(Station station)
     {
         Bounds b = new Bounds();
         bool has = false;
