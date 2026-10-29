@@ -2524,7 +2524,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.IceScoopMicrogame
   stationId: ice
   instruction: "\uC5BC\uC74C \uD37C\uB77C!"
-  timeLimit: 8
+  timeLimit: 6
   viewCamera: {fileID: 6587269267273873600}
   pointAction: {fileID: 1054132383583890850, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   clickAction: {fileID: 8056856818456041789, guid: 052faaac586de48259a63d0c4782560b, type: 3}
@@ -2555,8 +2555,8 @@ MonoBehaviour:
   targetMax: 7
   variantShift: 2
   cupMax: 10
-  holdSeconds: 1
-  scoopRate: 8
+  holdSeconds: 0.5
+  scoopRate: 12
   scoopCapacity: 8
 --- !u!1 &2107102076287330557
 GameObject:
@@ -7530,6 +7530,8 @@ MonoBehaviour:
   liquid: {fileID: 4634922790264554768}
   liquidRenderer: {fileID: 2404328470306965447}
   iceIndicator: {fileID: 2729789312810178527}
+  topWidthScale: 1
+  widthCurve: 1
   topLayer: {fileID: 3594160113754677732}
   topLayerRenderer: {fileID: 8501070282359601083}
   cremaMaterial: {fileID: 2100000, guid: 995d8466bf75c4f42897bf26c7b3208a, type: 2}

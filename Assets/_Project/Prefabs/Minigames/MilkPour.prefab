@@ -413,7 +413,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.MilkPourMicrogame
   stationId: milk
   instruction: "\uC6B0\uC720 \uBD80\uC5B4\uB77C!"
-  timeLimit: 7
+  timeLimit: 5
   viewCamera: {fileID: 8548602222900680991}
   pointAction: {fileID: 1054132383583890850, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   clickAction: {fileID: 8056856818456041789, guid: 052faaac586de48259a63d0c4782560b, type: 3}
@@ -6234,6 +6234,8 @@ MonoBehaviour:
   liquid: {fileID: 8134582583779538650}
   liquidRenderer: {fileID: 7237806524633358029}
   iceIndicator: {fileID: 7232920894565442129}
+  topWidthScale: 1
+  widthCurve: 1
   topLayer: {fileID: 6024901809395375224}
   topLayerRenderer: {fileID: 99813179413019270}
   cremaMaterial: {fileID: 2100000, guid: 995d8466bf75c4f42897bf26c7b3208a, type: 2}

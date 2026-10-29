@@ -3290,7 +3290,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: BariBarista.Minigames::BariBarista.Minigames.EspressoShotMicrogame
   stationId: espresso
   instruction: "\uC0F7 \uB0B4\uB824\uB77C!"
-  timeLimit: 7
+  timeLimit: 5
   viewCamera: {fileID: 1493221102635341720}
   pointAction: {fileID: 1054132383583890850, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   clickAction: {fileID: 8056856818456041789, guid: 052faaac586de48259a63d0c4782560b, type: 3}
@@ -3318,7 +3318,7 @@ MonoBehaviour:
   targetMaxMl: 40
   variantShiftMl: 10
   capacityMl: 60
-  flowMlPerSec: 12
+  flowMlPerSec: 15
   flowNoise: 0.25
   noiseFrequency: 2
   flowStartScale: 0.5
@@ -3326,7 +3326,7 @@ MonoBehaviour:
   sputterChance: 1
   sputterFromRatio: 0.35
   sputterToRatio: 0.8
-  sputterSeconds: 0.7
+  sputterSeconds: 0.5
   burstSeconds: 0.35
   burstScale: 1.6
   sfxSource: {fileID: 2922923285831951518}
