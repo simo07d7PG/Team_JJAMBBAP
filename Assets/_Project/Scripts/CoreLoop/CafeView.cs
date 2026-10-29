@@ -1,8 +1,10 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-// 카페 카메라에 붙인다. 이동 없이 1인칭으로 마우스를 움직여 시야를 돌린다.
+// 카페 카메라에 붙인다. 1인칭으로 마우스를 움직여 시야를 돌린다.
 // 커서는 숨기고 화면 가운데 점(크로스헤어)으로 기계를 가리킨다
+// 기계·손님을 클릭하면 카운터를 따라 좌우 레일 위로 그 앞까지 걸어가며 바라본다 (WalkTo)
 public class CafeView : MonoBehaviour
 {
     [Header("입력 (InputSystem_Actions)")]
@@ -30,6 +32,17 @@ public class CafeView : MonoBehaviour
     [Tooltip("화면 가운데 점 (Canvas의 Image)")]
     public GameObject crosshair;
 
+    [Header("기계 앞으로 이동")]
+    [Tooltip("클릭한 기계 앞까지 걸어간다. 끄면 제자리")]
+    public bool walkToStation = true;
+    [Tooltip("시작 위치 기준 레일 범위(m). 카메라 오른쪽이 +")]
+    public float railMin = -1.3f;
+    public float railMax = 1.8f;
+    [Tooltip("걷는 빠르기(m/초)")]
+    public float walkSpeed = 3f;
+    [Tooltip("가까워도 이만큼은 걸린다(초)")]
+    public float minWalkSeconds = 0.35f;
+
     [Tooltip("끄면 회전·하이라이트·클릭을 하지 않고 커서를 보여 준다 (미니게임 중)")]
     public bool viewEnabled = true;
 
@@ -48,6 +61,10 @@ public class CafeView : MonoBehaviour
     private bool cursorLocked;
     // 마지막으로 일시정지였던 프레임. ESC 메뉴 버튼 클릭이 재개 직후 기계 클릭으로 넘어가지 않게
     private int pausedFrame = -10;
+    // 레일: 시작 위치와 카메라 오른쪽(수평) 방향
+    private Vector3 startPos;
+    private Vector3 railDir;
+    private bool walking;
 
     private void Start()
     {
@@ -58,7 +75,74 @@ public class CafeView : MonoBehaviour
         startYaw = angles.y;
         startPitch = angles.x;
         if (startPitch > 180f) startPitch -= 360f;
+        startPos = transform.position;
+        railDir = transform.right;
+        railDir.y = 0f;
+        railDir.Normalize();
         SetCursorLocked(true);
+    }
+
+    // 레일 위에서 대상과 가장 가까운 곳으로 걸어가며 대상을 바라본다. 걷는 동안 시야·클릭 입력은 막는다
+    public IEnumerator WalkTo(Station station)
+    {
+        if (!walkToStation || station == null) yield break;
+        Vector3 look = LookPoint(station);
+        float along = Mathf.Clamp(Vector3.Dot(look - startPos, railDir), railMin, railMax);
+        Vector3 from = transform.position;
+        Vector3 to = startPos + railDir * along;
+
+        // 도착 지점에서 대상을 보는 각도 (시작 방향 기준, 돌 수 있는 범위 안)
+        Vector3 dir = look - to;
+        float flat = new Vector2(dir.x, dir.z).magnitude;
+        float endYaw = Mathf.Clamp(Mathf.DeltaAngle(startYaw, Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg), -yawLimit, yawLimit);
+        float endPitch = Mathf.Clamp(-Mathf.Atan2(dir.y, flat) * Mathf.Rad2Deg - startPitch, -pitchLimit, pitchLimit);
+        float fromYaw = yaw;
+        float fromPitch = pitch;
+
+        walking = true;
+        SetHovered(null);
+        float seconds = Mathf.Max(minWalkSeconds, Vector3.Distance(from, to) / walkSpeed);
+        float t = 0f;
+        while (t < 1f)
+        {
+            t = Mathf.Min(1f, t + Time.deltaTime / seconds);
+            float s = Mathf.SmoothStep(0f, 1f, t);
+            transform.position = Vector3.Lerp(from, to, s);
+            yaw = Mathf.Lerp(fromYaw, endYaw, s);
+            pitch = Mathf.Lerp(fromPitch, endPitch, s);
+            transform.rotation = Quaternion.Euler(startPitch + pitch, startYaw + yaw, 0f);
+            yield return null;
+        }
+        targetYaw = yaw;
+        targetPitch = pitch;
+        walking = false;
+    }
+
+    // 대상에서 바라볼 곳: 보이는 범위(하이라이트 렌더러 → 콜라이더 순)의 가운데, 높이는 65% (손님은 몸통 위쪽)
+    private Vector3 LookPoint(Station station)
+    {
+        Bounds b = new Bounds();
+        bool has = false;
+        if (station.targets != null)
+        {
+            for (int i = 0; i < station.targets.Length; i++)
+            {
+                Renderer r = station.targets[i];
+                if (r == null || !r.enabled || !r.gameObject.activeInHierarchy) continue;
+                if (!has) b = r.bounds;
+                else b.Encapsulate(r.bounds);
+                has = true;
+            }
+        }
+        if (!has)
+        {
+            Collider c = station.GetComponentInChildren<Collider>();
+            if (c == null) return station.transform.position;
+            b = c.bounds;
+        }
+        Vector3 p = b.center;
+        p.y = Mathf.Lerp(b.min.y, b.max.y, 0.65f);
+        return p;
     }
 
     private void Update()
@@ -72,7 +156,7 @@ public class CafeView : MonoBehaviour
         // ESC 메뉴가 닫히며 커서를 잠그므로, 재개 직후 카페·미니게임·영수증에 맞게 다시 둔다
         if (Time.frameCount == pausedFrame + 1) SetCursorLocked(viewEnabled);
         if (viewEnabled != cursorLocked) SetCursorLocked(viewEnabled);
-        if (!viewEnabled)
+        if (!viewEnabled || walking)
         {
             SetHovered(null);
             return;

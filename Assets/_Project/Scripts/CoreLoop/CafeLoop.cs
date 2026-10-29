@@ -69,6 +69,8 @@ public class CafeLoop : MonoBehaviour
     public TMP_Text incomeText;
     [Tooltip("지시어를 보여 주는 시간(초). 이 동안 제한 시간은 세지 않는다")]
     public float instructionSeconds = 1.5f;
+    [Tooltip("기계·손님 앞에 도착한 뒤 상호작용까지 멈추는 시간(초)")]
+    public float arriveDelay = 0.15f;
     [Tooltip("실패 결과를 보여 주는 시간(초)")]
     public float failSeconds = 0.9f;
     [Tooltip("성공 결과를 보여 주는 시간(초)")]
@@ -145,7 +147,7 @@ public class CafeLoop : MonoBehaviour
                     Station clicked = view.clickedStation;
                     view.clickedStation = null;
                     // 결과를 건너뛴 클릭이 바로 다음 클릭으로 이어지지 않게
-                    if (Time.frameCount > returnFrame + 1) ClickStation(clicked);
+                    if (Time.frameCount > returnFrame + 1) StartCoroutine(WalkThenClick(clicked));
                 }
                 break;
             case 1:
@@ -193,11 +195,7 @@ public class CafeLoop : MonoBehaviour
             return;
         }
         Minigame game = FindMinigame(clicked.stationId);
-        if (game != null)
-        {
-            effects.Play(effects.clickClip);
-            OpenMinigame(game);
-        }
+        if (game != null) OpenMinigame(game);
     }
 
     // 하루 시계는 인내도처럼 카페 화면과 미니게임 플레이 중에만 흐른다
@@ -391,6 +389,22 @@ public class CafeLoop : MonoBehaviour
         }
         Debug.LogWarning("[CafeLoop] 미니게임 없음: " + stationId);
         return null;
+    }
+
+    // 순서: 클릭(소리만) → 기계·손님 앞까지 걸어감 → 도착 후 잠깐 멈춤 → 상호작용(미니게임·주문·제공)
+    // 걷는 동안(state 4) 시계·인내도·입력이 멈춘다
+    private IEnumerator WalkThenClick(Station clicked)
+    {
+        state = 4;
+        ShowTexts();
+        effects.Play(effects.clickClip);
+        Debug.Log("[CafeLoop] 이동 시작: " + clicked.stationId);
+        yield return view.WalkTo(clicked);
+        yield return new WaitForSeconds(arriveDelay);
+        Debug.Log("[CafeLoop] 도착 → 상호작용: " + clicked.stationId);
+        state = 0;
+        ShowTexts();
+        ClickStation(clicked);
     }
 
     private void OpenMinigame(Minigame game)
