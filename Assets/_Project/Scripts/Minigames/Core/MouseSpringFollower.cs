@@ -58,6 +58,9 @@ public class MouseSpringFollower : MonoBehaviour
     [HideInInspector] public bool isGrabbed;
     [HideInInspector] public float targetTilt;
 
+    // 이 각도(도)보다 작은 차이는 회전하지 않는다
+    private const float MinRotateAngle = 0.01f;
+
     private Rigidbody body;
     private Vector3 originPoint;
     private Vector3 holdTarget;
@@ -68,10 +71,15 @@ public class MouseSpringFollower : MonoBehaviour
     {
         body = GetComponent<Rigidbody>();
         restRotation = transform.rotation;
-        originPoint = transform.position;
-        if (planeOrigin != null) originPoint = planeOrigin.position;
+        originPoint = ResolveOrigin(transform.position);
         holdTarget = transform.position;
         if (lockWorldZ) body.constraints = body.constraints | RigidbodyConstraints.FreezePositionZ;
+    }
+
+    // 이동 평면의 기준점. 기준 오브젝트가 있으면 그 위치, 없으면 fallback
+    private Vector3 ResolveOrigin(Vector3 fallback)
+    {
+        return planeOrigin != null ? planeOrigin.position : fallback;
     }
 
     public Rigidbody GetBody()
@@ -89,8 +97,7 @@ public class MouseSpringFollower : MonoBehaviour
     public void ResetTo(Vector3 position, Quaternion rotation)
     {
         restRotation = rotation;
-        originPoint = position;
-        if (planeOrigin != null) originPoint = planeOrigin.position;
+        originPoint = ResolveOrigin(position);
         transform.SetPositionAndRotation(position, rotation);
         body.position = position;
         body.rotation = rotation;
@@ -130,15 +137,17 @@ public class MouseSpringFollower : MonoBehaviour
     {
         Ray ray = viewCamera.ScreenPointToRay(pointerPosition);
         Plane plane = new Plane(planeNormal.normalized, originPoint);
-        float enter;
-        if (!plane.Raycast(ray, out enter)) return;
+        float distance;
+        if (!plane.Raycast(ray, out distance)) return;
 
-        Vector3 point = ray.GetPoint(enter);
+        Vector3 point = ray.GetPoint(distance);
         if (lockWorldZ) point.z = originPoint.z;
         if (limitWorldX) point.x = Mathf.Clamp(point.x, originPoint.x + minXFromOrigin, originPoint.x + maxXFromOrigin);
         Vector3 offset = point - originPoint;
         if (offset.sqrMagnitude > maxDistanceFromOrigin * maxDistanceFromOrigin)
+        {
             point = originPoint + offset.normalized * maxDistanceFromOrigin;
+        }
         holdTarget = point;
     }
 
@@ -147,29 +156,39 @@ public class MouseSpringFollower : MonoBehaviour
         if (body.isKinematic) return;
         float dt = Time.fixedDeltaTime;
 
-        // 기울기는 고정 간격으로 쌓는다(프레임레이트와 무관)
-        if (inputEnabled)
-        {
-            float rate = -tiltReturnSpeed;
-            if (tiltHeld) rate = tiltSpeed;
-            targetTilt = Mathf.Clamp(targetTilt + rate * dt, minTilt, maxTilt);
-        }
+        UpdateTilt(dt);
+        ApplySpring(dt);
+        ApplyRotation();
+    }
 
-        // 위치: 스프링-감쇠 가속도로 속도를 정하고 Rigidbody에 넣는다
+    // 기울기는 고정 간격으로 쌓는다(프레임레이트와 무관)
+    private void UpdateTilt(float dt)
+    {
+        if (!inputEnabled) return;
+        float rate = tiltHeld ? tiltSpeed : -tiltReturnSpeed;
+        targetTilt = Mathf.Clamp(targetTilt + rate * dt, minTilt, maxTilt);
+    }
+
+    // 위치: 스프링-감쇠 가속도로 속도를 정하고 Rigidbody에 넣는다
+    private void ApplySpring(float dt)
+    {
         Vector3 accel = (holdTarget - body.position) * springStrength - velocity * damping;
         velocity += accel * dt;
         if (lockWorldZ) velocity.z = 0f;
         if (velocity.sqrMagnitude > maxSpeed * maxSpeed) velocity = velocity.normalized * maxSpeed;
         body.linearVelocity = velocity;
+    }
 
-        // 회전: 목표 기울기 쪽으로 각속도를 준다
+    // 회전: 목표 기울기 쪽으로 각속도를 준다
+    private void ApplyRotation()
+    {
         Quaternion target = restRotation * Quaternion.AngleAxis(targetTilt, tiltAxisLocal);
         Quaternion delta = target * Quaternion.Inverse(body.rotation);
         float angle;
         Vector3 axis;
         delta.ToAngleAxis(out angle, out axis);
         if (angle > 180f) angle -= 360f;
-        if (float.IsNaN(axis.x) || Mathf.Abs(angle) < 0.01f)
+        if (float.IsNaN(axis.x) || Mathf.Abs(angle) < MinRotateAngle)
         {
             body.angularVelocity = Vector3.zero;
         }

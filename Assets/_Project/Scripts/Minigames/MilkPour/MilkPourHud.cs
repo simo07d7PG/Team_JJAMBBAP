@@ -16,20 +16,31 @@ public class MilkPourHud : MonoBehaviour
     [Tooltip("흘린 양. anchorMax.x = 흘린 양 / 흘림 한도")]
     [SerializeField] private RectTransform spillFill;
 
+    // 목표 띠의 최소 두께(0~1)
+    private const float MinBandWidth01 = 0.02f;
+    // 띠 라벨의 위아래 절반 높이(px)
+    private const float BandLabelHalfHeight = 24f;
+
     public void Configure(float targetMin01, float targetMax01)
     {
-        float width = Mathf.Max(targetMax01 - targetMin01, 0.02f);
+        float width = Mathf.Max(targetMax01 - targetMin01, MinBandWidth01);
         float mid = (targetMin01 + targetMax01) * 0.5f;
-        band.anchorMin = new Vector2(band.anchorMin.x, mid - width * 0.5f);
-        band.anchorMax = new Vector2(band.anchorMax.x, mid + width * 0.5f);
+        SetAnchorY(band, mid - width * 0.5f, mid + width * 0.5f);
         band.offsetMin = new Vector2(band.offsetMin.x, 0f);
         band.offsetMax = new Vector2(band.offsetMax.x, 0f);
-        bandLabel.anchorMin = new Vector2(bandLabel.anchorMin.x, mid);
-        bandLabel.anchorMax = new Vector2(bandLabel.anchorMax.x, mid);
-        bandLabel.offsetMin = new Vector2(0f, -24f);
-        bandLabel.offsetMax = new Vector2(0f, 24f);
+        SetAnchorY(bandLabel, mid, mid);
+        // 라벨은 좌우 오프셋 0 고정(띠와 달리 기존 x 오프셋을 유지하지 않는다)
+        bandLabel.offsetMin = new Vector2(0f, -BandLabelHalfHeight);
+        bandLabel.offsetMax = new Vector2(0f, BandLabelHalfHeight);
         SetFill(0f);
         SetSpill(0f);
+    }
+
+    // 앵커의 x는 그대로 두고 y(최소·최대)만 바꾼다
+    private static void SetAnchorY(RectTransform rt, float min, float max)
+    {
+        rt.anchorMin = new Vector2(rt.anchorMin.x, min);
+        rt.anchorMax = new Vector2(rt.anchorMax.x, max);
     }
 
     public void SetFill(float v01)

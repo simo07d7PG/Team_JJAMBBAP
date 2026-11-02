@@ -33,15 +33,26 @@ public class Minigame : MonoBehaviour
 
     public void StartGame()
     {
+        EnableInputs();
+        ClearResult();
+        ResetGame();
+        isPlaying = true;
+    }
+
+    private void EnableInputs()
+    {
         pointAction.action.Enable();
         clickAction.action.Enable();
         rightClickAction.action.Enable();
+    }
+
+    // 이전 판의 결과를 지운다
+    private void ClearResult()
+    {
         isFinished = false;
         isSuccess = false;
         resultText = "";
         quality = 0f;
-        ResetGame();
-        isPlaying = true;
     }
 
     // 인내도 초과 등으로 강제 중단

@@ -47,6 +47,15 @@ public class MilkPourMicrogame : Minigame
 
     // 경계값을 성공으로 인정하는 여유
     private const float Epsilon = 0.0001f;
+    // 목표 구간 하한(curMin01)이 가질 수 있는 범위
+    private const float MinBandLow01 = 0.1f;
+    private const float MinBandHigh01 = 0.85f;
+    // 목표 구간 상한은 하한보다 최소 이만큼 위
+    private const float MinBandGap01 = 0.1f;
+    // 목표 구간 상한(curMax01)의 최댓값
+    private const float MaxBandHigh01 = 0.96f;
+    // 입구에서 컵 입구 콜라이더를 찾는 레이 길이
+    private const float MouthRayLength = 5f;
 
     private Vector3 cartonStartPos;
     private Quaternion cartonStartRot;
@@ -78,15 +87,15 @@ public class MilkPourMicrogame : Minigame
         pouring = false;
         lastAngle = 0f;
         glugRemaining = 0f;
-        SetStream(false, 0f);
+        HideStream();
 
         // 기존 내용물(에스프레소·얼음)을 액체 높이에 더한다
         initialMl = Mathf.Clamp(cup.TotalLiquid() + cup.ice * iceDisplacementMl, 0f, cupCapacityMl);
         liquidMl = initialMl;
         outsideMl = 0f;
 
-        curMin01 = Mathf.Clamp(targetMin01 + variant * variantShift01, 0.1f, 0.85f);
-        curMax01 = Mathf.Clamp(targetMax01 + variant * variantShift01, curMin01 + 0.1f, 0.96f);
+        curMin01 = Mathf.Clamp(targetMin01 + variant * variantShift01, MinBandLow01, MinBandHigh01);
+        curMax01 = Mathf.Clamp(targetMax01 + variant * variantShift01, curMin01 + MinBandGap01, MaxBandHigh01);
         hud.Configure(curMin01, curMax01);
         cupVisual.SetIceVisible(cup.ice > 0);
         UpdateCupDisplay();
@@ -116,14 +125,13 @@ public class MilkPourMicrogame : Minigame
             if (angle < pourStartAngle) return;
             pouring = true;
             // 휙 기울이면 처음에 콸 쏟아진다
-            glugRemaining = 0f;
-            if (tiltSpeed >= glugTiltSpeed) glugRemaining = glugSeconds;
+            glugRemaining = tiltSpeed >= glugTiltSpeed ? glugSeconds : 0f;
         }
         else if (angle < pourStartAngle - stopHysteresis)
         {
             // 팩을 다시 세웠다 → 판정
             pouring = false;
-            SetStream(false, 0f);
+            HideStream();
             StopPouring();
             return;
         }
@@ -131,45 +139,69 @@ public class MilkPourMicrogame : Minigame
         if (angle < pourStartAngle)
         {
             // 히스테리시스 구간: 아직 멈춘 건 아니지만 나오지는 않는다
-            SetStream(false, 0f);
+            HideStream();
             return;
         }
 
+        float ml = ComputeFlowMl(angle, dt);
+        if (ml <= 0f)
+        {
+            HideStream();
+            return;
+        }
+
+        float hitDistance;
+        if (TryHitCup(out hitDistance)) PourIntoCup(ml, hitDistance);
+        else SpillOutside(ml);
+    }
+
+    // 이번 프레임에 나오는 양(ml). 콸 구간이면 배율을 적용하고 남은 시간을 줄인다
+    private float ComputeFlowMl(float angle, float dt)
+    {
         float flow = maxFlowMlPerSec * Mathf.InverseLerp(pourStartAngle, pourFullAngle, angle);
         if (glugRemaining > 0f)
         {
             flow *= glugMultiplier;
             glugRemaining -= dt;
         }
-        float ml = flow * dt;
-        if (ml <= 0f)
-        {
-            SetStream(false, 0f);
-            return;
-        }
+        return flow * dt;
+    }
 
-        float hitDistance;
-        if (TryHitCup(out hitDistance))
-        {
-            SetStream(true, hitDistance);
-            liquidMl += ml;
-            bool overflow = liquidMl > cupCapacityMl + Epsilon;
-            if (overflow) liquidMl = cupCapacityMl;
-            UpdateCupDisplay();
-            if (overflow) EndGame(false, "우유가 넘쳤어!");
-        }
-        else
-        {
-            SetStream(true, Mathf.Max(0f, spout.position.y - floor.position.y));
-            outsideMl += ml;
-            hud.SetSpill(outsideMl / maxOutsideMl);
-            if (outsideMl > maxOutsideMl + Epsilon) EndGame(false, "우유를 흘렸어!");
-        }
+    // 컵 안으로 들어간 경우: 줄기는 컵 입구까지, 용량을 넘치면 실패
+    private void PourIntoCup(float ml, float hitDistance)
+    {
+        SetStream(true, hitDistance);
+        liquidMl += ml;
+        bool overflow = liquidMl > cupCapacityMl + Epsilon;
+        if (overflow) liquidMl = cupCapacityMl;
+        UpdateCupDisplay();
+        if (overflow) EndGame(false, "우유가 넘쳤어!");
+    }
+
+    // 컵 밖으로 흘린 경우: 줄기는 바닥까지, 한도를 넘기면 실패
+    private void SpillOutside(float ml)
+    {
+        SetStream(true, DistanceToFloor());
+        outsideMl += ml;
+        hud.SetSpill(outsideMl / maxOutsideMl);
+        if (outsideMl > maxOutsideMl + Epsilon) EndGame(false, "우유를 흘렸어!");
+    }
+
+    // 입구에서 바닥까지의 높이(줄기 길이)
+    private float DistanceToFloor()
+    {
+        return Mathf.Max(0f, spout.position.y - floor.position.y);
     }
 
     private float PouredInMl()
     {
         return liquidMl - initialMl;
+    }
+
+    // 컵에 우유가 한 방울이라도 들어갔는지
+    private bool HasPoured()
+    {
+        return PouredInMl() > 0f;
     }
 
     private float Fill01()
@@ -186,24 +218,37 @@ public class MilkPourMicrogame : Minigame
     // 팩을 다시 세웠을 때. 모자라거나 컵에 한 방울도 안 들어갔으면 계속 진행
     private void StopPouring()
     {
-        if (PouredInMl() <= 0f) return;
-        if (InTarget()) EndGame(true, "성공!");
-        else if (Fill01() > curMax01) EndGame(false, "너무 많이 부었어!");
+        if (!HasPoured()) return;
+        EndIfInTargetOrOver();
     }
 
     public override void TimeOver()
     {
-        if (PouredInMl() <= 0f) EndGame(false, "시간 초과!");
-        else if (InTarget()) EndGame(true, "성공!");
-        else if (Fill01() > curMax01) EndGame(false, "너무 많이 부었어!");
-        else EndGame(false, "너무 적게 부었어!");
+        if (!HasPoured()) EndGame(false, "시간 초과!");
+        else if (!EndIfInTargetOrOver()) EndGame(false, "너무 적게 부었어!");
+    }
+
+    // 목표 구간이면 성공, 넘었으면 실패로 끝내고 true. 아직 모자라면 false
+    private bool EndIfInTargetOrOver()
+    {
+        if (InTarget())
+        {
+            EndGame(true, "성공!");
+            return true;
+        }
+        if (Fill01() > curMax01)
+        {
+            EndGame(false, "너무 많이 부었어!");
+            return true;
+        }
+        return false;
     }
 
     private void EndGame(bool success, string text)
     {
         if (!isPlaying) return;
         pouring = false;
-        SetStream(false, 0f);
+        HideStream();
         carton.inputEnabled = false;
         if (success)
         {
@@ -219,9 +264,14 @@ public class MilkPourMicrogame : Minigame
         distance = 0f;
         Ray ray = new Ray(spout.position, Vector3.down);
         RaycastHit hit;
-        if (!cupMouth.Raycast(ray, out hit, 5f)) return false;
+        if (!cupMouth.Raycast(ray, out hit, MouthRayLength)) return false;
         distance = hit.distance;
         return true;
+    }
+
+    private void HideStream()
+    {
+        SetStream(false, 0f);
     }
 
     private void SetStream(bool on, float length)

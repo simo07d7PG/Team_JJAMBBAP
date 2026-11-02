@@ -69,6 +69,43 @@ public class EspressoShotMicrogame : Minigame
     // 경계값을 성공으로 인정하는 여유
     private const float Epsilon = 0.0001f;
 
+    // 목표 구간 보정: 하한의 최소값, 하한/상한이 용량에서 떨어져야 하는 여유, 최소 구간 폭 (ml)
+    private const float TargetMinFloorMl = 5f;
+    private const float TargetMinCapacityMarginMl = 10f;
+    private const float TargetMaxCapacityMarginMl = 5f;
+    private const float MinBandWidthMl = 5f;
+
+    // 치직 연출: 노이즈 속도·시드 오프셋·끊김 임계, 굵기/길이 비율 범위, 색 혼합, 버튼 덜컹 속도
+    private const float SputterNoiseSeedOffset = 7f;
+    private const float SputterNoiseSpeed = 14f;
+    private const float SputterSpurtThreshold = 0.5f;
+    private const float SputterWidthMinRatio = 0.15f;
+    private const float SputterWidthMaxRatio = 0.45f;
+    private const float SputterLengthMinRatio = 0.3f;
+    private const float SputterLengthMaxRatio = 1f;
+    private const float SputterColorBlend = 0.55f;
+    private const float SputterButtonRattleSpeed = 40f;
+    // 버튼 덜컹: 눌린 깊이 비율의 기준값과 흔들리는 폭
+    private const float SputterButtonBaseRatio = 0.6f;
+    private const float SputterButtonRattleRatio = 0.4f;
+
+    // 줄기 굵기: 최소 굵기, 굵기 계수
+    private const float StreamMinWidth = 0.004f;
+    private const float StreamWidthFactor = 0.1f;
+
+    // 컵 떨림 노이즈 속도, 줄기 발광 배율, 푸슉 글씨 여분 표시 시간(초)
+    private const float CupShakeNoiseSpeed = 30f;
+    private const float StreamEmissionScale = 0.5f;
+    private const float BurstWordExtraSeconds = 0.15f;
+
+    // 결과 문구
+    private const string TextSuccess = "성공!";
+    private const string TextOverAmount = "너무 많이 뽑았어!";
+
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int ColorId = Shader.PropertyToID("_Color");
+    private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
+
     private Vector3 buttonRestLocal;
     private Vector3 streamRestScale;
     private Vector3 cupRestLocal;
@@ -104,16 +141,11 @@ public class EspressoShotMicrogame : Minigame
         noiseSeed = Random.value * 100f;
 
         SetStream(0f, 0f);
-        extractButton.localPosition = buttonRestLocal;
+        SetButtonPress(0f);
 
-        curMinMl = Mathf.Clamp(targetMinMl + variant * variantShiftMl, 5f, capacityMl - 10f);
-        curMaxMl = Mathf.Clamp(targetMaxMl + variant * variantShiftMl, curMinMl + 5f, capacityMl - 5f);
-
-        sputterTimer = 0f;
-        burstTimer = 0f;
-        sputterDone = Random.value >= sputterChance;
-        sputterAtMl = curMinMl * Random.Range(sputterFromRatio, sputterToRatio);
-        cupModel.localPosition = cupRestLocal;
+        ApplyTargetRange();
+        ResetSputter();
+        ResetCupPosition();
         SetStreamColor(streamDarkColor);
 
         hud.Configure(curMinMl, curMaxMl, capacityMl);
@@ -121,17 +153,27 @@ public class EspressoShotMicrogame : Minigame
         cupVisual.SetIceVisible(cup.ice > 0);
     }
 
+    // variant를 반영한 이번 주문의 목표 구간
+    private void ApplyTargetRange()
+    {
+        curMinMl = Mathf.Clamp(targetMinMl + variant * variantShiftMl, TargetMinFloorMl, capacityMl - TargetMinCapacityMarginMl);
+        curMaxMl = Mathf.Clamp(targetMaxMl + variant * variantShiftMl, curMinMl + MinBandWidthMl, capacityMl - TargetMaxCapacityMarginMl);
+    }
+
+    // 거품 치직 상태 초기화. Random 호출 순서(sputterDone -> sputterAtMl)를 유지한다
+    private void ResetSputter()
+    {
+        sputterTimer = 0f;
+        burstTimer = 0f;
+        sputterDone = Random.value >= sputterChance;
+        sputterAtMl = curMinMl * Random.Range(sputterFromRatio, sputterToRatio);
+    }
+
     private void Update()
     {
         if (!isPlaying)
         {
-            if (extracting) StopExtraction();
-            if (sputterTimer > 0f)
-            {
-                sputterTimer = 0f;
-                hud.HideAlert();
-            }
-            cupModel.localPosition = cupRestLocal;
+            CleanUpWhenStopped();
             return;
         }
 
@@ -145,7 +187,7 @@ public class EspressoShotMicrogame : Minigame
         if (!extracting && ClickPressed()) StartExtraction();
         if (!extracting)
         {
-            cupModel.localPosition = cupRestLocal;
+            ResetCupPosition();
             return;
         }
 
@@ -160,44 +202,52 @@ public class EspressoShotMicrogame : Minigame
         }
     }
 
+    // 게임이 멈췄을 때 남은 추출·치직 연출을 정리한다
+    private void CleanUpWhenStopped()
+    {
+        if (extracting) StopExtraction();
+        if (sputterTimer > 0f)
+        {
+            sputterTimer = 0f;
+            hud.HideAlert();
+        }
+        ResetCupPosition();
+    }
+
     private void StartExtraction()
     {
         extracting = true;
-        extractButton.localPosition = buttonRestLocal + Vector3.down * buttonPressDepth;
+        SetButtonPress(1f);
     }
 
     private void StopExtraction()
     {
         extracting = false;
         SetStream(0f, 0f);
-        extractButton.localPosition = buttonRestLocal;
+        SetButtonPress(0f);
+    }
+
+    // 추출 버튼을 누른 정도로 옮긴다 (1 = 완전히 눌림, 0 = 원위치)
+    private void SetButtonPress(float depthRatio)
+    {
+        extractButton.localPosition = buttonRestLocal + Vector3.down * buttonPressDepth * depthRatio;
+    }
+
+    private void ResetCupPosition()
+    {
+        cupModel.localPosition = cupRestLocal;
     }
 
     private void Extract(float dt)
     {
         float length = Mathf.Max(0f, spout.position.y - cupModel.position.y);
 
-        // 거품 치직: 양은 늘지 않고, 굵기·길이가 다른 짧은 물줄기가 툭툭 끊겨 떨어진다(컵까지 못 가기도 함)
         if (sputterTimer > 0f)
         {
-            float elapsed = sputterSeconds - sputterTimer;
-            float spurt = Mathf.PerlinNoise(noiseSeed + 7f, elapsed * 14f);
-            if (spurt > 0.5f)
-            {
-                float k = (spurt - 0.5f) * 2f;
-                SetStream(flowMlPerSec * Mathf.Lerp(0.15f, 0.45f, k), length * Mathf.Lerp(0.3f, 1f, k));
-            }
-            else
-            {
-                SetStream(0f, 0f);
-            }
-            SetStreamColor(Color.Lerp(streamDarkColor, streamBlondeColor, 0.55f));
-            ShakeCup(sputterShake);
-            // 추출 버튼이 덜컹거린다
-            extractButton.localPosition = buttonRestLocal + Vector3.down * buttonPressDepth * (0.6f + 0.4f * Mathf.Sin(elapsed * 40f));
+            ExtractWhileSputtering(length);
             return;
         }
-        extractButton.localPosition = buttonRestLocal + Vector3.down * buttonPressDepth;
+        SetButtonPress(1f);
         if (!sputterDone && extracted >= sputterAtMl)
         {
             StartSputter();
@@ -228,11 +278,38 @@ public class EspressoShotMicrogame : Minigame
         if (overflow) EndGame(false, "컵이 넘쳤어!");
     }
 
+    // 거품 치직: 양은 늘지 않고, 굵기·길이가 다른 짧은 물줄기가 툭툭 끊겨 떨어진다(컵까지 못 가기도 함)
+    private void ExtractWhileSputtering(float length)
+    {
+        float elapsed = sputterSeconds - sputterTimer;
+        float spurt = Mathf.PerlinNoise(noiseSeed + SputterNoiseSeedOffset, elapsed * SputterNoiseSpeed);
+        if (spurt > SputterSpurtThreshold)
+        {
+            float k = (spurt - SputterSpurtThreshold) * 2f;
+            SetStream(flowMlPerSec * Mathf.Lerp(SputterWidthMinRatio, SputterWidthMaxRatio, k),
+                length * Mathf.Lerp(SputterLengthMinRatio, SputterLengthMaxRatio, k));
+        }
+        else
+        {
+            SetStream(0f, 0f);
+        }
+        SetStreamColor(Color.Lerp(streamDarkColor, streamBlondeColor, SputterColorBlend));
+        ShakeCup(sputterShake);
+        // 추출 버튼이 덜컹거린다
+        SetButtonPress(SputterButtonBaseRatio + SputterButtonRattleRatio * Mathf.Sin(elapsed * SputterButtonRattleSpeed));
+    }
+
     private void StartSputter()
     {
         sputterDone = true;
         sputterTimer = sputterSeconds;
         hud.ShowSputter(spout.position, viewCamera, sputterSeconds);
+        PlaySputterSound();
+    }
+
+    // 치직 소리 (소리 설정이 없으면 무음)
+    private void PlaySputterSound()
+    {
         if (sfxSource != null && sputterClip != null) sfxSource.PlayOneShot(sputterClip);
     }
 
@@ -242,7 +319,7 @@ public class EspressoShotMicrogame : Minigame
         sputterTimer = 0f;
         burstTimer = burstSeconds;
         // 버튼을 뗀 채 끝났으면 쏟아질 게 없으니 글씨만 지운다
-        if (extracting) hud.ShowBurst(burstSeconds + 0.15f);
+        if (extracting) hud.ShowBurst(burstSeconds + BurstWordExtraSeconds);
         else hud.HideAlert();
     }
 
@@ -256,14 +333,14 @@ public class EspressoShotMicrogame : Minigame
         {
             SetStreamColor(streamDarkColor);
             hud.SetZone(0);
-            cupModel.localPosition = cupRestLocal;
+            ResetCupPosition();
         }
         else if (extracted <= curMaxMl)
         {
             // 하한에서 크레마로 넘어가 한가운데에서 가장 진하다
             SetStreamColor(Color.Lerp(streamDarkColor, streamCremaColor, QualityOf(extracted, curMinMl, curMaxMl) * 0.6f + 0.4f));
             hud.SetZone(1);
-            cupModel.localPosition = cupRestLocal;
+            ResetCupPosition();
         }
         else
         {
@@ -277,7 +354,7 @@ public class EspressoShotMicrogame : Minigame
     // 부드러운 노이즈로 흔든다 (매 프레임 무작위면 화면이 지저분해진다)
     private void ShakeCup(float amount)
     {
-        float t = Time.time * 30f;
+        float t = Time.time * CupShakeNoiseSpeed;
         float x = Mathf.PerlinNoise(t, noiseSeed) * 2f - 1f;
         float z = Mathf.PerlinNoise(noiseSeed, t) * 2f - 1f;
         cupModel.localPosition = cupRestLocal + new Vector3(x, 0f, z) * amount;
@@ -287,26 +364,40 @@ public class EspressoShotMicrogame : Minigame
     {
         if (streamRenderer == null) return;
         streamRenderer.GetPropertyBlock(streamBlock);
-        streamBlock.SetColor("_BaseColor", c);
-        streamBlock.SetColor("_Color", c);
-        streamBlock.SetColor("_EmissionColor", c * 0.5f);
+        streamBlock.SetColor(BaseColorId, c);
+        streamBlock.SetColor(ColorId, c);
+        streamBlock.SetColor(EmissionColorId, c * StreamEmissionScale);
         streamRenderer.SetPropertyBlock(streamBlock);
     }
 
     // 추출 버튼을 뗐을 때. 구간 안이면 성공, 넘었으면 실패, 모자라면 계속 진행
     private void Release()
     {
-        if (InTarget()) EndGame(true, "성공!");
-        else if (extracted > curMaxMl) EndGame(false, "너무 많이 뽑았어!");
+        TryFinishByAmount();
     }
 
     // 시간 초과. 구간 안이면 성공으로 인정
     public override void TimeOver()
     {
-        if (InTarget()) EndGame(true, "성공!");
-        else if (extracted > curMaxMl) EndGame(false, "너무 많이 뽑았어!");
-        else if (extracted > 0f) EndGame(false, "샷이 모자라!");
+        if (TryFinishByAmount()) return;
+        if (extracted > 0f) EndGame(false, "샷이 모자라!");
         else EndGame(false, "시간 초과!");
+    }
+
+    // 뽑은 양이 구간 안이면 성공, 넘었으면 실패로 끝낸다. 끝냈으면 true, 모자라면 false
+    private bool TryFinishByAmount()
+    {
+        if (InTarget())
+        {
+            EndGame(true, TextSuccess);
+            return true;
+        }
+        if (extracted > curMaxMl)
+        {
+            EndGame(false, TextOverAmount);
+            return true;
+        }
+        return false;
     }
 
     private bool InTarget()
@@ -335,7 +426,7 @@ public class EspressoShotMicrogame : Minigame
             stream.localScale = streamRestScale;
             return;
         }
-        float w = Mathf.Max(0.004f, flow * streamWidthPerFlow * 0.1f);
+        float w = Mathf.Max(StreamMinWidth, flow * streamWidthPerFlow * StreamWidthFactor);
         stream.localScale = new Vector3(w, length, w);
     }
 

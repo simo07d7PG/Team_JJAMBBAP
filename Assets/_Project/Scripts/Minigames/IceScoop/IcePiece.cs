@@ -21,6 +21,7 @@ public class IcePiece : MonoBehaviour
     private void Awake()
     {
         body = GetComponent<Rigidbody>();
+        // 풀에서 처음 만들어진 시점의 크기를 저장해 두고, 재사용할 때마다 이 값을 기준으로 삼는다
         baseScale = transform.localScale;
         if (visual != null) visualFinalScale = visual.localScale;
     }
@@ -36,8 +37,14 @@ public class IcePiece : MonoBehaviour
         body.angularVelocity = Vector3.zero;
 
         growElapsed = 0f;
-        growing = visual != null && growSeconds > 0f;
+        growing = CanGrow();
         ApplyGrow();
+    }
+
+    // 보이는 모델이 있고 커지는 시간이 있을 때만 커진다 (visual을 비우면 커지기 없음)
+    private bool CanGrow()
+    {
+        return visual != null && growSeconds > 0f;
     }
 
     private void Update()
@@ -51,8 +58,7 @@ public class IcePiece : MonoBehaviour
     private void ApplyGrow()
     {
         if (visual == null) return;
-        float t = 1f;
-        if (growing) t = Mathf.Clamp01(growElapsed / growSeconds);
+        float t = growing ? Mathf.Clamp01(growElapsed / growSeconds) : 1f;
         visual.localScale = visualFinalScale * Mathf.Lerp(growStartFraction, 1f, t);
     }
 }

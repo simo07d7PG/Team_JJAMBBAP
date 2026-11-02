@@ -30,6 +30,37 @@ public class CafeEffects : MonoBehaviour
     [Range(0f, 1f)]
     public float bgmVolume = 0.6f;
 
+    // 튕김 연출: 걸리는 시간(초), 1배를 넘치는 정도
+    private const float PopSeconds = 0.25f;
+    private const float PopOvershoot = 0.08f;
+
+    // 흔들림 연출: 걸리는 시간(초), 사인파 반주기 수(p * PI * 값)
+    private const float ShakeSeconds = 0.3f;
+    private const float ShakeHalfWaves = 6f;
+
+    // 떠오르는 글자 연출: 지속 시간, 시작 높이 오프셋, 상승 거리(캔버스 단위)
+    private const float FloatSeconds = 1f;
+    private const float FloatStartOffset = 40f;
+    private const float FloatRiseDistance = 90f;
+    // 처음 커지는 구간 비율, 시작 크기, 최대 크기, 사라지기 시작하는 진행률
+    private const float FloatPopPortion = 0.15f;
+    private const float FloatStartScale = 0.6f;
+    private const float FloatPeakScale = 1.1f;
+    private const float FloatFadeStart = 0.6f;
+
+    // 처음엔 빠르고 끝에서 느려지는 곡선 (2차)
+    private static float EaseOutQuad(float p)
+    {
+        return 1f - (1f - p) * (1f - p);
+    }
+
+    // 처음엔 빠르고 끝에서 느려지는 곡선 (3차, 2차보다 더 크게 느려짐)
+    private static float EaseOutCubic(float p)
+    {
+        float q = 1f - p;
+        return 1f - q * q * q;
+    }
+
     public void Play(AudioClip clip)
     {
         if (clip == null || audioSource == null) return;
@@ -58,8 +89,14 @@ public class CafeEffects : MonoBehaviour
     public void SetBlack()
     {
         fadeImage.gameObject.SetActive(true);
+        SetFadeAlpha(1f);
+    }
+
+    // 페이드 Image의 알파만 바꾼다
+    private void SetFadeAlpha(float alpha)
+    {
         Color color = fadeImage.color;
-        color.a = 1f;
+        color.a = alpha;
         fadeImage.color = color;
     }
 
@@ -72,6 +109,7 @@ public class CafeEffects : MonoBehaviour
     public IEnumerator FadeTo(float target, float seconds)
     {
         fadeImage.gameObject.SetActive(true);
+        // 시작 시점의 색(RGB)을 잡아 두고 알파만 바꿔 매 프레임 덮어쓴다
         Color color = fadeImage.color;
         float start = color.a;
         float t = 0f;
@@ -87,56 +125,65 @@ public class CafeEffects : MonoBehaviour
         if (target <= 0f) fadeImage.gameObject.SetActive(false);
     }
 
-    // from배 크기에서 살짝 넘쳤다가 1배로 (0.25초)
+    // from배 크기에서 살짝 넘쳤다가 1배로 (짧은 시간)
     public IEnumerator Pop(RectTransform rect, float from)
     {
         float t = 0f;
-        while (t < 0.25f)
+        while (t < PopSeconds)
         {
             t += Time.deltaTime;
-            float p = Mathf.Clamp01(t / 0.25f);
+            float p = Mathf.Clamp01(t / PopSeconds);
             // 1배를 조금 지나쳤다가 돌아오는 곡선
-            float s = Mathf.Lerp(from, 1f, p) + Mathf.Sin(p * Mathf.PI) * 0.08f;
+            float s = Mathf.Lerp(from, 1f, p) + Mathf.Sin(p * Mathf.PI) * PopOvershoot;
             rect.localScale = new Vector3(s, s, 1f);
             yield return null;
         }
         rect.localScale = Vector3.one;
     }
 
-    // 좌우로 흔들었다가 제자리로 (0.3초)
+    // 좌우로 흔들었다가 제자리로 (짧은 시간)
     public IEnumerator Shake(RectTransform rect, float amount)
     {
         Vector2 origin = rect.anchoredPosition;
         float t = 0f;
-        while (t < 0.3f)
+        while (t < ShakeSeconds)
         {
             t += Time.deltaTime;
-            float p = Mathf.Clamp01(t / 0.3f);
-            rect.anchoredPosition = origin + new Vector2(Mathf.Sin(p * Mathf.PI * 6f) * amount * (1f - p), 0f);
+            float p = Mathf.Clamp01(t / ShakeSeconds);
+            rect.anchoredPosition = origin + new Vector2(Mathf.Sin(p * Mathf.PI * ShakeHalfWaves) * amount * (1f - p), 0f);
             yield return null;
         }
         rect.anchoredPosition = origin;
     }
 
-    // 월드 위치 위에서 글자가 떠오르며 사라진다 (1초). text는 캔버스 바로 아래, 가운데 앵커
+    // 월드 좌표를 캔버스 로컬 좌표로 바꾼다 (Overlay 캔버스 기준)
+    private static Vector2 WorldToCanvasLocal(RectTransform canvasRect, Vector3 worldPos, Camera cam)
+    {
+        Vector2 local;
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, cam.WorldToScreenPoint(worldPos), null, out local);
+        return local;
+    }
+
+    // 월드 위치 위에서 글자가 떠오르며 사라진다 (FloatSeconds초). text는 캔버스 바로 아래, 가운데 앵커
     public IEnumerator FloatUp(TMP_Text text, string message, Vector3 worldPos, Camera cam)
     {
         RectTransform rect = text.rectTransform;
         RectTransform canvasRect = (RectTransform)rect.parent;
-        Vector2 local;
-        RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, cam.WorldToScreenPoint(worldPos), null, out local);
+        Vector2 local = WorldToCanvasLocal(canvasRect, worldPos, cam);
         text.text = message;
         text.gameObject.SetActive(true);
         Color color = text.color;
         float t = 0f;
-        while (t < 1f)
+        while (t < FloatSeconds)
         {
             t += Time.deltaTime;
-            float p = Mathf.Clamp01(t);
-            rect.anchoredPosition = local + new Vector2(0f, 40f + 90f * p);
-            float s = p < 0.15f ? Mathf.Lerp(0.6f, 1.1f, p / 0.15f) : Mathf.Lerp(1.1f, 1f, (p - 0.15f) / 0.85f);
+            float p = Mathf.Clamp01(t / FloatSeconds);
+            rect.anchoredPosition = local + new Vector2(0f, FloatStartOffset + FloatRiseDistance * p);
+            float s = p < FloatPopPortion
+                ? Mathf.Lerp(FloatStartScale, FloatPeakScale, p / FloatPopPortion)
+                : Mathf.Lerp(FloatPeakScale, 1f, (p - FloatPopPortion) / 0.85f);
             rect.localScale = new Vector3(s, s, 1f);
-            color.a = 1f - Mathf.Clamp01((p - 0.6f) / 0.4f);
+            color.a = 1f - Mathf.Clamp01((p - FloatFadeStart) / 0.4f);
             text.color = color;
             yield return null;
         }
@@ -154,7 +201,7 @@ public class CafeEffects : MonoBehaviour
             t += Time.deltaTime;
             float p = Mathf.Clamp01(t / seconds);
             // 처음엔 빠르고 끝에서 느려지게
-            p = 1f - (1f - p) * (1f - p);
+            p = EaseOutQuad(p);
             text.text = prefix + Mathf.RoundToInt(Mathf.Lerp(from, to, p)) + suffix;
             yield return null;
         }
@@ -171,7 +218,7 @@ public class CafeEffects : MonoBehaviour
         {
             t += Time.deltaTime;
             float p = Mathf.Clamp01(t / seconds);
-            p = 1f - (1f - p) * (1f - p) * (1f - p);
+            p = EaseOutCubic(p);
             rect.anchoredPosition = Vector2.Lerp(start, end, p);
             yield return null;
         }

@@ -100,13 +100,51 @@ public class CafeLoop : MonoBehaviour
     [Tooltip("'영업 시작' 알림 뒤 첫 손님까지(초)")]
     public float firstCustomerSeconds = 1f;
 
-    // 화면 상태: 0 = 카페, 1 = 지시어, 2 = 미니게임 플레이, 3 = 결과, 4 = 페이드 전환 중(시간 정지)
+    // 화면 상태 (state)
+    private const int StateCafe = 0;        // 카페
+    private const int StateInstruction = 1; // 지시어
+    private const int StatePlaying = 2;     // 미니게임 플레이
+    private const int StateResult = 3;      // 결과
+    private const int StateFade = 4;        // 페이드·걷기 전환 중 (시간 정지)
+
+    // 주문 상태 (order)
+    private const int OrderNone = 0;        // 손님 없음
+    private const int OrderWaitAccept = 1;  // 수락 대기
+    private const int OrderMaking = 2;      // 제조 중
+    private const int OrderWaitServe = 3;   // 제공 대기
+
+    // 단계 등급 (GradeOf)
+    private const int GradeClose = 0;       // 아슬아슬
+    private const int GradeGood = 1;        // 좋아요
+    private const int GradePerfect = 2;     // 완벽
+
+    // 가격·콤보 기준
+    private const int PriceUnit = 100;      // 가격·팁을 맞추는 단위(원)
+    private const int TipMinCombo = 2;      // 팁이 붙고 결과 글자에 콤보가 보이는 최소 콤보
+
+    // 변형·연출 값
+    private const float LessVariantRatio = 0.5f;     // 변형이 붙을 때 '적게'가 될 확률
+    private const float CountUpSeconds = 0.6f;       // 결제 수입 숫자가 굴러 올라가는 시간(초)
+    private const float ReceiptSlideDistance = 500f; // 영수증 상자가 올라오는 거리
+    private const float ReceiptSlideSeconds = 0.35f; // 영수증 상자가 올라오는 시간(초)
+    private const float ReceiptCountSeconds = 0.8f;  // 영수증 수입 숫자가 굴러 올라가는 시간(초)
+    private const float PopPerfect = 1.9f;           // 결과 글자 튕김 배율: 완벽
+    private const float PopGood = 1.5f;              // 좋아요
+    private const float PopClose = 1.3f;             // 아슬아슬
+    private const float PopFail = 1.2f;              // 실패
+    private const float ShakeFail = 18f;             // 실패 흔들림 세기
+
+    // 결과 글자 색
+    private static readonly Color PerfectColor = new Color(1f, 0.82f, 0.2f);
+    private static readonly Color GoodColor = new Color(1f, 0.92f, 0.45f);
+    private static readonly Color CloseColor = new Color(1f, 0.7f, 0.4f);
+    private static readonly Color FailColor = new Color(1f, 0.6f, 0.55f);
+
     private int state;
     private Minigame current;
     private float timer;
     private int returnFrame = -10;
 
-    // 주문 상태: 0 = 손님 없음, 1 = 수락 대기, 2 = 제조 중, 3 = 제공 대기
     private int order;
     private MenuData menu;
     private int stepIndex;
@@ -119,7 +157,7 @@ public class CafeLoop : MonoBehaviour
 
     private int day = 1;
     private float dayTimer;
-    // 시간이 다 됨. 새 손님은 오지 않고, 진행 중인 주문이 끝나면 영수증
+    // 마감됨 (시간 종료 또는 오늘 손님 소진). 새 손님은 오지 않고, 진행 중인 주문이 끝나면 영수증
     private bool dayOver;
     private int salesCount;
     private int failCount;
@@ -150,8 +188,6 @@ public class CafeLoop : MonoBehaviour
         }
         customerStation = customer.GetComponent<Station>();
         customer.Hide();
-        order = 0;
-        nextCustomerTimer = nextCustomerSeconds;
         noticeText.gameObject.SetActive(false);
         minigamePatienceBar.SetActive(false);
         receiptPanel.SetActive(false);
@@ -167,12 +203,12 @@ public class CafeLoop : MonoBehaviour
     private IEnumerator BeginGame()
     {
         opening = true;
-        state = 4;
+        state = StateFade;
         ShowTexts();
         view.viewEnabled = false;
         yield return loading.Run(day);
         StartCoroutine(effects.StartBgm(bgmFadeSeconds));
-        state = 0;
+        state = StateCafe;
         ShowTexts();
         // 영수증·상점에서 나갔으면 상점부터 다시 연다 (저장된 날은 이미 다음날)
         if (shop.ShopPending())
@@ -199,22 +235,12 @@ public class CafeLoop : MonoBehaviour
 
     private void Update()
     {
-        // 치트 키(발표·테스트용): F9 = 저장을 지우고 1일차부터, F10 = 돈 +10000원
-        if (Keyboard.current != null)
-        {
-            if (Keyboard.current.f9Key.wasPressedThisFrame)
-            {
-                shop.ResetSave();
-                SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-                return;
-            }
-            if (Keyboard.current.f10Key.wasPressedThisFrame) shop.AddMoney(10000);
-        }
+        if (HandleCheatKeys()) return;
         UpdateDay();
         UpdateCustomer();
         UpdatePatience();
         UpdateNotice();
-        if (order == 0)
+        if (order == OrderNone)
         {
             // 주문이 없는 프레임에 들어온 클릭은 버린다 (다음 손님 때 저절로 걸어가지 않게)
             view.clickedStation = null;
@@ -223,48 +249,86 @@ public class CafeLoop : MonoBehaviour
 
         switch (state)
         {
-            case 0:
-                if (view.clickedStation != null)
-                {
-                    Station clicked = view.clickedStation;
-                    view.clickedStation = null;
-                    // 결과를 건너뛴 클릭이 바로 다음 클릭으로 이어지지 않게
-                    if (Time.frameCount > returnFrame + 1) StartCoroutine(WalkThenClick(clicked));
-                }
+            case StateCafe:
+                UpdateCafeClick();
                 break;
-            case 1:
-                timer -= Time.deltaTime;
-                if (timer <= 0f)
-                {
-                    current.StartGame();
-                    timer = current.timeLimit;
-                    state = 2;
-                    ShowTexts();
-                    Debug.Log("[CafeLoop] 미니게임 시작: " + current.stationId);
-                }
+            case StateInstruction:
+                UpdateInstruction();
                 break;
-            case 2:
-                timer -= Time.deltaTime;
-                if (timer <= 0f && current.isPlaying) current.TimeOver();
-                timeText.text = "남은 시간 " + Mathf.Max(0f, timer).ToString("0.0") + "초";
-                if (current.isFinished)
-                {
-                    JudgeStep();
-                    Debug.Log("[CafeLoop] " + current.stationId + " 결과: " + (current.isSuccess ? "성공 q=" + current.quality.ToString("0.00") + " x" + stepMultiplier : "실패") + " / " + current.resultText + " 콤보 " + combo);
-                    timer = failSeconds;
-                    if (current.isSuccess) timer = successSeconds;
-                    state = 3;
-                    ShowTexts();
-                }
+            case StatePlaying:
+                UpdatePlaying();
                 break;
-            case 3:
-                timer -= Time.deltaTime;
-                // 클릭하면 결과 표시를 건너뛴다
-                if (timer <= 0f || current.clickAction.action.WasPressedThisFrame())
-                {
-                    FinishStep();
-                }
+            case StateResult:
+                UpdateResult();
                 break;
+        }
+    }
+
+    // 치트 키(발표·테스트용): F9 = 저장을 지우고 1일차부터, F10 = 돈 +10000원
+    // F9로 씬을 다시 불러오면 true (이번 프레임의 나머지 처리를 건너뛴다)
+    private bool HandleCheatKeys()
+    {
+        if (Keyboard.current == null) return false;
+        if (Keyboard.current.f9Key.wasPressedThisFrame)
+        {
+            shop.ResetSave();
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+            return true;
+        }
+        if (Keyboard.current.f10Key.wasPressedThisFrame) shop.AddMoney(10000);
+        return false;
+    }
+
+    // 카페 화면: 기계·손님 클릭이 들어오면 그쪽으로 걸어간다
+    private void UpdateCafeClick()
+    {
+        if (view.clickedStation == null) return;
+        Station clicked = view.clickedStation;
+        view.clickedStation = null;
+        // 결과를 건너뛴 클릭이 바로 다음 클릭으로 이어지지 않게
+        if (Time.frameCount > returnFrame + 1) StartCoroutine(WalkThenClick(clicked));
+    }
+
+    // 지시어를 보여 주는 동안 기다렸다가 미니게임을 시작한다
+    private void UpdateInstruction()
+    {
+        timer -= Time.deltaTime;
+        if (timer > 0f) return;
+        current.StartGame();
+        timer = current.timeLimit;
+        state = StatePlaying;
+        ShowTexts();
+        Debug.Log("[CafeLoop] 미니게임 시작: " + current.stationId);
+    }
+
+    // 미니게임 플레이: 제한 시간을 세고, 끝나면 판정해 결과 화면으로 넘어간다
+    private void UpdatePlaying()
+    {
+        timer -= Time.deltaTime;
+        if (timer <= 0f && current.isPlaying) current.TimeOver();
+        timeText.text = "남은 시간 " + Mathf.Max(0f, timer).ToString("0.0") + "초";
+        if (!current.isFinished) return;
+        JudgeStep();
+        LogStepResult();
+        timer = current.isSuccess ? successSeconds : failSeconds;
+        state = StateResult;
+        ShowTexts();
+    }
+
+    private void LogStepResult()
+    {
+        string outcome = current.isSuccess ? "성공 q=" + current.quality.ToString("0.00") + " x" + stepMultiplier : "실패";
+        Debug.Log("[CafeLoop] " + current.stationId + " 결과: " + outcome + " / " + current.resultText + " 콤보 " + combo);
+    }
+
+    // 결과 화면: 시간이 지나거나 클릭하면 다음 단계로
+    private void UpdateResult()
+    {
+        timer -= Time.deltaTime;
+        // 클릭하면 결과 표시를 건너뛴다
+        if (timer <= 0f || current.clickAction.action.WasPressedThisFrame())
+        {
+            FinishStep();
         }
     }
 
@@ -272,19 +336,19 @@ public class CafeLoop : MonoBehaviour
     {
         if (clicked == customerStation)
         {
-            if (order == 1) AcceptOrder();
-            else if (order == 3) Serve();
+            if (order == OrderWaitAccept) AcceptOrder();
+            else if (order == OrderWaitServe) Serve();
             return;
         }
         Minigame game = FindMinigame(clicked.stationId);
-        if (game != null) OpenMinigame(game);
+        if (game != null) StartCoroutine(SwitchToMinigame(game));
     }
 
     // 하루 시계는 인내도처럼 카페 화면과 미니게임 플레이 중에만 흐른다
     private void UpdateDay()
     {
         if (dayOver) return;
-        if (state == 0 || state == 2) dayTimer -= Time.deltaTime;
+        if (state == StateCafe || state == StatePlaying) dayTimer -= Time.deltaTime;
         if (dayTimer <= 0f)
         {
             dayTimer = 0f;
@@ -299,16 +363,28 @@ public class CafeLoop : MonoBehaviour
         dayOver = true;
         Debug.Log("[CafeLoop] " + day + "일차 마감");
         // 수락한 주문만 끝까지 한다. 수락 전 손님은 돌려보낸다
-        if (order == 1) CustomerLeave("내일 올게요");
+        if (order == OrderWaitAccept) CustomerLeave("내일 올게요");
         // 미니게임 중이면 결과 글자와 겹치니 알림을 띄우지 않는다 (시계가 "마감"으로 바뀐다)
-        if (order == 2 || order == 3)
+        if (IsOrderAccepted())
         {
-            if (state == 0) ShowNotice("영업 끝! 마지막 손님만 마무리해요");
+            if (state == StateCafe) ShowNotice("영업 끝! 마지막 손님만 마무리해요");
         }
         // 방금 뜬 결제·팁 알림을 덮지 않는다
         else if (noticeTimer <= 0f) ShowNotice("오늘 영업 끝!");
         receiptTimer = receiptDelay;
         ShowDay();
+    }
+
+    // 주문을 수락한 상태인가 (제조 중 또는 제공 대기)
+    private bool IsOrderAccepted()
+    {
+        return order == OrderMaking || order == OrderWaitServe;
+    }
+
+    // 손님을 눌러야 하는 차례인가 (주문 받기 또는 음료 건네기)
+    private bool IsCustomerTurn()
+    {
+        return order == OrderWaitAccept || order == OrderWaitServe;
     }
 
     // 오늘 받을 손님 수
@@ -338,19 +414,10 @@ public class CafeLoop : MonoBehaviour
     // 손님이 없으면 시간을 세다가 새 손님을 부른다. 하루가 끝났으면 영수증
     private void UpdateCustomer()
     {
-        if (order != 0) return;
+        if (order != OrderNone) return;
         if (dayOver)
         {
-            // 손님 퇴장·알림·미니게임 복귀가 다 끝나고 receiptDelay 뒤에 영수증 (겹쳐 뜨지 않게)
-            if (receiptShown) return;
-            bool busy = state != 0 || customer.gameObject.activeSelf || noticeTimer > 0f;
-            if (busy)
-            {
-                receiptTimer = receiptDelay;
-                return;
-            }
-            receiptTimer -= Time.deltaTime;
-            if (receiptTimer <= 0f) ShowReceipt();
+            UpdateReceiptWait();
             return;
         }
         if (opening) return;
@@ -362,28 +429,52 @@ public class CafeLoop : MonoBehaviour
         }
         nextCustomerTimer -= Time.deltaTime;
         if (nextCustomerTimer > 0f) return;
+        SpawnCustomer();
+    }
 
+    // 손님 퇴장·알림·미니게임 복귀가 다 끝나고 receiptDelay 뒤에 영수증 (겹쳐 뜨지 않게)
+    private void UpdateReceiptWait()
+    {
+        if (receiptShown) return;
+        bool busy = state != StateCafe || customer.gameObject.activeSelf || noticeTimer > 0f;
+        if (busy)
+        {
+            receiptTimer = receiptDelay;
+            return;
+        }
+        receiptTimer -= Time.deltaTime;
+        if (receiptTimer <= 0f) ShowReceipt();
+    }
+
+    // 새 손님을 메뉴·변형과 함께 부른다
+    private void SpawnCustomer()
+    {
         menu = PickMenu();
         customersToday++;
-        // 단계마다 변형을 정한다 (예: 추출 '진하게', 우유 '적게')
+        string request = RollVariants();
+        customer.Show(menu, request);
+        effects.Play(effects.bellClip);
+        if (customersToday == CustomersPerDay()) ShowNotice("오늘 마지막 손님이에요!");
+        order = OrderWaitAccept;
+        UpdateTargets();
+        ShowDay();
+        Debug.Log("[CafeLoop] 손님 등장(" + customersToday + "/" + CustomersPerDay() + "): " + menu.menuName);
+    }
+
+    // 단계마다 변형을 정한다 (예: 추출 '진하게', 우유 '적게'). stepVariants를 채우고 손님 요청 글자를 돌려준다
+    private string RollVariants()
+    {
         stepVariants = new int[menu.steps.Length];
         string request = "";
         for (int i = 0; i < menu.steps.Length; i++)
         {
-            stepVariants[i] = 0;
-            if (Random.value < variantChance) stepVariants[i] = Random.value < 0.5f ? -1 : 1;
+            if (Random.value < variantChance) stepVariants[i] = Random.value < LessVariantRatio ? -1 : 1;
             string label = VariantLabel(menu.steps[i], stepVariants[i]);
             if (label == "") continue;
             if (request != "") request += ", ";
             request += label;
         }
-        customer.Show(menu, request);
-        effects.Play(effects.bellClip);
-        if (customersToday == CustomersPerDay()) ShowNotice("오늘 마지막 손님이에요!");
-        order = 1;
-        UpdateTargets();
-        ShowDay();
-        Debug.Log("[CafeLoop] 손님 등장(" + customersToday + "/" + CustomersPerDay() + "): " + menu.menuName);
+        return request;
     }
 
     // 어제 상점에서 산 레시피가 있으면 첫 손님이 그것을 주문한다. 아니면 열린 메뉴 중 무작위
@@ -412,14 +503,23 @@ public class CafeLoop : MonoBehaviour
         return "";
     }
 
+    // quality → 등급 (완벽 / 좋아요 / 아슬아슬)
+    private int GradeOf(float quality)
+    {
+        if (quality >= perfectQuality) return GradePerfect;
+        if (quality >= goodQuality) return GradeGood;
+        return GradeClose;
+    }
+
     // 방금 끝난 단계의 등급 → 가격 배율과 콤보
     private void JudgeStep()
     {
         stepMultiplier = 0f;
         if (current.isSuccess)
         {
-            if (current.quality >= perfectQuality) stepMultiplier = perfectPrice;
-            else if (current.quality >= goodQuality) stepMultiplier = goodPrice;
+            int grade = GradeOf(current.quality);
+            if (grade == GradePerfect) stepMultiplier = perfectPrice;
+            else if (grade == GradeGood) stepMultiplier = goodPrice;
             else stepMultiplier = closePrice;
         }
         if (current.isSuccess && current.quality >= goodQuality) combo++;
@@ -429,7 +529,7 @@ public class CafeLoop : MonoBehaviour
     private void AcceptOrder()
     {
         effects.Play(effects.clickClip);
-        order = 2;
+        order = OrderMaking;
         stepIndex = 0;
         successCount = 0;
         priceSum = 0f;
@@ -451,29 +551,35 @@ public class CafeLoop : MonoBehaviour
             return;
         }
         // 가격 = 정가 × 단계 등급 배율 평균 (100원 단위), 콤보 팁은 그 위에
-        int price = Mathf.RoundToInt(menu.price * priceSum / menu.steps.Length / 100f) * 100;
+        int price = RoundToHundred(menu.price * priceSum / menu.steps.Length);
         int tip = 0;
-        if (combo >= 2) tip = Mathf.RoundToInt(price * comboTip * Mathf.Min(combo - 1, comboTipMax) / 100f) * 100;
+        if (combo >= TipMinCombo) tip = RoundToHundred(price * comboTip * Mathf.Min(combo - 1, comboTipMax));
+        int total = price + tip;
         int before = income;
-        income += price + tip;
+        income += total;
         salesCount++;
         // 수입 숫자가 굴러 올라가고, 손님 머리 위로 +원이 떠오른다
-        StartCoroutine(effects.CountUp(incomeText, "수입 ", before, income, "원", 0.6f));
-        StartCoroutine(effects.FloatUp(floatText, "+" + (price + tip) + "원", customer.bubble.position, cafeCamera));
+        StartCoroutine(effects.CountUp(incomeText, "수입 ", before, income, "원", CountUpSeconds));
+        StartCoroutine(effects.FloatUp(floatText, "+" + total + "원", customer.bubble.position, cafeCamera));
         effects.Play(effects.coinClip);
         string notice = successCount + "/" + menu.steps.Length + " 성공";
         if (tip > 0) notice += " · 콤보 ×" + combo + " 팁 +" + tip + "원";
         ShowNotice(notice);
         Debug.Log("[CafeLoop] 제공: " + menu.menuName + " " + price + "원 + 팁 " + tip);
-        if (successCount == menu.steps.Length) CustomerLeave("고마워요!");
-        else CustomerLeave("음… 다음엔 잘해 줘요");
+        CustomerLeave(successCount == menu.steps.Length ? "고마워요!" : "음… 다음엔 잘해 줘요");
+    }
+
+    // 금액을 PriceUnit(100원) 단위로 반올림
+    private int RoundToHundred(float value)
+    {
+        return Mathf.RoundToInt(value / PriceUnit) * PriceUnit;
     }
 
     // 손님이 한마디 남기고 떠난다
     private void CustomerLeave(string message)
     {
         customer.Leave(message);
-        order = 0;
+        order = OrderNone;
         menu = null;
         nextCustomerTimer = nextCustomerSeconds;
         UpdateTargets();
@@ -482,18 +588,18 @@ public class CafeLoop : MonoBehaviour
     // 인내도는 카페 화면과 미니게임 플레이 중에만 준다 (지시어·결과 표시 중에는 정지)
     private void UpdatePatience()
     {
-        bool accepted = order == 2 || order == 3;
-        if (accepted && (state == 0 || state == 2)) patience -= Time.deltaTime;
+        bool accepted = IsOrderAccepted();
+        if (accepted && (state == StateCafe || state == StatePlaying)) patience -= Time.deltaTime;
 
         float ratio = patience / patienceSeconds;
         customer.SetPatience(accepted, ratio);
-        minigamePatienceBar.SetActive(accepted && state != 0);
+        minigamePatienceBar.SetActive(accepted && state != StateCafe);
         minigamePatienceFill.localScale = new Vector3(Mathf.Clamp01(ratio), 1f, 1f);
 
         if (accepted && patience <= 0f)
         {
             // 미니게임 중이면 바로 중단하고 카페로 돌아온다
-            if (state != 0) CloseMinigame();
+            if (state != StateCafe) CloseMinigame();
             ShowNotice("손님이 떠났어요");
             leftCount++;
             Debug.Log("[CafeLoop] 인내도 초과, 손님 떠남");
@@ -505,7 +611,7 @@ public class CafeLoop : MonoBehaviour
     private void UpdateTargets()
     {
         string nextStation = "";
-        if (order == 2) nextStation = menu.steps[stepIndex];
+        if (order == OrderMaking) nextStation = menu.steps[stepIndex];
         Station next = null;
         string what = "";
         for (int i = 0; i < stations.Length; i++)
@@ -519,17 +625,13 @@ public class CafeLoop : MonoBehaviour
             if (!was && stations[i].gameObject.activeInHierarchy) stations[i].Blink();
         }
         bool customerWas = customerStation.clickable;
-        customerStation.clickable = order == 1 || order == 3;
-        if (!customerWas && customerStation.clickable) customerStation.Blink();
-        if (order == 1)
+        bool customerTurn = IsCustomerTurn();
+        customerStation.clickable = customerTurn;
+        if (!customerWas && customerTurn) customerStation.Blink();
+        if (customerTurn)
         {
             next = customerStation;
-            what = "주문 받기";
-        }
-        if (order == 3)
-        {
-            next = customerStation;
-            what = "음료 건네기";
+            what = order == OrderWaitAccept ? "주문 받기" : "음료 건네기";
         }
         pointer.SetTarget(next, what);
     }
@@ -560,27 +662,22 @@ public class CafeLoop : MonoBehaviour
     // 걷는 동안(state 4) 시계·인내도·입력이 멈춘다
     private IEnumerator WalkThenClick(Station clicked)
     {
-        state = 4;
+        state = StateFade;
         ShowTexts();
         effects.Play(effects.clickClip);
         Debug.Log("[CafeLoop] 이동 시작: " + clicked.stationId);
         yield return view.WalkTo(clicked);
         yield return new WaitForSeconds(arriveDelay);
         Debug.Log("[CafeLoop] 도착 → 상호작용: " + clicked.stationId);
-        state = 0;
+        state = StateCafe;
         ShowTexts();
         ClickStation(clicked);
-    }
-
-    private void OpenMinigame(Minigame game)
-    {
-        StartCoroutine(SwitchToMinigame(game));
     }
 
     // 검게 → 카메라 전환 → 밝게. 전환 중(state 4)에는 시계·인내도·입력이 멈춘다
     private IEnumerator SwitchToMinigame(Minigame game)
     {
-        state = 4;
+        state = StateFade;
         ShowTexts();
         yield return effects.FadeTo(1f);
         current = game;
@@ -592,7 +689,7 @@ public class CafeLoop : MonoBehaviour
         game.viewCamera.enabled = true;
         game.cup = new Cup();
         timer = instructionSeconds;
-        state = 1;
+        state = StateInstruction;
         ShowTexts();
         yield return effects.FadeTo(0f);
     }
@@ -603,7 +700,7 @@ public class CafeLoop : MonoBehaviour
         if (current.isSuccess) successCount++;
         priceSum += stepMultiplier;
         stepIndex++;
-        if (stepIndex >= menu.steps.Length) order = 3;
+        if (stepIndex >= menu.steps.Length) order = OrderWaitServe;
         CloseMinigame();
         UpdateTargets();
     }
@@ -615,7 +712,7 @@ public class CafeLoop : MonoBehaviour
 
     private IEnumerator SwitchToCafe()
     {
-        state = 4;
+        state = StateFade;
         ShowTexts();
         yield return effects.FadeTo(1f);
         current.StopGame();
@@ -625,7 +722,7 @@ public class CafeLoop : MonoBehaviour
         view.viewEnabled = true;
         yield return effects.FadeTo(0f);
         returnFrame = Time.frameCount;
-        state = 0;
+        state = StateCafe;
         ShowTexts();
         Debug.Log("[CafeLoop] 카페 복귀");
     }
@@ -641,7 +738,13 @@ public class CafeLoop : MonoBehaviour
     {
         if (noticeTimer <= 0f) return;
         noticeTimer -= Time.deltaTime;
-        if (noticeTimer <= 0f) noticeText.gameObject.SetActive(false);
+        if (noticeTimer <= 0f) HideNotice();
+    }
+
+    private void HideNotice()
+    {
+        noticeTimer = 0f;
+        noticeText.gameObject.SetActive(false);
     }
 
     // 영수증 동안은 시야를 끄고 커서를 보여 준다. 이때 번 돈을 더해 다음날로 저장한다
@@ -653,12 +756,12 @@ public class CafeLoop : MonoBehaviour
         view.viewEnabled = false;
         pointer.SetTarget(null, "");
         // 상자가 아래에서 올라오고, 수입 숫자가 굴러 올라간다 (0원이면 굴리지 않는다)
-        StartCoroutine(effects.SlideUp(receiptBox, 500f, 0.35f));
+        StartCoroutine(effects.SlideUp(receiptBox, ReceiptSlideDistance, ReceiptSlideSeconds));
         string head = day + "일차 영수증\n\n판매 " + salesCount + "잔 · 실패 " + failCount + "잔\n떠난 손님 " + leftCount + "명\n\n수입 ";
         string tail = "원\n<size=80%>보유 " + shop.Money().ToString("N0") + "원</size>";
         if (income > 0)
         {
-            StartCoroutine(effects.CountUp(receiptText, head, 0, income, tail, 0.8f));
+            StartCoroutine(effects.CountUp(receiptText, head, 0, income, tail, ReceiptCountSeconds));
             effects.Play(effects.coinClip);
         }
         else
@@ -686,16 +789,22 @@ public class CafeLoop : MonoBehaviour
         dayTimer = daySeconds;
         dayOver = false;
         receiptShown = false;
+        ResetDayStats();
+        ShowDay();
+        ShowIncome();
+        UpdateTargets();
+        OpenDay();
+    }
+
+    // 하루 통계 초기화
+    private void ResetDayStats()
+    {
         combo = 0;
         salesCount = 0;
         failCount = 0;
         leftCount = 0;
         income = 0;
         customersToday = 0;
-        ShowDay();
-        ShowIncome();
-        UpdateTargets();
-        OpenDay();
     }
 
     private void ShowIncome()
@@ -706,57 +815,60 @@ public class CafeLoop : MonoBehaviour
     // 상태에 맞는 글자만 켠다
     private void ShowTexts()
     {
-        instructionText.gameObject.SetActive(state == 1);
-        timeText.gameObject.SetActive(state == 2);
-        resultText.gameObject.SetActive(state == 3);
+        instructionText.gameObject.SetActive(state == StateInstruction);
+        timeText.gameObject.SetActive(state == StatePlaying);
+        resultText.gameObject.SetActive(state == StateResult);
         // 지시어·결과는 알림과 같은 자리라 겹치지 않게 알림을 숨긴다
-        if (state == 1 || state == 3)
-        {
-            noticeTimer = 0f;
-            noticeText.gameObject.SetActive(false);
-        }
-        if (state == 1)
+        if (state == StateInstruction || state == StateResult) HideNotice();
+        if (state == StateInstruction)
         {
             instructionText.text = current.instruction;
             string label = VariantLabel(current.stationId, current.variant);
             if (label != "") instructionText.text = current.instruction + "\n<size=60%>" + label + "</size>";
         }
-        if (state == 2) timeText.text = "남은 시간 " + current.timeLimit.ToString("0.0") + "초";
-        if (state == 3)
+        if (state == StatePlaying) timeText.text = "남은 시간 " + current.timeLimit.ToString("0.0") + "초";
+        if (state == StateResult) ShowResult();
+    }
+
+    // 결과 화면 연출: 성공은 등급 색으로 튕기고, 실패는 붉게 흔들린다
+    private void ShowResult()
+    {
+        resultText.text = current.resultText;
+        if (current.isSuccess) ShowSuccessResult();
+        else ShowFailResult();
+    }
+
+    // 등급: 완벽(금색, 크게 튕김) / 좋아요(노랑) / 아슬아슬(주황)
+    private void ShowSuccessResult()
+    {
+        int grade = GradeOf(current.quality);
+        if (grade == GradePerfect)
         {
-            resultText.text = current.resultText;
-            // 성공은 노랗게 튕기고, 실패는 붉게 흔들린다
-            if (current.isSuccess)
-            {
-                // 등급: 완벽(금색, 크게 튕김) / 좋아요(노랑) / 아슬아슬(주황)
-                if (current.quality >= perfectQuality)
-                {
-                    resultText.text = "완벽!";
-                    resultText.color = new Color(1f, 0.82f, 0.2f);
-                    StartCoroutine(effects.Pop(resultText.rectTransform, 1.9f));
-                }
-                else if (current.quality >= goodQuality)
-                {
-                    resultText.text = "좋아요!";
-                    resultText.color = new Color(1f, 0.92f, 0.45f);
-                    StartCoroutine(effects.Pop(resultText.rectTransform, 1.5f));
-                }
-                else
-                {
-                    resultText.text = "아슬아슬!";
-                    resultText.color = new Color(1f, 0.7f, 0.4f);
-                    StartCoroutine(effects.Pop(resultText.rectTransform, 1.3f));
-                }
-                if (combo >= 2) resultText.text += "\n<size=45%>콤보 ×" + combo + "</size>";
-                effects.Play(effects.successClip);
-            }
-            else
-            {
-                resultText.color = new Color(1f, 0.6f, 0.55f);
-                StartCoroutine(effects.Pop(resultText.rectTransform, 1.2f));
-                StartCoroutine(effects.Shake(resultText.rectTransform, 18f));
-                effects.Play(effects.failClip);
-            }
+            resultText.text = "완벽!";
+            resultText.color = PerfectColor;
+            StartCoroutine(effects.Pop(resultText.rectTransform, PopPerfect));
         }
+        else if (grade == GradeGood)
+        {
+            resultText.text = "좋아요!";
+            resultText.color = GoodColor;
+            StartCoroutine(effects.Pop(resultText.rectTransform, PopGood));
+        }
+        else
+        {
+            resultText.text = "아슬아슬!";
+            resultText.color = CloseColor;
+            StartCoroutine(effects.Pop(resultText.rectTransform, PopClose));
+        }
+        if (combo >= TipMinCombo) resultText.text += "\n<size=45%>콤보 ×" + combo + "</size>";
+        effects.Play(effects.successClip);
+    }
+
+    private void ShowFailResult()
+    {
+        resultText.color = FailColor;
+        StartCoroutine(effects.Pop(resultText.rectTransform, PopFail));
+        StartCoroutine(effects.Shake(resultText.rectTransform, ShakeFail));
+        effects.Play(effects.failClip);
     }
 }

@@ -17,8 +17,26 @@ public class StandaloneMicrogameRunner : MonoBehaviour
     private const float SuccessSeconds = 1.4f;
     private const float RestartDelay = 1f;
 
-    // 0 = 지시어, 1 = 플레이, 2 = 결과, 3 = 다시 시작 대기
-    private int state;
+    // 화면 글자 크기·배치(픽셀)
+    private const int BigFontSize = 64;
+    private const int SmallFontSize = 20;
+    private const float LeftMargin = 20f;
+    private const float TopMargin = 14f;
+    private const float LineHeight = 30f;
+    private const float TimerWidth = 600f;
+    private const float InfoWidth = 800f;
+    private const float CenterHeight = 120f;
+    private const float CenterHeightRatio = 0.3f;
+
+    private enum RunnerState
+    {
+        Instruction,  // 지시어
+        Playing,      // 플레이
+        Result,       // 결과
+        RestartWait,  // 다시 시작 대기
+    }
+
+    private RunnerState state;
     private int index;
     private float timer;
     private Cup cup = new Cup();
@@ -51,42 +69,51 @@ public class StandaloneMicrogameRunner : MonoBehaviour
         }
 
         Minigame game = games[index];
+        timer -= Time.deltaTime;
         switch (state)
         {
-            case 0:
-                timer -= Time.deltaTime;
-                if (timer <= 0f)
-                {
-                    game.StartGame();
-                    timer = game.timeLimit;
-                    state = 1;
-                }
+            case RunnerState.Instruction:
+                UpdateInstruction(game);
                 break;
-            case 1:
-                timer -= Time.deltaTime;
-                if (timer <= 0f && game.isPlaying) game.TimeOver();
-                if (game.isFinished)
-                {
-                    Debug.Log("[Runner] " + game.name + " 결과: " + (game.isSuccess ? "성공" : "실패") + " / " + game.resultText + " / 컵 에스프레소 " + cup.espresso + ", 우유 " + cup.milk + ", 얼음 " + cup.ice);
-                    timer = FailSeconds;
-                    if (game.isSuccess) timer = SuccessSeconds;
-                    state = 2;
-                }
+            case RunnerState.Playing:
+                UpdatePlaying(game);
                 break;
-            case 2:
-                timer -= Time.deltaTime;
-                // 클릭하면 결과 표시를 건너뛴다
-                if (timer <= 0f || game.clickAction.action.WasPressedThisFrame())
-                {
-                    game.gameObject.SetActive(false);
-                    timer = RestartDelay;
-                    state = 3;
-                }
+            case RunnerState.Result:
+                UpdateResult(game);
                 break;
-            case 3:
-                timer -= Time.deltaTime;
+            case RunnerState.RestartWait:
                 if (timer <= 0f) Restart();
                 break;
+        }
+    }
+
+    // 지시어 시간이 끝나면 게임을 시작한다
+    private void UpdateInstruction(Minigame game)
+    {
+        if (timer > 0f) return;
+        game.StartGame();
+        timer = game.timeLimit;
+        state = RunnerState.Playing;
+    }
+
+    // 제한 시간을 세고, 끝나면 결과를 로그로 남긴다
+    private void UpdatePlaying(Minigame game)
+    {
+        if (timer <= 0f && game.isPlaying) game.TimeOver();
+        if (!game.isFinished) return;
+        Debug.Log("[Runner] " + game.name + " 결과: " + (game.isSuccess ? "성공" : "실패") + " / " + game.resultText + " / 컵 에스프레소 " + cup.espresso + ", 우유 " + cup.milk + ", 얼음 " + cup.ice);
+        timer = game.isSuccess ? SuccessSeconds : FailSeconds;
+        state = RunnerState.Result;
+    }
+
+    private void UpdateResult(Minigame game)
+    {
+        // 클릭하면 결과 표시를 건너뛴다
+        if (timer <= 0f || game.clickAction.action.WasPressedThisFrame())
+        {
+            game.gameObject.SetActive(false);
+            timer = RestartDelay;
+            state = RunnerState.RestartWait;
         }
     }
 
@@ -101,32 +128,36 @@ public class StandaloneMicrogameRunner : MonoBehaviour
             games[i].gameObject.SetActive(i == index);
         }
         timer = instructionSeconds;
-        state = 0;
+        state = RunnerState.Instruction;
+    }
+
+    // 글자 스타일을 처음 한 번만 만든다
+    private void EnsureStyles()
+    {
+        if (bigStyle != null) return;
+        bigStyle = new GUIStyle(GUI.skin.label);
+        bigStyle.fontSize = BigFontSize;
+        bigStyle.fontStyle = FontStyle.Bold;
+        bigStyle.alignment = TextAnchor.MiddleCenter;
+        smallStyle = new GUIStyle(GUI.skin.label);
+        smallStyle.fontSize = SmallFontSize;
     }
 
     private void OnGUI()
     {
-        if (bigStyle == null)
-        {
-            bigStyle = new GUIStyle(GUI.skin.label);
-            bigStyle.fontSize = 64;
-            bigStyle.fontStyle = FontStyle.Bold;
-            bigStyle.alignment = TextAnchor.MiddleCenter;
-            smallStyle = new GUIStyle(GUI.skin.label);
-            smallStyle.fontSize = 20;
-        }
+        EnsureStyles();
 
         Minigame game = games[index];
-        Rect center = new Rect(0f, Screen.height * 0.3f, Screen.width, 120f);
-        if (state == 0)
+        Rect center = new Rect(0f, Screen.height * CenterHeightRatio, Screen.width, CenterHeight);
+        if (state == RunnerState.Instruction)
         {
             GUI.Label(center, game.instruction, bigStyle);
         }
-        else if (state == 1)
+        else if (state == RunnerState.Playing)
         {
-            GUI.Label(new Rect(20f, 14f, 600f, 30f), "남은 시간 " + Mathf.Max(0f, timer).ToString("0.0") + "초", smallStyle);
+            GUI.Label(new Rect(LeftMargin, TopMargin, TimerWidth, LineHeight), "남은 시간 " + Mathf.Max(0f, timer).ToString("0.0") + "초", smallStyle);
         }
-        else if (state == 2)
+        else if (state == RunnerState.Result)
         {
             string text = game.resultText;
             if (game.isSuccess) text = "성공!";
@@ -135,7 +166,7 @@ public class StandaloneMicrogameRunner : MonoBehaviour
 
         string cupText = "컵: 에스프레소 " + cup.espresso.ToString("0") + "ml, 우유 " + cup.milk.ToString("0") + "ml, 얼음 " + cup.ice;
         if (keepCup) cupText += " (컵 이어 쓰기)";
-        GUI.Label(new Rect(20f, 44f, 800f, 30f), "[" + (index + 1) + "/" + games.Length + "] " + game.stationId + "   " + cupText, smallStyle);
-        GUI.Label(new Rect(20f, 74f, 800f, 30f), "R 재시작   Tab 다음 미니게임", smallStyle);
+        GUI.Label(new Rect(LeftMargin, TopMargin + LineHeight, InfoWidth, LineHeight), "[" + (index + 1) + "/" + games.Length + "] " + game.stationId + "   " + cupText, smallStyle);
+        GUI.Label(new Rect(LeftMargin, TopMargin + LineHeight * 2f, InfoWidth, LineHeight), "R 재시작   Tab 다음 미니게임", smallStyle);
     }
 }

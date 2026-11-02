@@ -41,6 +41,13 @@ public class IceScoopMicrogame : Minigame
     [Tooltip("스쿱에 한 번에 담기는 최대 개수")]
     [SerializeField] private int scoopCapacity = 8;
 
+    // 점이 트리거 영역 안인지 판정할 때 허용하는 거리 제곱 오차
+    private const float InsideSqrTolerance = 0.000001f;
+    // 유지 시간 비교 시 부동소수점 오차 보정값(초)
+    private const float HoldEpsilon = 0.0001f;
+    // 개수는 정수라 목표 구간을 양쪽으로 이만큼 넓혀서 품질을 잰다
+    private const float CountBinHalfWidth = 0.5f;
+
     private Vector3 scoopStartPos;
     private Quaternion scoopStartRot;
     private float spawnTimer;
@@ -66,6 +73,7 @@ public class IceScoopMicrogame : Minigame
         countInCup = 0;
         holdTimer = 0f;
 
+        // 목표 구간은 넘침 기준(cupMax)보다 낮게 유지한다: 최소는 cupMax-2 이하, 최대는 cupMax-1 이하
         curMin = Mathf.Clamp(targetMin + variant * variantShift, 1, cupMax - 2);
         curMax = Mathf.Clamp(targetMax + variant * variantShift, curMin + 1, cupMax - 1);
         hud.Configure(curMin, curMax, cupMax);
@@ -89,7 +97,18 @@ public class IceScoopMicrogame : Minigame
         scoop.grabHeld = held;
         scoop.tiltHeld = RightHeld();
 
-        // 제빙기 안에서 누르고 있으면 스쿱에 얼음이 담긴다
+        FillScoop(held, dt);
+
+        countInCup = CountInCup();
+        Judge(dt);
+
+        float hold01 = holdSeconds > 0f ? Mathf.Clamp01(holdTimer / holdSeconds) : 1f;
+        hud.SetState(countInCup, hold01);
+    }
+
+    // 제빙기 안에서 누르고 있으면 스쿱에 얼음이 담긴다
+    private void FillScoop(bool held, float dt)
+    {
         if (held && IsInside(binZone, scoopFillPoint.position))
         {
             spawnTimer += dt * scoopRate;
@@ -108,13 +127,12 @@ public class IceScoopMicrogame : Minigame
         {
             spawnTimer = 0f;
         }
+    }
 
-        countInCup = CountInCup();
-        Judge(dt);
-
-        float hold01 = 1f;
-        if (holdSeconds > 0f) hold01 = Mathf.Clamp01(holdTimer / holdSeconds);
-        hud.SetState(countInCup, hold01);
+    // 컵 안 얼음 수가 이번 주문의 목표 구간 안인지
+    private bool InTargetRange()
+    {
+        return countInCup >= curMin && countInCup <= curMax;
     }
 
     // 넘치면 실패, 목표 구간에 holdSeconds 동안 머물면 성공
@@ -126,10 +144,10 @@ public class IceScoopMicrogame : Minigame
             return;
         }
 
-        if (countInCup >= curMin && countInCup <= curMax)
+        if (InTargetRange())
         {
             holdTimer += dt;
-            if (holdTimer >= holdSeconds - 0.0001f) EndGame(true, "성공!");
+            if (holdTimer >= holdSeconds - HoldEpsilon) EndGame(true, "성공!");
         }
         else
         {
@@ -140,7 +158,7 @@ public class IceScoopMicrogame : Minigame
     // 시간 초과. 유지 시간을 못 채웠으면 구간 안이어도 실패
     public override void TimeOver()
     {
-        if (countInCup >= curMin && countInCup <= curMax) EndGame(false, "시간 초과!");
+        if (InTargetRange()) EndGame(false, "시간 초과!");
         else if (countInCup > curMax) EndGame(false, "얼음이 너무 많아!");
         else if (countInCup > 0) EndGame(false, "얼음이 모자라!");
         else EndGame(false, "시간 초과!");
@@ -154,8 +172,8 @@ public class IceScoopMicrogame : Minigame
         {
             cup.ice += countInCup;
             cupVisual.SetIceVisible(true);
-            // 개수는 정수라 구간을 양쪽 0.5씩 넓혀서 잰다 (4~7이면 5·6이 한가운데 쪽)
-            quality = QualityOf(countInCup, curMin - 0.5f, curMax + 0.5f);
+            // 개수는 정수라 구간을 양쪽 0.5씩 넓혀서 잰다 (예: 목표 4~7이면 5·6이 한가운데 쪽)
+            quality = QualityOf(countInCup, curMin - CountBinHalfWidth, curMax + CountBinHalfWidth);
         }
         Finish(success, text);
     }
@@ -175,10 +193,15 @@ public class IceScoopMicrogame : Minigame
         int count = 0;
         for (int i = 0; i < icePool.active.Count; i++)
         {
-            Vector3 p = icePool.active[i].transform.position;
-            if (IsInside(cupZone, p) && !IsInside(scoopZone, p)) count++;
+            if (IsInCupOnly(icePool.active[i].transform.position)) count++;
         }
         return count;
+    }
+
+    // 컵 영역 안이면서 스쿱 안은 아닌 위치인지
+    private bool IsInCupOnly(Vector3 p)
+    {
+        return IsInside(cupZone, p) && !IsInside(scoopZone, p);
     }
 
     private int CountInZone(Collider zone)
@@ -195,6 +218,6 @@ public class IceScoopMicrogame : Minigame
     private bool IsInside(Collider zone, Vector3 point)
     {
         if (!zone.enabled || !zone.gameObject.activeInHierarchy) return false;
-        return (zone.ClosestPoint(point) - point).sqrMagnitude < 0.000001f;
+        return (zone.ClosestPoint(point) - point).sqrMagnitude < InsideSqrTolerance;
     }
 }

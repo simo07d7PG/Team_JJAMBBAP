@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -21,12 +22,31 @@ public class Station : MonoBehaviour
     [Range(0f, 0.02f)]
     public float outlineWidth = 0.006f;
 
-    private List<Material> materials = new List<Material>();
-    private List<Color> originalColors = new List<Color>();
-    private List<Color> originalOutlineColors = new List<Color>();
-    private List<float> originalOutlineWidths = new List<float>();
-    private List<float> originalOutlineUsePosition = new List<float>();
-    private List<bool> originalOutlinePass = new List<bool>();
+    private const string OutlineWidthProp = "_OutlineWidth";
+    private const string OutlineColorProp = "_OutlineColor";
+    private const string OutlineUsePositionProp = "_OutlineUsePosition";
+    private const string OutlinePass = "SRPDefaultUnlit";
+    private const string BaseColorProp = "_BaseColor";
+    private const string ColorProp = "_Color";
+
+    // 깜빡임: 시작 대기, 켜짐·꺼짐 간격(초), 횟수
+    private const float BlinkStartDelay = 0.3f;
+    private const float BlinkInterval = 0.15f;
+    private const int BlinkCount = 2;
+
+    // 머티리얼 하나의 원래 상태 (하이라이트를 끄면 이 값으로 되돌린다)
+    private struct MaterialState
+    {
+        public Material mat;
+        public bool hasOutline;
+        public Color color;
+        public Color outlineColor;
+        public float outlineWidth;
+        public float outlineUsePosition;
+        public bool outlinePass;
+    }
+
+    private readonly List<MaterialState> states = new List<MaterialState>();
     private bool highlighted;
 
     private void Awake()
@@ -42,22 +62,22 @@ public class Station : MonoBehaviour
             for (int j = 0; j < mats.Length; j++)
             {
                 Material mat = mats[j];
-                materials.Add(mat);
-                originalColors.Add(GetColor(mat));
-                bool hasOutline = mat.HasProperty("_OutlineWidth");
-                originalOutlinePass.Add(mat.GetShaderPassEnabled("SRPDefaultUnlit"));
-                if (hasOutline)
+                MaterialState state = new MaterialState();
+                state.mat = mat;
+                state.color = GetColor(mat);
+                state.hasOutline = mat.HasProperty(OutlineWidthProp);
+                state.outlinePass = mat.GetShaderPassEnabled(OutlinePass);
+                if (state.hasOutline)
                 {
-                    originalOutlineColors.Add(mat.GetColor("_OutlineColor"));
-                    originalOutlineWidths.Add(mat.GetFloat("_OutlineWidth"));
-                    originalOutlineUsePosition.Add(mat.GetFloat("_OutlineUsePosition"));
+                    state.outlineColor = mat.GetColor(OutlineColorProp);
+                    state.outlineWidth = mat.GetFloat(OutlineWidthProp);
+                    state.outlineUsePosition = mat.GetFloat(OutlineUsePositionProp);
                 }
                 else
                 {
-                    originalOutlineColors.Add(Color.black);
-                    originalOutlineWidths.Add(0f);
-                    originalOutlineUsePosition.Add(0f);
+                    state.outlineColor = Color.black;
                 }
+                states.Add(state);
             }
         }
     }
@@ -76,58 +96,62 @@ public class Station : MonoBehaviour
         StartCoroutine(BlinkRoutine());
     }
 
-    private System.Collections.IEnumerator BlinkRoutine()
+    private IEnumerator BlinkRoutine()
     {
-        yield return new WaitForSeconds(0.3f);
-        for (int i = 0; i < 2; i++)
+        yield return new WaitForSeconds(BlinkStartDelay);
+        WaitForSeconds wait = new WaitForSeconds(BlinkInterval);
+        for (int i = 0; i < BlinkCount; i++)
         {
             Apply(true);
-            yield return new WaitForSeconds(0.15f);
+            yield return wait;
             Apply(false);
-            yield return new WaitForSeconds(0.15f);
+            yield return wait;
         }
         Apply(highlighted);
     }
 
     private void Apply(bool on)
     {
-        for (int i = 0; i < materials.Count; i++)
+        for (int i = 0; i < states.Count; i++)
         {
-            Material mat = materials[i];
-            Color color = originalColors[i];
-            if (on) color = Color.Lerp(originalColors[i], Color.white, brightness);
-            SetColor(mat, color);
+            MaterialState state = states[i];
+            SetColor(state.mat, on ? Color.Lerp(state.color, Color.white, brightness) : state.color);
+            if (state.hasOutline) ApplyOutline(state, on);
+        }
+    }
 
-            if (!mat.HasProperty("_OutlineWidth")) continue;
-            if (on)
-            {
-                // 기본 도형(큐브·원기둥)은 위치 방향으로 부풀려야 모서리에 틈이 안 생긴다
-                mat.SetColor("_OutlineColor", outlineColor);
-                mat.SetFloat("_OutlineWidth", outlineWidth);
-                mat.SetFloat("_OutlineUsePosition", 1f);
-                mat.SetShaderPassEnabled("SRPDefaultUnlit", true);
-            }
-            else
-            {
-                mat.SetColor("_OutlineColor", originalOutlineColors[i]);
-                mat.SetFloat("_OutlineWidth", originalOutlineWidths[i]);
-                mat.SetFloat("_OutlineUsePosition", originalOutlineUsePosition[i]);
-                mat.SetShaderPassEnabled("SRPDefaultUnlit", originalOutlinePass[i]);
-            }
+    // 테두리를 켜거나(하이라이트 값) 원래 값으로 되돌린다
+    private void ApplyOutline(MaterialState state, bool on)
+    {
+        Material mat = state.mat;
+        if (on)
+        {
+            // 기본 도형(큐브·원기둥)은 위치 방향으로 부풀려야 모서리에 틈이 안 생긴다
+            mat.SetColor(OutlineColorProp, outlineColor);
+            mat.SetFloat(OutlineWidthProp, outlineWidth);
+            mat.SetFloat(OutlineUsePositionProp, 1f);
+            mat.SetShaderPassEnabled(OutlinePass, true);
+        }
+        else
+        {
+            mat.SetColor(OutlineColorProp, state.outlineColor);
+            mat.SetFloat(OutlineWidthProp, state.outlineWidth);
+            mat.SetFloat(OutlineUsePositionProp, state.outlineUsePosition);
+            mat.SetShaderPassEnabled(OutlinePass, state.outlinePass);
         }
     }
 
     // URP는 _BaseColor, 기본 셰이더는 _Color
-    private Color GetColor(Material mat)
+    private static Color GetColor(Material mat)
     {
-        if (mat.HasProperty("_BaseColor")) return mat.GetColor("_BaseColor");
-        if (mat.HasProperty("_Color")) return mat.GetColor("_Color");
+        if (mat.HasProperty(BaseColorProp)) return mat.GetColor(BaseColorProp);
+        if (mat.HasProperty(ColorProp)) return mat.GetColor(ColorProp);
         return Color.white;
     }
 
-    private void SetColor(Material mat, Color color)
+    private static void SetColor(Material mat, Color color)
     {
-        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
-        if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+        if (mat.HasProperty(BaseColorProp)) mat.SetColor(BaseColorProp, color);
+        if (mat.HasProperty(ColorProp)) mat.SetColor(ColorProp, color);
     }
 }

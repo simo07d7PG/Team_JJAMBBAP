@@ -34,17 +34,57 @@ public class EspressoShotHud : MonoBehaviour
     [SerializeField] private float alertPopSeconds = 0.12f;
     [SerializeField] private float alertFadeSeconds = 0.15f;
 
+    // 치직 글씨 종류: 없음 / 치지직(떨림) / 푸슉(튀기만)
+    private enum AlertMode
+    {
+        None,
+        Sputter,
+        Burst
+    }
+
+    // 숫자 구간: 목표 전 / 목표 안 / 넘김. 아직 정해지지 않은 상태는 ZoneUnset
+    private const int ZoneBefore = 0;
+    private const int ZoneInBand = 1;
+    private const int ZoneOver = 2;
+    private const int ZoneUnset = -1;
+
+    // 숫자 표시 형식
+    private const string MlFormat = "{0} ml";
+
+    // 폭이 아주 좁은 구간도 보이게 하는 최소 띠 두께(0~1), "여기서 떼!" 글씨 반높이(px)
+    private const float MinBandWidth01 = 0.02f;
+    private const float BandLabelHalfHeight = 24f;
+
+    // 띠 튀는 효과가 가라앉는 속도
+    private const float PulseDecaySpeed = 4f;
+
+    // 글씨 팝 크기: 시작 / 정점 배율
+    private const float PopStartScale = 0.5f;
+    private const float PopPeakScale = 1.15f;
+
+    // 치지직 떨림(기울기·위아래 주파수와 진폭), 푸슉 상승 속도(px/초)
+    private const float SputterTiltFrequency = 25f;
+    private const float SputterTiltDegrees = 4f;
+    private const float SputterShakeFrequency = 18f;
+    private const float SputterShakeAmplitude = 4f;
+    private const float BurstRiseSpeed = 60f;
+
     private bool saved;
     private Vector3 bandRestScale;
     private Color normalColor;
     private float pulse;
     private int zone;
-    // 치직 글씨: 0 = 없음, 1 = 치지직(떨림), 2 = 푸슉(튀기만)
-    private int alertMode;
+    private AlertMode alertMode;
     private float alertElapsed;
     private float alertSeconds;
     private Vector2 alertBasePos;
     private Color alertColor;
+
+    // 치직 글씨를 쓸 수 있는지(글씨 오브젝트가 연결돼 있는지)
+    private bool HasAlert
+    {
+        get { return alertText != null; }
+    }
 
     // 처음 쓸 때 원래 크기·색을 기억한다 (Configure가 Awake보다 먼저 불릴 수 있다)
     private void SaveRest()
@@ -53,7 +93,7 @@ public class EspressoShotHud : MonoBehaviour
         saved = true;
         bandRestScale = band.localScale;
         normalColor = valueText.color;
-        if (alertText != null)
+        if (HasAlert)
         {
             alertColor = alertText.color;
             alertBasePos = alertText.rectTransform.anchoredPosition;
@@ -67,24 +107,29 @@ public class EspressoShotHud : MonoBehaviour
         float min01 = Mathf.Clamp01(targetMinMl / capacityMl);
         float max01 = Mathf.Clamp01(targetMaxMl / capacityMl);
         // 폭이 아주 좁은 구간도 보이게 최소 두께를 준다
-        float width = Mathf.Max(max01 - min01, 0.02f);
+        float width = Mathf.Max(max01 - min01, MinBandWidth01);
         float mid = (min01 + max01) * 0.5f;
-        band.anchorMin = new Vector2(band.anchorMin.x, mid - width * 0.5f);
-        band.anchorMax = new Vector2(band.anchorMax.x, mid + width * 0.5f);
+        SetAnchorY(band, mid - width * 0.5f, mid + width * 0.5f);
         band.offsetMin = new Vector2(band.offsetMin.x, 0f);
         band.offsetMax = new Vector2(band.offsetMax.x, 0f);
-        bandLabel.anchorMin = new Vector2(bandLabel.anchorMin.x, mid);
-        bandLabel.anchorMax = new Vector2(bandLabel.anchorMax.x, mid);
-        bandLabel.offsetMin = new Vector2(0f, -24f);
-        bandLabel.offsetMax = new Vector2(0f, 24f);
-        capacityText.SetText("{0} ml", Mathf.RoundToInt(capacityMl));
+        SetAnchorY(bandLabel, mid, mid);
+        bandLabel.offsetMin = new Vector2(0f, -BandLabelHalfHeight);
+        bandLabel.offsetMax = new Vector2(0f, BandLabelHalfHeight);
+        capacityText.SetText(MlFormat, Mathf.RoundToInt(capacityMl));
 
         pulse = 0f;
         band.localScale = bandRestScale;
-        zone = -1;
-        SetZone(0);
+        zone = ZoneUnset;
+        SetZone(ZoneBefore);
         HideAlert();
         SetAmount(0f, capacityMl);
+    }
+
+    // 앵커의 x는 그대로 두고 y 범위만 바꾼다
+    private static void SetAnchorY(RectTransform rt, float minY, float maxY)
+    {
+        rt.anchorMin = new Vector2(rt.anchorMin.x, minY);
+        rt.anchorMax = new Vector2(rt.anchorMax.x, maxY);
     }
 
     public void SetAmount(float ml, float capacityMl)
@@ -92,7 +137,7 @@ public class EspressoShotHud : MonoBehaviour
         float v = Mathf.Clamp01(ml / capacityMl);
         fill.anchorMax = new Vector2(fill.anchorMax.x, v);
         fill.gameObject.SetActive(v > 0f);
-        valueText.SetText("{0} ml", Mathf.RoundToInt(ml));
+        valueText.SetText(MlFormat, Mathf.RoundToInt(ml));
     }
 
     // 0 = 목표 전, 1 = 목표 안, 2 = 넘김
@@ -101,9 +146,15 @@ public class EspressoShotHud : MonoBehaviour
         SaveRest();
         if (zone == z) return;
         zone = z;
-        if (z == 1) valueText.color = inBandColor;
-        else if (z == 2) valueText.color = overColor;
-        else valueText.color = normalColor;
+        valueText.color = ZoneColor(z);
+    }
+
+    // 구간별 숫자 색
+    private Color ZoneColor(int z)
+    {
+        if (z == ZoneInBand) return inBandColor;
+        if (z == ZoneOver) return overColor;
+        return normalColor;
     }
 
     // 한가운데를 지나는 순간 띠가 튄다
@@ -115,37 +166,44 @@ public class EspressoShotHud : MonoBehaviour
     // 치지직: 노즐 옆(화면 위치)에 튀어나와 떨다가 흐려진다
     public void ShowSputter(Vector3 nozzleWorld, Camera cam, float seconds)
     {
-        if (alertText == null) return;
+        if (!HasAlert) return;
         SaveRest();
+        Vector2 local;
+        if (TryGetAlertBasePos(nozzleWorld, cam, out local))
+        {
+            alertBasePos = local + alertOffset;
+        }
+        StartAlert(AlertMode.Sputter, sputterWord, seconds);
+    }
+
+    // 노즐의 월드 좌표를 글씨가 속한 UI의 로컬 좌표로 바꾼다. 못 바꾸면 false
+    private bool TryGetAlertBasePos(Vector3 nozzleWorld, Camera cam, out Vector2 pos)
+    {
         RectTransform parent = alertText.rectTransform.parent as RectTransform;
         Canvas canvas = alertText.canvas;
         Camera uiCam = null;
         if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay) uiCam = canvas.worldCamera;
-        Vector2 local;
-        if (cam != null && parent != null &&
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, cam.WorldToScreenPoint(nozzleWorld), uiCam, out local))
-        {
-            alertBasePos = local + alertOffset;
-        }
-        StartAlert(1, sputterWord, seconds);
+        pos = Vector2.zero;
+        return cam != null && parent != null &&
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, cam.WorldToScreenPoint(nozzleWorld), uiCam, out pos);
     }
 
     // 푸슉: 멈춤이 끝나고 쏟아질 때 같은 자리에서 한 번 튄다
     public void ShowBurst(float seconds)
     {
-        if (alertText == null) return;
-        StartAlert(2, burstWord, seconds);
+        if (!HasAlert) return;
+        StartAlert(AlertMode.Burst, burstWord, seconds);
     }
 
     public void HideAlert()
     {
-        alertMode = 0;
-        if (alertText == null) return;
+        alertMode = AlertMode.None;
+        if (!HasAlert) return;
         alertText.gameObject.SetActive(false);
         alertText.rectTransform.localRotation = Quaternion.identity;
     }
 
-    private void StartAlert(int mode, string word, float seconds)
+    private void StartAlert(AlertMode mode, string word, float seconds)
     {
         alertMode = mode;
         alertElapsed = 0f;
@@ -155,26 +213,29 @@ public class EspressoShotHud : MonoBehaviour
         UpdateAlert();
     }
 
+    // 글씨 크기 곡선: 작게 → 살짝 크게 → 제자리
+    private float PopScale(float elapsed)
+    {
+        if (elapsed < alertPopSeconds) return Mathf.Lerp(PopStartScale, PopPeakScale, elapsed / alertPopSeconds);
+        return Mathf.Lerp(PopPeakScale, 1f, Mathf.Clamp01((elapsed - alertPopSeconds) / alertPopSeconds));
+    }
+
     private void UpdateAlert()
     {
         RectTransform rt = alertText.rectTransform;
-        // 크기: 작게 → 살짝 크게 → 제자리
-        float pop;
-        if (alertElapsed < alertPopSeconds) pop = Mathf.Lerp(0.5f, 1.15f, alertElapsed / alertPopSeconds);
-        else pop = Mathf.Lerp(1.15f, 1f, Mathf.Clamp01((alertElapsed - alertPopSeconds) / alertPopSeconds));
-        rt.localScale = Vector3.one * alertScale * pop;
+        rt.localScale = Vector3.one * alertScale * PopScale(alertElapsed);
 
         // 치지직은 살짝 기울며 위아래로 떨고, 푸슉은 위로 조금 떠오른다
         Vector2 pos = alertBasePos;
         float tilt = 0f;
-        if (alertMode == 1)
+        if (alertMode == AlertMode.Sputter)
         {
-            tilt = Mathf.Sin(alertElapsed * 25f) * 4f;
-            pos.y += Mathf.Sin(alertElapsed * 18f) * 4f;
+            tilt = Mathf.Sin(alertElapsed * SputterTiltFrequency) * SputterTiltDegrees;
+            pos.y += Mathf.Sin(alertElapsed * SputterShakeFrequency) * SputterShakeAmplitude;
         }
         else
         {
-            pos.y += alertElapsed * 60f;
+            pos.y += alertElapsed * BurstRiseSpeed;
         }
         rt.anchoredPosition = pos;
         rt.localRotation = Quaternion.Euler(0f, 0f, tilt);
@@ -190,10 +251,10 @@ public class EspressoShotHud : MonoBehaviour
         if (!saved) return;
         if (pulse > 0f)
         {
-            pulse = Mathf.Max(0f, pulse - Time.deltaTime * 4f);
+            pulse = Mathf.Max(0f, pulse - Time.deltaTime * PulseDecaySpeed);
             band.localScale = bandRestScale * (1f + flashScale * pulse);
         }
-        if (alertMode != 0 && alertText != null)
+        if (alertMode != AlertMode.None && HasAlert)
         {
             alertElapsed += Time.deltaTime;
             if (alertElapsed >= alertSeconds) HideAlert();

@@ -29,6 +29,8 @@ public static class AntiAliasingSettings
 
     private const string SaveKey = "graphics.antiAliasing";
     private const int DefaultMode = SMAA;
+    // MSAA를 쓰지 않을 때의 샘플 수
+    private const int NoMsaa = 1;
 
     public static int Current;
 
@@ -41,7 +43,7 @@ public static class AntiAliasingSettings
     private static void Init()
     {
         Current = PlayerPrefs.GetInt(SaveKey, DefaultMode);
-        if (Current < 0 || Current >= Names.Length) Current = DefaultMode;
+        if (!IsValidMode(Current)) Current = DefaultMode;
         SceneManager.sceneLoaded += OnSceneLoaded;
 #if UNITY_EDITOR
         UniversalRenderPipelineAsset asset = GetAsset();
@@ -52,7 +54,7 @@ public static class AntiAliasingSettings
 
     public static void Set(int mode)
     {
-        if (mode < 0 || mode >= Names.Length) return;
+        if (!IsValidMode(mode)) return;
         Current = mode;
         PlayerPrefs.SetInt(SaveKey, mode);
         PlayerPrefs.Save();
@@ -63,13 +65,28 @@ public static class AntiAliasingSettings
     public static void Apply()
     {
         AntialiasingMode cameraMode = AntialiasingMode.None;
-        int msaa = 1;
-        if (Current == FXAA) cameraMode = AntialiasingMode.FastApproximateAntialiasing;
-        if (Current == SMAA) cameraMode = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
-        if (Current == TAA) cameraMode = AntialiasingMode.TemporalAntiAliasing;
-        if (Current == MSAA2) msaa = 2;
-        if (Current == MSAA4) msaa = 4;
-        if (Current == MSAA8) msaa = 8;
+        int msaa = NoMsaa;
+        switch (Current)
+        {
+            case FXAA:
+                cameraMode = AntialiasingMode.FastApproximateAntialiasing;
+                break;
+            case SMAA:
+                cameraMode = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+                break;
+            case TAA:
+                cameraMode = AntialiasingMode.TemporalAntiAliasing;
+                break;
+            case MSAA2:
+                msaa = 2;
+                break;
+            case MSAA4:
+                msaa = 4;
+                break;
+            case MSAA8:
+                msaa = 8;
+                break;
+        }
 
         UniversalRenderPipelineAsset asset = GetAsset();
         if (asset != null) asset.msaaSampleCount = msaa;
@@ -77,17 +94,24 @@ public static class AntiAliasingSettings
         Camera[] cameras = Object.FindObjectsByType<Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         for (int i = 0; i < cameras.Length; i++)
         {
-            UniversalAdditionalCameraData data = cameras[i].GetUniversalAdditionalCameraData();
+            Camera cam = cameras[i];
+            UniversalAdditionalCameraData data = cam.GetUniversalAdditionalCameraData();
             data.antialiasing = cameraMode;
             data.antialiasingQuality = AntialiasingQuality.High;
             data.taaSettings.quality = TemporalAAQuality.High;
-            cameras[i].allowMSAA = msaa > 1;
+            cam.allowMSAA = msaa > NoMsaa;
         }
     }
 
     private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         Apply();
+    }
+
+    // 모드 번호가 Names 범위 안인지 확인
+    private static bool IsValidMode(int mode)
+    {
+        return mode >= 0 && mode < Names.Length;
     }
 
     private static UniversalRenderPipelineAsset GetAsset()
@@ -100,6 +124,7 @@ public static class AntiAliasingSettings
     {
         UniversalRenderPipelineAsset asset = GetAsset();
         if (asset != null && editorMsaa > 0) asset.msaaSampleCount = editorMsaa;
+        // 종료 시 구독 해제
         SceneManager.sceneLoaded -= OnSceneLoaded;
         Application.quitting -= RestoreEditorMsaa;
     }

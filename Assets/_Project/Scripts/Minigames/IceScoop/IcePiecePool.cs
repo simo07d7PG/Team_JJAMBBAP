@@ -11,7 +11,7 @@ public class IcePiecePool : MonoBehaviour
     // 지금 꺼내 쓴 얼음 목록. 읽기만 할 것
     [HideInInspector] public List<IcePiece> active = new List<IcePiece>();
 
-    private List<IcePiece> all = new List<IcePiece>();
+    private List<IcePiece> allPieces = new List<IcePiece>();
 
     private void Awake()
     {
@@ -20,16 +20,16 @@ public class IcePiecePool : MonoBehaviour
         {
             IcePiece piece = Instantiate(template, transform);
             piece.gameObject.SetActive(false);
-            all.Add(piece);
+            allPieces.Add(piece);
         }
     }
 
     // 얼음 하나를 꺼낸다. 다 쓰고 있으면 null
     public IcePiece Spawn(Vector3 position, Quaternion rotation, float sizeFactor)
     {
-        for (int i = 0; i < all.Count; i++)
+        for (int i = 0; i < allPieces.Count; i++)
         {
-            IcePiece piece = all[i];
+            IcePiece piece = allPieces[i];
             if (piece.gameObject.activeSelf) continue;
             piece.gameObject.SetActive(true);
             piece.ResetPiece(position, rotation, sizeFactor);

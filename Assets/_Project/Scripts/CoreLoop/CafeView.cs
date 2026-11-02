@@ -4,9 +4,16 @@ using UnityEngine.InputSystem;
 
 // 카페 카메라에 붙인다. 1인칭으로 마우스를 움직여 시야를 돌린다.
 // 커서는 숨기고 화면 가운데 점(크로스헤어)으로 기계를 가리킨다
-// 기계·손님을 클릭하면 카운터를 따라 좌우 레일 위로 그 앞까지 걸어가며 바라본다 (WalkTo)
+// 기계·손님을 클릭하면 카운터를 따라 좌우 레일 위로 그 앞까지 걸어가며 바라본다(WalkTo).
 public class CafeView : MonoBehaviour
 {
+    // 대상 높이 비율: 보이는 범위의 아래(0)~위(1) 중 바라볼 곳
+    private const float LookHeightRatio = 0.65f;
+    // 일시정지였던 적이 없을 때의 프레임 값
+    private const int NoPausedFrame = -10;
+    // 화면 가운데 (뷰포트 좌표)
+    private static readonly Vector3 ScreenCenter = new Vector3(0.5f, 0.5f, 0f);
+
     [Header("입력 (InputSystem_Actions)")]
     [Tooltip("Player/Look (마우스 이동량)")]
     public InputActionReference lookAction;
@@ -60,7 +67,7 @@ public class CafeView : MonoBehaviour
     private float pitch;
     private bool cursorLocked;
     // 마지막으로 일시정지였던 프레임. ESC 메뉴 버튼 클릭이 재개 직후 기계 클릭으로 넘어가지 않게
-    private int pausedFrame = -10;
+    private int pausedFrame = NoPausedFrame;
     // 레일: 시작 위치와 카메라 오른쪽(수평) 방향
     private Vector3 startPos;
     private Vector3 railDir;
@@ -92,10 +99,9 @@ public class CafeView : MonoBehaviour
         Vector3 to = startPos + railDir * along;
 
         // 도착 지점에서 대상을 보는 각도 (시작 방향 기준, 돌 수 있는 범위 안)
-        Vector3 dir = look - to;
-        float flat = new Vector2(dir.x, dir.z).magnitude;
-        float endYaw = Mathf.Clamp(Mathf.DeltaAngle(startYaw, Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg), -yawLimit, yawLimit);
-        float endPitch = Mathf.Clamp(-Mathf.Atan2(dir.y, flat) * Mathf.Rad2Deg - startPitch, -pitchLimit, pitchLimit);
+        float endYaw;
+        float endPitch;
+        GetLookAngles(to, look, out endYaw, out endPitch);
         float fromYaw = yaw;
         float fromPitch = pitch;
 
@@ -110,12 +116,27 @@ public class CafeView : MonoBehaviour
             transform.position = Vector3.Lerp(from, to, s);
             yaw = Mathf.Lerp(fromYaw, endYaw, s);
             pitch = Mathf.Lerp(fromPitch, endPitch, s);
-            transform.rotation = Quaternion.Euler(startPitch + pitch, startYaw + yaw, 0f);
+            ApplyRotation();
             yield return null;
         }
         targetYaw = yaw;
         targetPitch = pitch;
         walking = false;
+    }
+
+    // from 위치에서 look 지점을 보는 각도 (시작 방향 기준, 돌 수 있는 범위 안)
+    private void GetLookAngles(Vector3 from, Vector3 look, out float outYaw, out float outPitch)
+    {
+        Vector3 dir = look - from;
+        float flat = new Vector2(dir.x, dir.z).magnitude;
+        outYaw = Mathf.Clamp(Mathf.DeltaAngle(startYaw, Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg), -yawLimit, yawLimit);
+        outPitch = Mathf.Clamp(-Mathf.Atan2(dir.y, flat) * Mathf.Rad2Deg - startPitch, -pitchLimit, pitchLimit);
+    }
+
+    // 현재 yaw·pitch를 카메라 회전에 반영
+    private void ApplyRotation()
+    {
+        transform.rotation = Quaternion.Euler(startPitch + pitch, startYaw + yaw, 0f);
     }
 
     public bool IsWalking()
@@ -129,7 +150,7 @@ public class CafeView : MonoBehaviour
         return hovered;
     }
 
-    // 대상에서 바라볼 곳: 보이는 범위(하이라이트 렌더러 → 콜라이더 순)의 가운데, 높이는 65% (손님은 몸통 위쪽)
+    // 대상에서 바라볼 곳: 보이는 범위(하이라이트 렌더러 → 콜라이더 순)의 가운데, 높이는 LookHeightRatio(65%) (손님은 몸통 위쪽)
     // 방향 표시(TargetPointer)도 이 점을 가리킨다
     public Vector3 LookPoint(Station station)
     {
@@ -153,7 +174,7 @@ public class CafeView : MonoBehaviour
             b = c.bounds;
         }
         Vector3 p = b.center;
-        p.y = Mathf.Lerp(b.min.y, b.max.y, 0.65f);
+        p.y = Mathf.Lerp(b.min.y, b.max.y, LookHeightRatio);
         return p;
     }
 
@@ -166,8 +187,8 @@ public class CafeView : MonoBehaviour
             return;
         }
         // ESC 메뉴가 닫히며 커서를 잠그므로, 재개 직후 카페·미니게임·영수증에 맞게 다시 둔다
-        if (Time.frameCount == pausedFrame + 1) SetCursorLocked(viewEnabled);
-        if (viewEnabled != cursorLocked) SetCursorLocked(viewEnabled);
+        int resumeFrame = pausedFrame + 1;
+        if (Time.frameCount == resumeFrame || viewEnabled != cursorLocked) SetCursorLocked(viewEnabled);
         if (!viewEnabled || walking)
         {
             SetHovered(null);
@@ -175,7 +196,7 @@ public class CafeView : MonoBehaviour
         }
         Look();
         Hover();
-        if (hovered != null && clickAction.action.WasPressedThisFrame() && Time.frameCount > pausedFrame + 1)
+        if (hovered != null && clickAction.action.WasPressedThisFrame() && Time.frameCount > resumeFrame)
         {
             clickedStation = hovered;
         }
@@ -184,17 +205,17 @@ public class CafeView : MonoBehaviour
     private void Look()
     {
         Vector2 delta = lookAction.action.ReadValue<Vector2>() * sensitivity;
-        targetYaw = Move(targetYaw, delta.x, yawLimit);
-        targetPitch = Move(targetPitch, -delta.y, pitchLimit);
+        targetYaw = AddAngleWithResistance(targetYaw, delta.x, yawLimit);
+        targetPitch = AddAngleWithResistance(targetPitch, -delta.y, pitchLimit);
 
         float t = 1f - Mathf.Exp(-smoothing * Time.deltaTime);
         yaw = Mathf.Lerp(yaw, targetYaw, t);
         pitch = Mathf.Lerp(pitch, targetPitch, t);
-        transform.rotation = Quaternion.Euler(startPitch + pitch, startYaw + yaw, 0f);
+        ApplyRotation();
     }
 
     // 가운데에서 멀어지는 쪽으로 움직일 때만 저항을 준다. 가운데로 돌아올 때는 가볍다
-    private float Move(float angle, float amount, float limit)
+    private float AddAngleWithResistance(float angle, float amount, float limit)
     {
         bool outward = (angle >= 0f && amount > 0f) || (angle <= 0f && amount < 0f);
         if (outward)
@@ -209,20 +230,11 @@ public class CafeView : MonoBehaviour
     // 클릭할 수 없는 기계는 통과해 뒤의 손님·기계까지 찾고, 벽 같은 기계 아닌 물체에서는 멈춘다
     private void Hover()
     {
-        Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        Ray ray = cam.ViewportPointToRay(ScreenCenter);
         RaycastHit[] hits = Physics.RaycastAll(ray, rayDistance);
 
-        float blocked = rayDistance;
-        for (int i = 0; i < hits.Length; i++)
-        {
-            if (hits[i].collider.GetComponentInParent<Station>() == null && hits[i].distance < blocked)
-            {
-                blocked = hits[i].distance;
-            }
-        }
-
         Station found = null;
-        float nearest = blocked;
+        float nearest = BlockedDistance(hits);
         for (int i = 0; i < hits.Length; i++)
         {
             Station station = hits[i].collider.GetComponentInParent<Station>();
@@ -233,6 +245,20 @@ public class CafeView : MonoBehaviour
             }
         }
         SetHovered(found);
+    }
+
+    // 기계가 아닌 물체에 가장 먼저 막히는 거리 (막히지 않으면 rayDistance)
+    private float BlockedDistance(RaycastHit[] hits)
+    {
+        float blocked = rayDistance;
+        for (int i = 0; i < hits.Length; i++)
+        {
+            if (hits[i].collider.GetComponentInParent<Station>() == null && hits[i].distance < blocked)
+            {
+                blocked = hits[i].distance;
+            }
+        }
+        return blocked;
     }
 
     private void SetHovered(Station station)

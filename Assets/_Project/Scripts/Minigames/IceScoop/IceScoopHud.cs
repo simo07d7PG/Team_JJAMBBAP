@@ -27,8 +27,7 @@ public class IceScoopHud : MonoBehaviour
         for (int i = 0; i < slotRoots.Length; i++)
         {
             slotRoots[i].SetActive(i < cupMax);
-            // 칸 번호 1부터 목표 구간(targetMin..targetMax)이 목표 칸
-            slotTargetBorders[i].SetActive(i + 1 >= targetMin && i + 1 <= targetMax);
+            slotTargetBorders[i].SetActive(IsTargetSlot(i));
         }
         SetState(0, 0f);
     }
@@ -38,12 +37,24 @@ public class IceScoopHud : MonoBehaviour
     {
         for (int i = 0; i < cupMax; i++)
         {
-            bool inTarget = i + 1 >= targetMin && i + 1 <= targetMax;
-            if (i >= count) slotFills[i].color = MinigameUiPalette.PaperDark;
-            else if (inTarget) slotFills[i].color = MinigameUiPalette.Gold;
-            else slotFills[i].color = MinigameUiPalette.Espresso;
+            slotFills[i].color = SlotColor(i, count);
         }
         countText.SetText("{0}개", count);
         holdFill.fillAmount = hold01;
+    }
+
+    // 칸 번호 1부터 목표 구간(targetMin..targetMax)이 목표 칸
+    private bool IsTargetSlot(int index)
+    {
+        int slotNumber = index + 1;
+        return slotNumber >= targetMin && slotNumber <= targetMax;
+    }
+
+    // 빈 칸·목표 칸에 찬 얼음·목표 밖에 찬 얼음의 색
+    private Color SlotColor(int index, int count)
+    {
+        if (index >= count) return MinigameUiPalette.PaperDark;
+        if (IsTargetSlot(index)) return MinigameUiPalette.Gold;
+        return MinigameUiPalette.Espresso;
     }
 }

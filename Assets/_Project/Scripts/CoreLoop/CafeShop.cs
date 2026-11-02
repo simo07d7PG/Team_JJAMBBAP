@@ -41,13 +41,26 @@ public class CafeShop : MonoBehaviour
     public Color ownedColor = new Color(0.82f, 0.92f, 0.78f);
     public Color lockedColor = new Color(0.8f, 0.78f, 0.75f);
 
+    // 다음에 시작할 날짜
     private const string DayKey = "bari_day";
+    // 보유 금액
     private const string MoneyKey = "bari_money";
+    // 산 물건 키 접두사 (뒤에 id를 붙인다)
     private const string OwnKey = "bari_own_";
     // 영수증까지 끝났고 상점을 아직 안 닫았다 (이때 나가면 다시 들어와서 상점부터)
     private const string PendingKey = "bari_shop_pending";
     // 가장 최근에 산 레시피 id. 다음날 첫 손님이 주문한다
     private const string NewMenuKey = "bari_new_menu";
+
+    // 상자가 올라오는 거리와 시간
+    private const float SlideDistance = 600f;
+    private const float SlideSeconds = 0.35f;
+    // 구매한 칸이 튀어오르는 배율
+    private const float BuyPopScale = 1.08f;
+
+    // 가격 글자 색: 평소 / 돈 부족
+    private static readonly Color PriceNormalColor = new Color(0.35f, 0.22f, 0.13f);
+    private static readonly Color PriceShortColor = new Color(0.75f, 0.25f, 0.2f);
 
     private ShopCard[] cards;
     private int money;
@@ -93,9 +106,16 @@ public class CafeShop : MonoBehaviour
         string id = PlayerPrefs.GetString(NewMenuKey, "");
         if (id == "") return null;
         PlayerPrefs.DeleteKey(NewMenuKey);
+        Item found = FindItem(id);
+        return found != null ? found.menu : null;
+    }
+
+    // id로 물건 찾기 (첫 일치 항목). 없으면 null
+    private Item FindItem(string id)
+    {
         for (int i = 0; i < items.Length; i++)
         {
-            if (items[i].id == id) return items[i].menu;
+            if (items[i].id == id) return items[i];
         }
         return null;
     }
@@ -148,7 +168,7 @@ public class CafeShop : MonoBehaviour
         panel.SetActive(true);
         startLabel.text = nextDay + "일차 영업 시작";
         Refresh();
-        StartCoroutine(effects.SlideUp(box, 600f, 0.35f));
+        StartCoroutine(effects.SlideUp(box, SlideDistance, SlideSeconds));
     }
 
     public void Close()
@@ -160,7 +180,7 @@ public class CafeShop : MonoBehaviour
     public void Buy(int index)
     {
         Item item = items[index];
-        if (Owns(item.id) || !RequirementsMet(item) || money < item.price) return;
+        if (!CanBuy(item)) return;
         money -= item.price;
         PlayerPrefs.SetInt(OwnKey + item.id, 1);
         PlayerPrefs.SetInt(MoneyKey, money);
@@ -170,7 +190,7 @@ public class CafeShop : MonoBehaviour
         if (item.menu != null) PlayerPrefs.SetString(NewMenuKey, item.id);
         PlayerPrefs.Save();
         Refresh();
-        StartCoroutine(effects.Pop(cards[index].GetComponent<RectTransform>(), 1.08f));
+        StartCoroutine(effects.Pop(cards[index].GetComponent<RectTransform>(), BuyPopScale));
         Debug.Log("[CafeShop] 구매: " + item.title + " -" + item.price + "원, 남은 돈 " + money);
     }
 
@@ -193,39 +213,51 @@ public class CafeShop : MonoBehaviour
         moneyText.text = "보유 " + money.ToString("N0") + "원";
         for (int i = 0; i < items.Length; i++)
         {
-            Item item = items[i];
-            ShopCard card = cards[i];
-            card.kindText.text = item.isMachine ? "기계" : "레시피";
-            card.titleText.text = item.title;
-            card.descText.text = item.description;
-            card.icon.sprite = item.icon;
-            card.icon.gameObject.SetActive(item.icon != null);
-            card.priceText.text = item.price.ToString("N0") + "원";
-            card.priceText.color = new Color(0.35f, 0.22f, 0.13f);
-
-            if (Owns(item.id))
-            {
-                card.background.color = ownedColor;
-                card.buttonLabel.text = "보유 중";
-                card.button.interactable = false;
-                card.priceText.text = "구매 완료";
-            }
-            else if (!RequirementsMet(item))
-            {
-                card.background.color = lockedColor;
-                card.buttonLabel.text = MissingTitle(item) + " 필요";
-                card.button.interactable = false;
-            }
-            else
-            {
-                card.background.color = item.isMachine ? machineColor : recipeColor;
-                bool afford = money >= item.price;
-                card.buttonLabel.text = afford ? "구매" : "돈 부족";
-                card.button.interactable = afford;
-                if (!afford) card.priceText.color = new Color(0.75f, 0.25f, 0.2f);
-            }
-            card.lockIcon.SetActive(!Owns(item.id) && !RequirementsMet(item));
+            FillCard(cards[i], items[i]);
         }
+    }
+
+    // 물건 칸 하나를 현재 상태(보유/잠김/구매 가능/돈 부족)에 맞게 채운다
+    private void FillCard(ShopCard card, Item item)
+    {
+        bool owned = Owns(item.id);
+        bool unlocked = RequirementsMet(item);
+        card.kindText.text = item.isMachine ? "기계" : "레시피";
+        card.titleText.text = item.title;
+        card.descText.text = item.description;
+        card.icon.sprite = item.icon;
+        card.icon.gameObject.SetActive(item.icon != null);
+        card.priceText.text = item.price.ToString("N0") + "원";
+        card.priceText.color = PriceNormalColor;
+
+        if (owned)
+        {
+            card.background.color = ownedColor;
+            card.buttonLabel.text = "보유 중";
+            card.button.interactable = false;
+            card.priceText.text = "구매 완료";
+        }
+        else if (!unlocked)
+        {
+            card.background.color = lockedColor;
+            card.buttonLabel.text = MissingTitle(item) + " 필요";
+            card.button.interactable = false;
+        }
+        else
+        {
+            card.background.color = item.isMachine ? machineColor : recipeColor;
+            bool afford = money >= item.price;
+            card.buttonLabel.text = afford ? "구매" : "돈 부족";
+            card.button.interactable = afford;
+            if (!afford) card.priceText.color = PriceShortColor;
+        }
+        card.lockIcon.SetActive(!owned && !unlocked);
+    }
+
+    // 안 샀고, 선행 물건을 갖췄고, 돈이 충분하면 살 수 있다
+    private bool CanBuy(Item item)
+    {
+        return !Owns(item.id) && RequirementsMet(item) && money >= item.price;
     }
 
     private bool RequirementsMet(Item item)
@@ -244,10 +276,8 @@ public class CafeShop : MonoBehaviour
         for (int i = 0; i < item.requires.Length; i++)
         {
             if (Owns(item.requires[i])) continue;
-            for (int j = 0; j < items.Length; j++)
-            {
-                if (items[j].id == item.requires[i]) return items[j].title;
-            }
+            Item found = FindItem(item.requires[i]);
+            if (found != null) return found.title;
         }
         return "";
     }
