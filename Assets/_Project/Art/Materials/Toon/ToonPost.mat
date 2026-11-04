@@ -25,13 +25,17 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
+    - _BandBlur: 3
     - _BandCount: 4
-    - _BandStrength: 0.5
+    - _BandLineDarken: 0.55
+    - _BandLineWidth: 1.2
+    - _BandSoftness: 0.01
+    - _BandStrength: 0
     - _DepthThreshold: 0.02
     - _EdgeDarken: 0.45
-    - _EdgeStrength: 0.7
+    - _EdgeStrength: 0.45
     - _EdgeTint: 0.6
-    - _EdgeWidth: 1.2
+    - _EdgeWidth: 2.2
     - _FadeEnd: 12
     - _FadeStart: 4
     - _FarEdgeStrength: 0.35

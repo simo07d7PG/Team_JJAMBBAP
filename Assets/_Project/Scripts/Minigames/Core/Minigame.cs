@@ -23,6 +23,10 @@ public class Minigame : MonoBehaviour
     [HideInInspector] public bool isFinished;
     [HideInInspector] public bool isSuccess;
     [HideInInspector] public string resultText;
+    // 성공했을 때 목표 구간 한가운데에 얼마나 가까웠나 (1 = 한가운데, 0 = 경계). 코어 루프가 등급·가격에 쓴다
+    [HideInInspector] public float quality;
+    // 주문 변형: -1 = 적게·연하게, 0 = 보통, 1 = 많이·진하게. 코어 루프가 StartGame 전에 넣고, 미니게임은 목표 구간을 옮긴다
+    [HideInInspector] public int variant;
 
     // 러너/코어 루프가 넣어 줌. 단계 사이로 이어짐
     [HideInInspector] public Cup cup;
@@ -35,6 +39,7 @@ public class Minigame : MonoBehaviour
         isFinished = false;
         isSuccess = false;
         resultText = "";
+        quality = 0f;
         ResetGame();
         isPlaying = true;
     }
@@ -62,6 +67,14 @@ public class Minigame : MonoBehaviour
         isFinished = true;
         isSuccess = success;
         resultText = text;
+    }
+
+    // 값이 구간 한가운데면 1, 경계면 0
+    protected float QualityOf(float value, float min, float max)
+    {
+        float half = (max - min) * 0.5f;
+        if (half <= 0f) return 1f;
+        return Mathf.Clamp01(1f - Mathf.Abs(value - (min + max) * 0.5f) / half);
     }
 
     protected Vector2 PointerPosition()

@@ -8,6 +8,10 @@ public class CupVisual : MonoBehaviour
     [SerializeField] private Renderer liquidRenderer;
     [Tooltip("기존 얼음이 있을 때 켜는 표시 오브젝트")]
     [SerializeField] private GameObject iceIndicator;
+    [Tooltip("가득 찼을 때 액체 폭 배율(바닥 폭 기준). 위로 벌어진 컵이면 1보다 크게")]
+    [SerializeField] private float topWidthScale = 1f;
+    [Tooltip("폭이 벌어지는 곡선. 1 = 직선, 0.5 = 아래에서 빨리 벌어짐(둥근 사발)")]
+    [SerializeField] private float widthCurve = 1f;
 
     [Header("맨 위 층 (크레마·거품)")]
     [Tooltip("액체 루트 아래에 두는 얇은 원판. 액체 높이를 따라 올라온다")]
@@ -27,20 +31,92 @@ public class CupVisual : MonoBehaviour
     // 우유가 액체의 이 비율 이상이면 거품이 맨 위를 덮는다
     private const float FoamShare = 0.2f;
 
+    // 위로 벌어지는 액체 모양(원뿔대)의 둘레 칸 수·층 수
+    private const int Segments = 24;
+    private const int Rings = 6;
+
     private MaterialPropertyBlock block;
     private float shownFill = -1f;
     // 0 = 없음, 1 = 크레마, 2 = 거품
     private int shownLayer;
+    private Mesh liquidMesh;
+    private Vector3[] liquidVerts;
 
     public void SetFill(float fill01)
     {
         fill01 = Mathf.Clamp01(fill01);
         if (Mathf.Approximately(fill01, shownFill)) return;
         shownFill = fill01;
-        Vector3 s = liquid.localScale;
-        liquid.localScale = new Vector3(s.x, Mathf.Max(fill01, 0.0001f), s.z);
+        // 높이만 늘리고, 폭은 층마다 컵 벽을 따라가게 메시를 다시 만든다 (바닥은 늘 좁게)
+        liquid.localScale = new Vector3(1f, Mathf.Max(fill01, 0.0001f), 1f);
+        if (!Mathf.Approximately(topWidthScale, 1f)) UpdateLiquidMesh(fill01);
         liquid.gameObject.SetActive(fill01 > 0.001f);
         RefreshTopLayer();
+    }
+
+    // 액체 표면(원기둥 자리)에 원뿔대 메시를 넣는다. 표면의 로컬 y -1~1 = 액체 바닥~현재 높이, 반지름 0.5 = 바닥 폭
+    private void UpdateLiquidMesh(float fill01)
+    {
+        if (liquidMesh == null)
+        {
+            liquidMesh = new Mesh();
+            liquidMesh.name = "LiquidFrustum";
+            liquidVerts = new Vector3[Segments * Rings + Segments + 1];
+            int[] tris = new int[Segments * (Rings - 1) * 6 + Segments * 3];
+            int n = 0;
+            for (int k = 0; k < Rings - 1; k++)
+            {
+                for (int i = 0; i < Segments; i++)
+                {
+                    int a = k * Segments + i;
+                    int b = k * Segments + (i + 1) % Segments;
+                    int c = (k + 1) * Segments + (i + 1) % Segments;
+                    int d = (k + 1) * Segments + i;
+                    tris[n++] = a; tris[n++] = d; tris[n++] = c;
+                    tris[n++] = a; tris[n++] = c; tris[n++] = b;
+                }
+            }
+            // 윗면: 옆면과 따로 둔 테두리 + 가운데
+            int capStart = Segments * Rings;
+            int center = capStart + Segments;
+            for (int i = 0; i < Segments; i++)
+            {
+                tris[n++] = center;
+                tris[n++] = capStart + (i + 1) % Segments;
+                tris[n++] = capStart + i;
+            }
+            liquidMesh.vertices = liquidVerts;
+            liquidMesh.triangles = tris;
+            liquidRenderer.GetComponent<MeshFilter>().sharedMesh = liquidMesh;
+        }
+
+        for (int k = 0; k < Rings; k++)
+        {
+            float t = k / (float)(Rings - 1);
+            float r = 0.5f * WidthAt(fill01 * t);
+            float y = t * 2f - 1f;
+            for (int i = 0; i < Segments; i++)
+            {
+                float ang = i * Mathf.PI * 2f / Segments;
+                liquidVerts[k * Segments + i] = new Vector3(Mathf.Cos(ang) * r, y, Mathf.Sin(ang) * r);
+            }
+        }
+        float topR = 0.5f * WidthAt(fill01);
+        for (int i = 0; i < Segments; i++)
+        {
+            float ang = i * Mathf.PI * 2f / Segments;
+            liquidVerts[Segments * Rings + i] = new Vector3(Mathf.Cos(ang) * topR, 1f, Mathf.Sin(ang) * topR);
+        }
+        liquidVerts[Segments * Rings + Segments] = new Vector3(0f, 1f, 0f);
+        liquidMesh.vertices = liquidVerts;
+        liquidMesh.RecalculateNormals();
+        liquidMesh.RecalculateBounds();
+    }
+
+    // 높이 비율에서 액체 폭 배율
+    private float WidthAt(float fill01)
+    {
+        return Mathf.Lerp(1f, topWidthScale, Mathf.Pow(fill01, widthCurve));
     }
 
     public void SetIceVisible(bool visible)
@@ -95,8 +171,8 @@ public class CupVisual : MonoBehaviour
 
         // 액체 루트의 y 스케일이 높이(m)라서 월드 두께로 되돌려 넣는다
         float rootScaleY = Mathf.Max(topLayer.parent.localScale.y, 0.0001f);
-        Vector3 s = topLayer.localScale;
-        topLayer.localScale = new Vector3(s.x, thickness * 0.5f / rootScaleY, s.z);
+        float w = WidthAt(shownFill);
+        topLayer.localScale = new Vector3(w, thickness * 0.5f / rootScaleY, w);
         topLayer.localPosition = new Vector3(0f, shownFill, 0f);
     }
 }

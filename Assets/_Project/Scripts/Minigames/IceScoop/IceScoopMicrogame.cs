@@ -30,6 +30,8 @@ public class IceScoopMicrogame : Minigame
     [Tooltip("목표 개수 구간")]
     [SerializeField] private int targetMin = 4;
     [SerializeField] private int targetMax = 7;
+    [Tooltip("주문 변형(얼음 적게·많이)마다 목표 구간을 옮기는 개수")]
+    [SerializeField] private int variantShift = 2;
     [Tooltip("이 개수를 넘으면 넘침 실패")]
     [SerializeField] private int cupMax = 10;
     [Tooltip("목표 구간에 머물러야 하는 시간(초)")]
@@ -44,6 +46,9 @@ public class IceScoopMicrogame : Minigame
     private float spawnTimer;
     private int countInCup;
     private float holdTimer;
+    // 이번 주문의 목표 구간 (variant 반영)
+    private int curMin;
+    private int curMax;
 
     private void Awake()
     {
@@ -61,7 +66,9 @@ public class IceScoopMicrogame : Minigame
         countInCup = 0;
         holdTimer = 0f;
 
-        hud.Configure(targetMin, targetMax, cupMax);
+        curMin = Mathf.Clamp(targetMin + variant * variantShift, 1, cupMax - 2);
+        curMax = Mathf.Clamp(targetMax + variant * variantShift, curMin + 1, cupMax - 1);
+        hud.Configure(curMin, curMax, cupMax);
         // 컵 모델 상태를 이전 내용물에 맞춘다
         cupVisual.SetIceVisible(cup.ice > 0);
         cupVisual.SetFill(cup.TotalLiquid() / cupCapacityMl);
@@ -119,7 +126,7 @@ public class IceScoopMicrogame : Minigame
             return;
         }
 
-        if (countInCup >= targetMin && countInCup <= targetMax)
+        if (countInCup >= curMin && countInCup <= curMax)
         {
             holdTimer += dt;
             if (holdTimer >= holdSeconds - 0.0001f) EndGame(true, "성공!");
@@ -133,8 +140,8 @@ public class IceScoopMicrogame : Minigame
     // 시간 초과. 유지 시간을 못 채웠으면 구간 안이어도 실패
     public override void TimeOver()
     {
-        if (countInCup >= targetMin && countInCup <= targetMax) EndGame(false, "시간 초과!");
-        else if (countInCup > targetMax) EndGame(false, "얼음이 너무 많아!");
+        if (countInCup >= curMin && countInCup <= curMax) EndGame(false, "시간 초과!");
+        else if (countInCup > curMax) EndGame(false, "얼음이 너무 많아!");
         else if (countInCup > 0) EndGame(false, "얼음이 모자라!");
         else EndGame(false, "시간 초과!");
     }
@@ -147,6 +154,8 @@ public class IceScoopMicrogame : Minigame
         {
             cup.ice += countInCup;
             cupVisual.SetIceVisible(true);
+            // 개수는 정수라 구간을 양쪽 0.5씩 넓혀서 잰다 (4~7이면 5·6이 한가운데 쪽)
+            quality = QualityOf(countInCup, curMin - 0.5f, curMax + 0.5f);
         }
         Finish(success, text);
     }

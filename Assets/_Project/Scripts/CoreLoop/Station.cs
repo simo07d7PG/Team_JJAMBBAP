@@ -66,6 +66,31 @@ public class Station : MonoBehaviour
     {
         if (highlighted == on) return;
         highlighted = on;
+        Apply(on);
+    }
+
+    // 다음 차례가 됐을 때 두 번 깜빡여 "여기"를 알린다. 끝나면 원래 하이라이트 상태로
+    public void Blink()
+    {
+        StopAllCoroutines();
+        StartCoroutine(BlinkRoutine());
+    }
+
+    private System.Collections.IEnumerator BlinkRoutine()
+    {
+        yield return new WaitForSeconds(0.3f);
+        for (int i = 0; i < 2; i++)
+        {
+            Apply(true);
+            yield return new WaitForSeconds(0.15f);
+            Apply(false);
+            yield return new WaitForSeconds(0.15f);
+        }
+        Apply(highlighted);
+    }
+
+    private void Apply(bool on)
+    {
         for (int i = 0; i < materials.Count; i++)
         {
             Material mat = materials[i];
