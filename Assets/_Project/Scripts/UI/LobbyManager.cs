@@ -10,6 +10,9 @@ public class LobbyManager : MonoBehaviour
     [SerializeField] private GameObject menuPanel;          // 메뉴 패널
     [SerializeField] private GameObject questPanel;         // 업적 패널
 
+    [Header("GIF Popup Reference")]
+    [SerializeField] private GifManager gifViewerPopup; // ★ GIF 팝업 스크립트 연결
+
     [Header("Coffee Detail Panels")]
     [SerializeField] private GameObject[] coffeePanels;     // 각 커피 상세 패널
 
@@ -23,12 +26,25 @@ public class LobbyManager : MonoBehaviour
     // 크기 변수
     private Vector3 normalScale = Vector3.one;
     private Vector3 selectedScale = new Vector3(1.1f, 1.1f, 1.1f);
+
+    private int selectedCoffeeIndex = -1; // 현재 선택된 커피 번호 저장
     private void Start()
     {
         CloseAllCoffeePanels();
     }
+
+    public void OpenCurrentCoffeeGif()          // Gif
+    {
+        if (selectedCoffeeIndex >= 0 && gifViewerPopup != null)
+        {
+            gifViewerPopup.OpenGifViewer(selectedCoffeeIndex);
+        }
+    }
+    
     public void OpenCoffeePanel(int index)
     {
+        selectedCoffeeIndex = index; // 현재 선택한 커피 인덱스 저장
+
         // 선택한 패널만 켜고 나머지 끄기
         for (int i = 0; i < coffeePanels.Length; i++)
         {
@@ -63,6 +79,14 @@ public class LobbyManager : MonoBehaviour
     // 2. 커피 상세 패널의 닫기 버튼
     public void CloseAllCoffeePanels()
     {
+        selectedCoffeeIndex = -1;
+
+        // GIF 팝업도 같이 닫기
+        if (gifViewerPopup != null)
+        {
+            gifViewerPopup.CloseGifViewer();
+        }
+
         // 2-1. 모든 커피 상세 패널 끄기
         for (int i = 0; i < coffeePanels.Length; i++)
         {
