@@ -15,5 +15,6 @@ MonoBehaviour:
   menuName: "\uB77C\uB5BC"
   price: 2000
   steps:
+  - grinder
   - espresso
   - milk

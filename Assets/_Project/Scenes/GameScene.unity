@@ -14927,6 +14927,74 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 378920196}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1001 &380994780
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 2098862896700077212, guid: 0fa7480fd6b4218449ee8ba0d4f77ee4, type: 3}
+      propertyPath: m_Name
+      value: BeanScoop
+      objectReference: {fileID: 0}
+    - target: {fileID: 5597704061870531977, guid: 0fa7480fd6b4218449ee8ba0d4f77ee4, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 150
+      objectReference: {fileID: 0}
+    - target: {fileID: 5597704061870531977, guid: 0fa7480fd6b4218449ee8ba0d4f77ee4, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5597704061870531977, guid: 0fa7480fd6b4218449ee8ba0d4f77ee4, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5597704061870531977, guid: 0fa7480fd6b4218449ee8ba0d4f77ee4, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5597704061870531977, guid: 0fa7480fd6b4218449ee8ba0d4f77ee4, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5597704061870531977, guid: 0fa7480fd6b4218449ee8ba0d4f77ee4, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5597704061870531977, guid: 0fa7480fd6b4218449ee8ba0d4f77ee4, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5597704061870531977, guid: 0fa7480fd6b4218449ee8ba0d4f77ee4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5597704061870531977, guid: 0fa7480fd6b4218449ee8ba0d4f77ee4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5597704061870531977, guid: 0fa7480fd6b4218449ee8ba0d4f77ee4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 0fa7480fd6b4218449ee8ba0d4f77ee4, type: 3}
+--- !u!114 &380994781 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5314727227136001845, guid: 0fa7480fd6b4218449ee8ba0d4f77ee4, type: 3}
+  m_PrefabInstance: {fileID: 380994780}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c8d8685ecd92ff04aa1b71b428a560e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BeanScoopMicrogame
 --- !u!1 &384086677
 GameObject:
   m_ObjectHideFlags: 0
@@ -18063,6 +18131,7 @@ MonoBehaviour:
   - {fileID: 1313508277}
   - {fileID: 144699457}
   - {fileID: 1835942094}
+  - {fileID: 380994781}
   view: {fileID: 1486357736}
   cafeCamera: {fileID: 1486357733}
   customer: {fileID: 1961196137}
@@ -18075,6 +18144,7 @@ MonoBehaviour:
   - {fileID: 590067027}
   - {fileID: 1681232367}
   - {fileID: 1012720083}
+  - {fileID: 2120178063}
   nextCustomerSeconds: 1.2
   patienceSeconds: 40
   minigamePatienceBar: {fileID: 1450444351}
@@ -85433,6 +85503,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2120178061}
+  - component: {fileID: 2120178062}
+  - component: {fileID: 2120178063}
   m_Layer: 0
   m_Name: Grinder
   m_TagString: Untagged
@@ -85459,6 +85531,45 @@ Transform:
   - {fileID: 321505709}
   m_Father: {fileID: 297162472}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &2120178062
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2120178060}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.23999977, y: 0.6299999, z: 0.3000002}
+  m_Center: {x: 2.4, y: 1.215, z: 1.9000001}
+--- !u!114 &2120178063
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2120178060}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa244e623df6c21479c774f8d8e01ce9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Station
+  stationId: grinder
+  clickable: 1
+  targets: []
+  brightness: 0.45
+  outlineColor: {r: 1, g: 0.82, b: 0.35, a: 1}
+  outlineWidth: 0.006
 --- !u!1 &2122169035
 GameObject:
   m_ObjectHideFlags: 0
@@ -86950,3 +87061,4 @@ SceneRoots:
   - {fileID: 436604644}
   - {fileID: 119353738}
   - {fileID: 1961196140}
+  - {fileID: 380994780}

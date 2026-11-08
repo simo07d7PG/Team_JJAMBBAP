@@ -641,6 +641,7 @@ public class CafeLoop : MonoBehaviour
     {
         switch (stationId)
         {
+            case "grinder": return "원두 넣기";
             case "espresso": return "샷 추출";
             case "ice": return "얼음 담기";
             case "milk": return "우유 붓기";
