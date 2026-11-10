@@ -658,6 +658,7 @@ public class CafeLoop : MonoBehaviour
             case "espresso": return "샷 추출";
             case "ice": return "얼음 담기";
             case "milk": return "우유 붓기";
+            case "handgrinder": return "원두 갈기";
         }
         return "";
     }
