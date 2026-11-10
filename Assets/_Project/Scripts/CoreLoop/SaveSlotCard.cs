@@ -2,10 +2,12 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-// 저장 슬롯 칸 하나. SaveMenu가 채운다. 버튼 OnClick → OnClick
+// 저장 슬롯 칸 하나. ESC 메뉴(SaveMenu) 또는 로비(LobbySaveSelect)가 채운다. 버튼 OnClick → OnClick
 public class SaveSlotCard : MonoBehaviour
 {
+    // 둘 중 하나만 채워진다
     [HideInInspector] public SaveMenu menu;
+    [HideInInspector] public LobbySaveSelect lobby;
     [HideInInspector] public int index;
 
     public Image background;
@@ -18,6 +20,7 @@ public class SaveSlotCard : MonoBehaviour
 
     public void OnClick()
     {
-        menu.ClickSlot(index);
+        if (menu != null) menu.ClickSlot(index);
+        else lobby.ClickSlot(index);
     }
 }

@@ -181,6 +181,10 @@ public class CafeLoop : MonoBehaviour
 
     private void Start()
     {
+        // 새 게임·슬롯 불러오기(로비·ESC 메뉴)면 작업본부터 바꾼다. 하루 중 상태는 RestoreSave가 되살린다
+        if (SaveSlots.newGame) shop.ResetSave();
+        else if (SaveSlots.pending != null) shop.ApplySave(SaveSlots.pending);
+        SaveSlots.newGame = false;
         // 저장된 날·돈·산 기계를 읽는다 (하루 도중 나갔으면 그날 아침부터)
         shop.Load();
         day = shop.SavedDay();

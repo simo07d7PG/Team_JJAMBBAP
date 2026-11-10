@@ -1562,6 +1562,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SaveSlotCard
   menu: {fileID: 0}
+  lobby: {fileID: 0}
   index: 0
   background: {fileID: 33545712}
   slotText: {fileID: 689782980}
@@ -61293,6 +61294,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SaveSlotCard
   menu: {fileID: 0}
+  lobby: {fileID: 0}
   index: 0
   background: {fileID: 1433647318}
   slotText: {fileID: 625280322}
@@ -68871,7 +68873,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SaveMenu
   loop: {fileID: 436604643}
-  shop: {fileID: 436604647}
   saveButton: {fileID: 592062368}
   blockedText: {fileID: 1554354505}
   slotPanel: {fileID: 967111097}
@@ -88389,6 +88390,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SaveSlotCard
   menu: {fileID: 0}
+  lobby: {fileID: 0}
   index: 0
   background: {fileID: 2114135345}
   slotText: {fileID: 277310940}

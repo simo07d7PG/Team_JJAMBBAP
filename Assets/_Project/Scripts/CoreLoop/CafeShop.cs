@@ -69,7 +69,7 @@ public class CafeShop : MonoBehaviour
     // 저장된 진행을 읽고, 사지 않은 기계를 숨긴다
     public void Load()
     {
-        money = PlayerPrefs.GetInt(MoneyKey, 0);
+        money = ReadMoney();
         for (int i = 0; i < items.Length; i++)
         {
             if (items[i].isMachine && items[i].stationObject != null) items[i].stationObject.SetActive(Owns(items[i].id));
@@ -78,7 +78,29 @@ public class CafeShop : MonoBehaviour
 
     public int SavedDay()
     {
+        return ReadDay();
+    }
+
+    // 작업본 읽기 (로비처럼 CafeShop이 없는 곳에서도 쓴다)
+    public static int ReadDay()
+    {
         return PlayerPrefs.GetInt(DayKey, 1);
+    }
+
+    public static int ReadMoney()
+    {
+        return PlayerPrefs.GetInt(MoneyKey, 0);
+    }
+
+    public static bool ReadShopPending()
+    {
+        return PlayerPrefs.GetInt(PendingKey, 0) == 1;
+    }
+
+    // 작업본이 있다 (하루를 한 번이라도 마감했거나 슬롯을 불러왔다. 1일차 도중은 없음과 같다)
+    public static bool HasProgress()
+    {
+        return PlayerPrefs.HasKey(DayKey) || PlayerPrefs.HasKey(MoneyKey);
     }
 
     public int Money()
@@ -123,7 +145,7 @@ public class CafeShop : MonoBehaviour
 
     public bool ShopPending()
     {
-        return PlayerPrefs.GetInt(PendingKey, 0) == 1;
+        return ReadShopPending();
     }
 
     // 상점을 닫고 다음날을 시작할 때

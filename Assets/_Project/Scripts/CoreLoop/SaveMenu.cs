@@ -1,6 +1,5 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 // ESC 메뉴의 저장하기·불러오기. 누르면 슬롯 3칸 패널이 뜬다
@@ -9,7 +8,6 @@ using UnityEngine.UI;
 public class SaveMenu : MonoBehaviour
 {
     public CafeLoop loop;
-    public CafeShop shop;
 
     [Header("ESC 메뉴 버튼")]
     [Tooltip("저장할 수 없는 때는 누를 수 없게 한다")]
@@ -116,13 +114,10 @@ public class SaveMenu : MonoBehaviour
         RefreshCards();
     }
 
-    // 작업본을 덮어쓰고 씬을 다시 읽는다. 다시 읽은 CafeLoop가 pending을 적용한다
+    // 씬을 다시 읽는다. 다시 읽은 CafeLoop가 작업본을 덮어쓰고 하루 중 상태를 되살린다
     private void LoadFrom(SaveData data)
     {
-        shop.ApplySave(data);
-        SaveSlots.pending = data;
-        Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        SaveSlots.StartGameScene(data, false);
     }
 
     private void RefreshCards()
@@ -144,39 +139,12 @@ public class SaveMenu : MonoBehaviour
         }
         else
         {
-            card.infoText.text = Describe(data);
+            card.infoText.text = SaveSlots.Describe(data);
             card.background.color = armed ? armedColor : filledColor;
         }
         card.button.interactable = saving || data != null;
         if (armed) card.buttonLabel.text = saving ? "한 번 더 누르면\n덮어써요" : "한 번 더 누르면\n불러와요";
         else if (!saving) card.buttonLabel.text = "불러오기";
         else card.buttonLabel.text = data == null ? "저장" : "덮어쓰기";
-    }
-
-    // 슬롯 칸 정보 5줄: 날짜·시간·손님 / 돈 / 메뉴·기계 / 상황 / 저장 시각
-    private string Describe(SaveData data)
-    {
-        string head;
-        string money = "보유 " + data.money.ToString("N0") + "원";
-        if (data.shopPending)
-        {
-            head = data.playDay + "일차 마감 · 상점";
-        }
-        else
-        {
-            string count = " · 손님 " + data.customersToday + "/" + data.customersPerDay;
-            if (data.dayOver)
-            {
-                head = data.playDay + "일차 마감" + count;
-            }
-            else
-            {
-                int seconds = Mathf.CeilToInt(data.dayTimer);
-                head = data.playDay + "일차 · 남은 시간 " + (seconds / 60) + ":" + (seconds % 60).ToString("00") + count;
-            }
-            money += " · 오늘 수입 " + data.income.ToString("N0") + "원";
-        }
-        string owned = "메뉴 " + data.menuCount + "종 · 기계 " + data.machineCount + "대";
-        return head + "\n" + money + "\n" + owned + "\n" + data.situation + "\n<size=80%>" + data.savedAt + "</size>";
     }
 }
