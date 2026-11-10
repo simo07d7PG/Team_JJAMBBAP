@@ -30,6 +30,8 @@ public class SaveData
     public float nextCustomerTimer;
     // 손님 말풍선의 요청 글자 ("진하게, 우유 적게")
     public string request;
+    // 주문 중 컵 내용물 (옛 슬롯 파일엔 없다 → 빈 컵)
+    public Cup cup;
 
     // 슬롯 칸 표시용
     public string savedAt;

@@ -28,6 +28,8 @@ public class EspressoShotMicrogame : Minigame
     [SerializeField] private float variantShiftMl = 10f;
     [Tooltip("컵 용량(ml). 넘으면 넘침 실패")]
     [SerializeField] private float capacityMl = 60f;
+    [Tooltip("컵 모델 높이 기준(ml). 이어지는 다른 미니게임(얼음·우유)의 컵 용량과 맞춘다. 판정과 게이지는 위 컵 용량을 쓴다")]
+    [SerializeField] private float cupDisplayCapacityMl = 300f;
     [Tooltip("평균 추출 속도(ml/초)")]
     [SerializeField] private float flowMlPerSec = 12f;
     [Tooltip("추출 속도 출렁임 비율(0~1)")]
@@ -433,8 +435,7 @@ public class EspressoShotMicrogame : Minigame
     private void UpdateCupVisual()
     {
         float existing = cup.TotalLiquid();
-        float cap = existing + capacityMl;
-        cupVisual.SetFill((existing + extracted) / cap);
+        cupVisual.SetFill((existing + extracted) / cupDisplayCapacityMl);
         cupVisual.SetColorFrom(cup, extracted, 0f);
     }
 }

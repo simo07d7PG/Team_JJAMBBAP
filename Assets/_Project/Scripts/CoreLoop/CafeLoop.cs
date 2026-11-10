@@ -107,6 +107,9 @@ public class CafeLoop : MonoBehaviour
     private const int StateResult = 3;      // 결과
     private const int StateFade = 4;        // 페이드·걷기 전환 중 (시간 정지)
 
+    // 이번 주문의 컵. 수락 때 만들고 단계마다 같은 컵을 넘기며, 손님이 떠나면 버린다
+    private Cup orderCup = new Cup();
+
     // 주문 상태 (order)
     private const int OrderNone = 0;        // 손님 없음
     private const int OrderWaitAccept = 1;  // 수락 대기
@@ -545,6 +548,7 @@ public class CafeLoop : MonoBehaviour
     {
         effects.Play(effects.clickClip);
         order = OrderMaking;
+        orderCup = new Cup();
         stepIndex = 0;
         successCount = 0;
         priceSum = 0f;
@@ -602,6 +606,7 @@ public class CafeLoop : MonoBehaviour
     {
         customer.Leave(message);
         order = OrderNone;
+        orderCup = new Cup();
         menu = null;
         nextCustomerTimer = nextCustomerSeconds;
         UpdateTargets();
@@ -714,7 +719,7 @@ public class CafeLoop : MonoBehaviour
         // 카메라 컴포넌트만 끈다 (AudioListener는 카페 카메라에 남김)
         cafeCamera.enabled = false;
         game.viewCamera.enabled = true;
-        game.cup = new Cup();
+        game.cup = orderCup;
         timer = instructionSeconds;
         state = StateInstruction;
         ShowTexts();
@@ -852,6 +857,7 @@ public class CafeLoop : MonoBehaviour
         data.menuIndex = -1;
         data.stepVariants = new int[0];
         data.request = "";
+        data.cup = new Cup();
         if (data.shopPending) return data;
         data.dayTimer = dayTimer;
         data.customersToday = customersToday;
@@ -869,6 +875,7 @@ public class CafeLoop : MonoBehaviour
         data.successCount = successCount;
         data.priceSum = priceSum;
         data.stepVariants = stepVariants;
+        data.cup = CopyOfCup(orderCup);
         data.patience = patience;
         data.request = RequestText();
         return data;
@@ -900,6 +907,7 @@ public class CafeLoop : MonoBehaviour
             successCount = data.successCount;
             priceSum = data.priceSum;
             stepVariants = data.stepVariants;
+            orderCup = data.cup != null ? CopyOfCup(data.cup) : new Cup();
             patience = data.patience;
             patienceMax = PatienceOf(menu);
             customer.Show(menu, data.request);
@@ -908,6 +916,17 @@ public class CafeLoop : MonoBehaviour
         ShowIncome();
         UpdateTargets();
         Debug.Log("[CafeLoop] 불러오기: " + day + "일차, " + data.situation);
+    }
+
+    // 저장·복원할 때 같은 객체를 공유하지 않게 복사한다
+    private Cup CopyOfCup(Cup source)
+    {
+        Cup copy = new Cup();
+        copy.espresso = source.espresso;
+        copy.milk = source.milk;
+        copy.water = source.water;
+        copy.ice = source.ice;
+        return copy;
     }
 
     // 손님 말풍선의 요청 글자 (RollVariants가 만든 것과 같음)
