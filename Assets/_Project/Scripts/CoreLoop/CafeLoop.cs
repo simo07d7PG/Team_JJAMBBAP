@@ -151,6 +151,8 @@ public class CafeLoop : MonoBehaviour
     private int successCount;
     private float nextCustomerTimer;
     private float patience;
+    // 이번 주문의 인내도 최대값(초). 메뉴 값이 있으면 그것, 없으면 patienceSeconds
+    private float patienceMax;
     private int income;
     private float noticeTimer;
     private Station customerStation;
@@ -546,9 +548,16 @@ public class CafeLoop : MonoBehaviour
         stepIndex = 0;
         successCount = 0;
         priceSum = 0f;
-        patience = patienceSeconds;
+        patienceMax = PatienceOf(menu);
+        patience = patienceMax;
         UpdateTargets();
         Debug.Log("[CafeLoop] 주문 수락: " + menu.menuName);
+    }
+
+    // 메뉴의 인내도(초). 비어 있으면(0) 공통 값
+    private float PatienceOf(MenuData target)
+    {
+        return target.patienceSeconds > 0f ? target.patienceSeconds : patienceSeconds;
     }
 
     private void Serve()
@@ -604,7 +613,7 @@ public class CafeLoop : MonoBehaviour
         bool accepted = IsOrderAccepted();
         if (accepted && (state == StateCafe || state == StatePlaying)) patience -= Time.deltaTime;
 
-        float ratio = patience / patienceSeconds;
+        float ratio = patienceMax > 0f ? patience / patienceMax : 0f;
         customer.SetPatience(accepted, ratio);
         minigamePatienceBar.SetActive(accepted && state != StateCafe);
         minigamePatienceFill.localScale = new Vector3(Mathf.Clamp01(ratio), 1f, 1f);
@@ -892,6 +901,7 @@ public class CafeLoop : MonoBehaviour
             priceSum = data.priceSum;
             stepVariants = data.stepVariants;
             patience = data.patience;
+            patienceMax = PatienceOf(menu);
             customer.Show(menu, data.request);
         }
         ShowDay();

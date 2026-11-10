@@ -10,4 +10,6 @@ public class MenuData : ScriptableObject
     public int price;
     [Tooltip("만드는 순서대로 기계 id (espresso / ice / milk 등)")]
     public string[] steps;
+    [Tooltip("인내도(초). 0이면 CafeLoop 공통 값")]
+    public float patienceSeconds;
 }

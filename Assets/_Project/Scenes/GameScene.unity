@@ -19414,6 +19414,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 8cbece5fa3831424a99d34d5f9b7da8b, type: 2}
   - {fileID: 11400000, guid: ad53b4b49445c324fa1431ed70a6887d, type: 2}
   - {fileID: 11400000, guid: 58cab3e83c5235e44afe6fcc6e577361, type: 2}
+  - {fileID: 11400000, guid: fa8326475496bf14bad96a6caf61b67d, type: 2}
   stations:
   - {fileID: 590067027}
   - {fileID: 1681232367}
@@ -19659,6 +19660,16 @@ MonoBehaviour:
     requires:
     - ice_machine
     - milk_fridge
+  - id: recipe_hand_drip
+    title: "\uD578\uB4DC\uB4DC\uB9BD \uCEE4\uD53C"
+    description: "\uC6D0\uB450 \uAC08\uAE30 + \uBB3C \uB053\uC774\uAE30 + \uB4DC\uB9BD\n\uD310\uB9E4\uAC00
+      3500\uC6D0"
+    price: 3000
+    icon: {fileID: 21300000, guid: bbf80e08c5b67fa45b7855e7e8640cb5, type: 3}
+    isMachine: 0
+    stationObject: {fileID: 0}
+    menu: {fileID: 11400000, guid: fa8326475496bf14bad96a6caf61b67d, type: 2}
+    requires: []
   effects: {fileID: 436604645}
   panel: {fileID: 186028640}
   box: {fileID: 771904236}
@@ -27200,7 +27211,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 10}
-  m_SizeDelta: {x: 1280, y: 470}
+  m_SizeDelta: {x: 1516, y: 470}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &626007089
 MonoBehaviour:
@@ -32686,7 +32697,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 1360, y: 800}
+  m_SizeDelta: {x: 1596, y: 800}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &771904237
 MonoBehaviour:
