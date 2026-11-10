@@ -560,6 +560,46 @@
                     "priority": 0
                 },
                 {
+                    "name": "KeyQ",
+                    "type": "Button",
+                    "id": "0835f811-942e-41a1-9c2f-6189fd5a30a5",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false,
+                    "priority": 0
+                },
+                {
+                    "name": "KeyW",
+                    "type": "Button",
+                    "id": "880ff31f-c3fe-4b8d-b1ba-47f1c9063143",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false,
+                    "priority": 0
+                },
+                {
+                    "name": "KeyE",
+                    "type": "Button",
+                    "id": "acf225b0-1594-46e1-aa6f-4f4bfec5d10a",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false,
+                    "priority": 0
+                },
+                {
+                    "name": "KeyR",
+                    "type": "Button",
+                    "id": "cd205b84-1edc-4d6a-aba7-e18d484f10a2",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false,
+                    "priority": 0
+                },
+                {
                     "name": "MiddleClick",
                     "type": "PassThrough",
                     "id": "dad70c86-b58c-4b17-88ad-f5e53adf419e",
@@ -994,6 +1034,50 @@
                     "processors": "",
                     "groups": "Keyboard&Mouse",
                     "action": "Throw",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "4319c4d6-eba3-4e43-8ff1-7fe9878f31df",
+                    "path": "<Keyboard>/q",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "KeyQ",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "462dfc36-36df-4b12-846e-59744cc0e81a",
+                    "path": "<Keyboard>/w",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "KeyW",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "9e60a500-529f-463b-8717-90d529402e83",
+                    "path": "<Keyboard>/e",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "KeyE",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "59f398a5-cd79-43be-b218-92207688bdbc",
+                    "path": "<Keyboard>/r",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "KeyR",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
