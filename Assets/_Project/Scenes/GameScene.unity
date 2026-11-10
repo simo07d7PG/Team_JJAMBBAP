@@ -5854,6 +5854,26 @@ PrefabInstance:
       propertyPath: topWidthScale
       value: 1.54
       objectReference: {fileID: 0}
+    - target: {fileID: 3890633615119028607, guid: b3ef7f3e7ae3e8d47b9e28ccbc27920d, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1.34
+      objectReference: {fileID: 0}
+    - target: {fileID: 3890633615119028607, guid: b3ef7f3e7ae3e8d47b9e28ccbc27920d, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1.34
+      objectReference: {fileID: 0}
+    - target: {fileID: 3890633615119028607, guid: b3ef7f3e7ae3e8d47b9e28ccbc27920d, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1.34
+      objectReference: {fileID: 0}
+    - target: {fileID: 3890633615119028607, guid: b3ef7f3e7ae3e8d47b9e28ccbc27920d, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.034
+      objectReference: {fileID: 0}
+    - target: {fileID: 3890633615119028607, guid: b3ef7f3e7ae3e8d47b9e28ccbc27920d, type: 3}
+      propertyPath: m_ConstrainProportionsScale
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5597704061870531977, guid: b3ef7f3e7ae3e8d47b9e28ccbc27920d, type: 3}
       propertyPath: m_LocalPosition.x
       value: 250
