@@ -600,6 +600,16 @@
                     "priority": 0
                 },
                 {
+                    "name": "Space",
+                    "type": "Button",
+                    "id": "124d92e0-67f9-4dba-bd56-310f2a8bf503",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false,
+                    "priority": 0
+                },
+                {
                     "name": "MiddleClick",
                     "type": "PassThrough",
                     "id": "dad70c86-b58c-4b17-88ad-f5e53adf419e",
@@ -1078,6 +1088,17 @@
                     "processors": "",
                     "groups": "Keyboard&Mouse",
                     "action": "KeyR",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "abcfcd7e-04ec-4a44-9d40-1edabc17eba5",
+                    "path": "<Keyboard>/space",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "Space",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
