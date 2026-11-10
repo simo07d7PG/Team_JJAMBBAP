@@ -176,6 +176,8 @@ public class CafeLoop : MonoBehaviour
     private float priceSum;
     private float stepMultiplier;
     private int combo;
+    // 슬롯에서 불러온 하루 중 상태로 시작했다 (OpenDay 대신 '불러왔어요')
+    private bool loadedSave;
 
     private void Start()
     {
@@ -196,6 +198,7 @@ public class CafeLoop : MonoBehaviour
         ShowDay();
         ShowIncome();
         UpdateTargets();
+        RestoreSave();
         StartCoroutine(BeginGame());
     }
 
@@ -221,6 +224,12 @@ public class CafeLoop : MonoBehaviour
             yield break;
         }
         view.viewEnabled = true;
+        if (loadedSave)
+        {
+            ShowNotice("불러왔어요");
+            opening = false;
+            yield break;
+        }
         OpenDay();
     }
 
@@ -795,6 +804,141 @@ public class CafeLoop : MonoBehaviour
         ShowIncome();
         UpdateTargets();
         OpenDay();
+    }
+
+    // 저장 가능: 카페 화면에 서 있을 때(손님 없음·수락 대기·제조 중·제공 대기)와 정산·상점
+    // 미니게임(지시어·플레이·결과)과 전환·걷기·로딩 중에는 안 된다
+    public bool CanSave()
+    {
+        // 정산·상점은 opening이 켜진 채일 수 있다 (나갔다 들어와 상점부터 열 때)
+        if (state != StateCafe) return false;
+        return !opening || shop.ShopPending();
+    }
+
+    // 저장 버튼 아래 이유 글자
+    public string SaveBlockedReason()
+    {
+        if (state == StateInstruction || state == StatePlaying || state == StateResult) return "미니게임 중에는 저장할 수 없어요";
+        return "지금은 저장할 수 없어요";
+    }
+
+    // 저장 슬롯에 쓸 데이터: 작업본 + 하루 중 상태 + 표시용 정보. 정산·상점이면 하루 중 상태는 담지 않는다
+    public SaveData MakeSave()
+    {
+        SaveData data = shop.ExportSave();
+        data.savedAt = System.DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+        data.playDay = day;
+        data.customersPerDay = CustomersPerDay();
+        data.menuCount = OpenMenuCount();
+        data.machineCount = MachineCount();
+        data.situation = SituationText(data.shopPending);
+        data.menuIndex = -1;
+        data.stepVariants = new int[0];
+        data.request = "";
+        if (data.shopPending) return data;
+        data.dayTimer = dayTimer;
+        data.customersToday = customersToday;
+        data.income = income;
+        data.salesCount = salesCount;
+        data.failCount = failCount;
+        data.leftCount = leftCount;
+        data.combo = combo;
+        data.dayOver = dayOver;
+        data.nextCustomerTimer = nextCustomerTimer;
+        data.order = order;
+        if (order == OrderNone) return data;
+        data.menuIndex = System.Array.IndexOf(menus, menu);
+        data.stepIndex = stepIndex;
+        data.successCount = successCount;
+        data.priceSum = priceSum;
+        data.stepVariants = stepVariants;
+        data.patience = patience;
+        data.request = RequestText();
+        return data;
+    }
+
+    // 슬롯에서 불러왔으면(SaveSlots.pending) 하루 중 상태를 되살린다. 정산·상점 저장은 BeginGame의 상점 경로가 맡는다
+    // 손님 등장 소리·새 레시피 꺼내기(TakeNewMenu)는 다시 하지 않는다
+    private void RestoreSave()
+    {
+        SaveData data = SaveSlots.pending;
+        SaveSlots.pending = null;
+        if (data == null || data.shopPending) return;
+        loadedSave = true;
+        dayTimer = data.dayTimer;
+        customersToday = data.customersToday;
+        income = data.income;
+        salesCount = data.salesCount;
+        failCount = data.failCount;
+        leftCount = data.leftCount;
+        combo = data.combo;
+        dayOver = data.dayOver;
+        nextCustomerTimer = data.nextCustomerTimer;
+        receiptTimer = receiptDelay;
+        if (data.order != OrderNone && data.menuIndex >= 0 && data.menuIndex < menus.Length)
+        {
+            menu = menus[data.menuIndex];
+            order = data.order;
+            stepIndex = data.stepIndex;
+            successCount = data.successCount;
+            priceSum = data.priceSum;
+            stepVariants = data.stepVariants;
+            patience = data.patience;
+            customer.Show(menu, data.request);
+        }
+        ShowDay();
+        ShowIncome();
+        UpdateTargets();
+        Debug.Log("[CafeLoop] 불러오기: " + day + "일차, " + data.situation);
+    }
+
+    // 손님 말풍선의 요청 글자 (RollVariants가 만든 것과 같음)
+    private string RequestText()
+    {
+        string request = "";
+        for (int i = 0; i < menu.steps.Length; i++)
+        {
+            string label = VariantLabel(menu.steps[i], stepVariants[i]);
+            if (label == "") continue;
+            if (request != "") request += ", ";
+            request += label;
+        }
+        return request;
+    }
+
+    // 열린 메뉴 수
+    private int OpenMenuCount()
+    {
+        int count = 0;
+        for (int i = 0; i < menus.Length; i++)
+        {
+            if (shop.IsMenuOpen(menus[i])) count++;
+        }
+        return count;
+    }
+
+    // 카페에 놓인 기계 수 (안 산 기계는 꺼져 있다)
+    private int MachineCount()
+    {
+        int count = 0;
+        for (int i = 0; i < stations.Length; i++)
+        {
+            if (stations[i].gameObject.activeInHierarchy) count++;
+        }
+        return count;
+    }
+
+    // 슬롯 칸의 상황 한 줄
+    private string SituationText(bool shopPending)
+    {
+        if (shopPending) return "정산·상점";
+        switch (order)
+        {
+            case OrderWaitAccept: return menu.menuName + " 주문 대기";
+            case OrderMaking: return menu.menuName + " 제조 중 (" + stepIndex + "/" + menu.steps.Length + ")";
+            case OrderWaitServe: return menu.menuName + " 건네기 직전";
+        }
+        return dayOver ? "영업 마감 · 정산 대기" : "손님 기다리는 중";
     }
 
     // 하루 통계 초기화

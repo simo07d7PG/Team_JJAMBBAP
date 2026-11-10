@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
@@ -151,6 +152,49 @@ public class CafeShop : MonoBehaviour
         PlayerPrefs.DeleteKey(NewMenuKey);
         for (int i = 0; i < items.Length; i++) PlayerPrefs.DeleteKey(OwnKey + items[i].id);
         PlayerPrefs.Save();
+    }
+
+    // 저장 슬롯용: 지금 작업본(PlayerPrefs)을 SaveData에 담는다
+    public SaveData ExportSave()
+    {
+        SaveData data = new SaveData();
+        data.day = SavedDay();
+        data.money = money;
+        data.shopPending = ShopPending();
+        data.newMenuId = PlayerPrefs.GetString(NewMenuKey, "");
+        List<string> owned = new List<string>();
+        for (int i = 0; i < items.Length; i++)
+        {
+            if (Owns(items[i].id)) owned.Add(items[i].id);
+        }
+        data.owned = owned.ToArray();
+        return data;
+    }
+
+    // 불러오기: 슬롯의 작업본으로 PlayerPrefs를 덮어쓴다 (씬을 다시 읽으면 Load가 이 값을 읽는다)
+    public void ApplySave(SaveData data)
+    {
+        PlayerPrefs.SetInt(DayKey, data.day);
+        PlayerPrefs.SetInt(MoneyKey, data.money);
+        if (data.shopPending) PlayerPrefs.SetInt(PendingKey, 1);
+        else PlayerPrefs.DeleteKey(PendingKey);
+        if (data.newMenuId != "") PlayerPrefs.SetString(NewMenuKey, data.newMenuId);
+        else PlayerPrefs.DeleteKey(NewMenuKey);
+        for (int i = 0; i < items.Length; i++)
+        {
+            if (HasId(data.owned, items[i].id)) PlayerPrefs.SetInt(OwnKey + items[i].id, 1);
+            else PlayerPrefs.DeleteKey(OwnKey + items[i].id);
+        }
+        PlayerPrefs.Save();
+    }
+
+    private bool HasId(string[] ids, string id)
+    {
+        for (int i = 0; i < ids.Length; i++)
+        {
+            if (ids[i] == id) return true;
+        }
+        return false;
     }
 
     // 치트 키: 돈 더하기 (바로 저장)
