@@ -39,6 +39,12 @@ public class Minigame : MonoBehaviour
         isPlaying = true;
     }
 
+    // 시작 전에 첫 화면만 깨끗하게 만든다 (입력·진행 상태는 건드리지 않음). StartGame이 한 번 더 초기화한다
+    public void PrepareGame()
+    {
+        ResetGame();
+    }
+
     private void EnableInputs()
     {
         pointAction.action.Enable();

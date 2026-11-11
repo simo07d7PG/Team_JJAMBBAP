@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
@@ -254,6 +255,7 @@ public class CafeLoop : MonoBehaviour
     private void Update()
     {
         if (HandleCheatKeys()) return;
+        ClearUiSelection();
         UpdateDay();
         UpdateCustomer();
         UpdatePatience();
@@ -280,6 +282,14 @@ public class CafeLoop : MonoBehaviour
                 UpdateResult();
                 break;
         }
+    }
+
+    // 버튼을 클릭하면 EventSystem에 선택이 남아 Enter·Space가 그 버튼을 다시 누른다. 일시정지(ESC 메뉴) 중이 아니면 선택을 비운다
+    private void ClearUiSelection()
+    {
+        EventSystem system = EventSystem.current;
+        if (system == null || Time.timeScale <= 0f) return;
+        if (system.currentSelectedGameObject != null) system.SetSelectedGameObject(null);
     }
 
     // 치트 키(발표·테스트용): F9 = 저장을 지우고 1일차부터, F10 = 돈 +10000원
@@ -621,7 +631,9 @@ public class CafeLoop : MonoBehaviour
 
         float ratio = patienceMax > 0f ? patience / patienceMax : 0f;
         customer.SetPatience(accepted, ratio);
-        minigamePatienceBar.SetActive(accepted && state != StateCafe);
+        // 미니게임이 보이는 동안에만 (걷기·전환 페이드·카페에서는 숨김)
+        bool inMinigame = current != null && (state == StateInstruction || state == StatePlaying || state == StateResult);
+        minigamePatienceBar.SetActive(accepted && inMinigame);
         minigamePatienceFill.localScale = new Vector3(Mathf.Clamp01(ratio), 1f, 1f);
 
         if (accepted && patience <= 0f)
@@ -727,6 +739,8 @@ public class CafeLoop : MonoBehaviour
         cafeCamera.enabled = false;
         game.viewCamera.enabled = true;
         game.cup = orderCup;
+        // 지시어 동안 이전 판의 잔상이 보이지 않게, 화면이 검을 때 한 번 초기화 (cup·variant를 넣은 뒤)
+        game.PrepareGame();
         timer = instructionSeconds;
         state = StateInstruction;
         ShowTexts();
