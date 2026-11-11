@@ -517,6 +517,7 @@ public class CafeLoop : MonoBehaviour
             case "espresso": return variant < 0 ? "연하게" : "진하게";
             case "ice": return variant < 0 ? "얼음 적게" : "얼음 많이";
             case "milk": return variant < 0 ? "우유 적게" : "우유 많이";
+            case "water": return variant < 0 ? "물 적게" : "물 많이";
         }
         return "";
     }
@@ -676,6 +677,12 @@ public class CafeLoop : MonoBehaviour
             case "dripper": return "원두·물 넣기";
             case "kettle": return "물 끓이기";
             case "drip": return "드립 붓기";
+            case "autogrind": return "원두 갈기";
+            case "tamper": return "탬핑";
+            case "water": return "물 타기";
+            case "portafilter": return "포타필터 담기";
+            case "steam": return "우유 스팀";
+            case "latteart": return "라떼 아트";
         }
         return "";
     }
@@ -960,7 +967,10 @@ public class CafeLoop : MonoBehaviour
         int count = 0;
         for (int i = 0; i < stations.Length; i++)
         {
-            if (stations[i].gameObject.activeInHierarchy) count++;
+            if (!stations[i].gameObject.activeInHierarchy) continue;
+            Transform parent = stations[i].transform.parent;
+            if (parent != null && parent.GetComponentInParent<Station>() != null) continue;
+            count++;
         }
         return count;
     }
