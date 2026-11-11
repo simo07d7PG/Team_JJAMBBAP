@@ -1,0 +1,477 @@
+; FBX 6.1.0 project file
+; ----------------------------------------------------
+
+FBXHeaderExtension:  {
+	FBXHeaderVersion: 1003
+	FBXVersion: 6100
+	CreationTimeStamp:  {
+		Version: 1000
+		Year: 2026
+		Month: 10
+		Day: 27
+		Hour: 1
+		Minute: 49
+		Second: 0
+		Millisecond: 207
+	}
+	Creator: "FBX SDK/FBX Plugins version 2020.3.5"
+}
+
+; Document Description
+;------------------------------------------------------------------
+
+Document:  {
+	Name: ""
+}
+
+; Document References
+;------------------------------------------------------------------
+
+References:  {
+}
+
+; Object definitions
+;------------------------------------------------------------------
+
+Definitions:  {
+	Version: 100
+	Count: 14
+	ObjectType: "Model" {
+		Count: 1
+	}
+	ObjectType: "Material" {
+		Count: 1
+	}
+	ObjectType: "Texture" {
+		Count: 1
+	}
+	ObjectType: "Video" {
+		Count: 1
+	}
+	ObjectType: "SceneInfo" {
+		Count: 1
+	}
+	ObjectType: "GlobalSettings" {
+		Count: 1
+	}
+	ObjectType: "CollectionExclusive" {
+		Count: 8
+	}
+}
+
+; Object properties
+;------------------------------------------------------------------
+
+Objects:  {
+	Model: "Model::쟁반", "Mesh" {
+		Version: 232
+		Properties60:  {
+			Property: "QuaternionInterpolate", "enum", "",0
+			Property: "RotationOffset", "Vector3D", "",0,0,0
+			Property: "RotationPivot", "Vector3D", "",0,0,0
+			Property: "ScalingOffset", "Vector3D", "",0,0,0
+			Property: "ScalingPivot", "Vector3D", "",0,0,0
+			Property: "TranslationActive", "bool", "",0
+			Property: "TranslationMin", "Vector3D", "",0,0,0
+			Property: "TranslationMax", "Vector3D", "",0,0,0
+			Property: "TranslationMinX", "bool", "",0
+			Property: "TranslationMinY", "bool", "",0
+			Property: "TranslationMinZ", "bool", "",0
+			Property: "TranslationMaxX", "bool", "",0
+			Property: "TranslationMaxY", "bool", "",0
+			Property: "TranslationMaxZ", "bool", "",0
+			Property: "RotationOrder", "enum", "",0
+			Property: "RotationSpaceForLimitOnly", "bool", "",0
+			Property: "RotationStiffnessX", "double", "",0
+			Property: "RotationStiffnessY", "double", "",0
+			Property: "RotationStiffnessZ", "double", "",0
+			Property: "AxisLen", "double", "",10
+			Property: "PreRotation", "Vector3D", "",-90,-0,0
+			Property: "PostRotation", "Vector3D", "",0,0,0
+			Property: "RotationActive", "bool", "",1
+			Property: "RotationMin", "Vector3D", "",0,0,0
+			Property: "RotationMax", "Vector3D", "",0,0,0
+			Property: "RotationMinX", "bool", "",0
+			Property: "RotationMinY", "bool", "",0
+			Property: "RotationMinZ", "bool", "",0
+			Property: "RotationMaxX", "bool", "",0
+			Property: "RotationMaxY", "bool", "",0
+			Property: "RotationMaxZ", "bool", "",0
+			Property: "InheritType", "enum", "",1
+			Property: "ScalingActive", "bool", "",0
+			Property: "ScalingMin", "Vector3D", "",0,0,0
+			Property: "ScalingMax", "Vector3D", "",0,0,0
+			Property: "ScalingMinX", "bool", "",0
+			Property: "ScalingMinY", "bool", "",0
+			Property: "ScalingMinZ", "bool", "",0
+			Property: "ScalingMaxX", "bool", "",0
+			Property: "ScalingMaxY", "bool", "",0
+			Property: "ScalingMaxZ", "bool", "",0
+			Property: "GeometricTranslation", "Vector3D", "",0,0,-17.2858638763428
+			Property: "GeometricRotation", "Vector3D", "",0,0,0
+			Property: "GeometricScaling", "Vector3D", "",1,1,1
+			Property: "MinDampRangeX", "double", "",0
+			Property: "MinDampRangeY", "double", "",0
+			Property: "MinDampRangeZ", "double", "",0
+			Property: "MaxDampRangeX", "double", "",0
+			Property: "MaxDampRangeY", "double", "",0
+			Property: "MaxDampRangeZ", "double", "",0
+			Property: "MinDampStrengthX", "double", "",0
+			Property: "MinDampStrengthY", "double", "",0
+			Property: "MinDampStrengthZ", "double", "",0
+			Property: "MaxDampStrengthX", "double", "",0
+			Property: "MaxDampStrengthY", "double", "",0
+			Property: "MaxDampStrengthZ", "double", "",0
+			Property: "PreferedAngleX", "double", "",0
+			Property: "PreferedAngleY", "double", "",0
+			Property: "PreferedAngleZ", "double", "",0
+			Property: "LookAtProperty", "object", ""
+			Property: "UpVectorProperty", "object", ""
+			Property: "Show", "bool", "",1
+			Property: "NegativePercentShapeSupport", "bool", "",1
+			Property: "DefaultAttributeIndex", "int", "",0
+			Property: "Freeze", "bool", "",0
+			Property: "LODBox", "bool", "",0
+			Property: "Lcl Translation", "Lcl Translation", "A",0,0,0
+			Property: "Lcl Rotation", "Lcl Rotation", "A",0,0,0
+			Property: "Lcl Scaling", "Lcl Scaling", "A",5.801392,1.623866,0.111936
+			Property: "Visibility", "Visibility", "A",1
+			Property: "MaxHandle", "int", "UH",10
+			Property: "Color", "ColorRGB", "N",0.776470588235294,0.619607843137255,0.607843137254902
+			Property: "BBoxMin", "Vector3D", "N",0,0,0
+			Property: "BBoxMax", "Vector3D", "N",0,0,0
+			Property: "Primary Visibility", "bool", "N",1
+			Property: "Casts Shadows", "bool", "N",1
+			Property: "Receive Shadows", "bool", "N",1
+		}
+		MultiLayer: 0
+		MultiTake: 0
+		Shading: T
+		Culling: "CullingOff"
+		Vertices: -10.8784313201904,-23.0811729431152,0,10.8784313201904,-23.0811729431152,0,10.8784313201904,23.0811729431152,0,-10.8784313201904
+        ,23.0811729431152,0,-10.7393836975098,-22.0733299255371,16.8347263336182,10.7393836975098,-22.0733299255371,16.8347263336182
+        ,10.7393836975098,22.0733299255371,16.8347263336182,-10.7393836975098,22.0733299255371,16.8347263336182,-11.5248184204102
+        ,-25.0905380249023,34.5717315673828,11.5248184204102,-25.0905380249023,34.5717315673828,11.5248184204102,25.0905380249023
+        ,34.5717315673828,-11.5248184204102,25.0905380249023,34.5717315673828,11.0565929412842,-23.3181419372559,34.5717315673828
+        ,-11.0565929412842,-23.3181419372559,34.5717315673828,-11.0565929412842,23.3181419372559,34.5717315673828,11.0565929412842
+        ,23.3181419372559,34.5717315673828
+		PolygonVertexIndex: 0,3,2,-2,4,5,6,-8,8,9,12,-14,9,10,15,-13,10,11,14,-16,11,8,13,-15,0,1,9,-9,1,2,10,-10,2,3,11,-11,3,0,8,-12,5,4,13
+        ,-13,4,7,14,-14,7,6,15,-15,6,5,12,-16
+		Edges: 3,25,27,1,2,29,0,39,40,52,48,44,21,9,13,17,8,12,16,20,10,22,18,14,53,41,45,49
+		GeometryVersion: 124
+		LayerElementNormal: 0 {
+			Version: 101
+			Name: ""
+			MappingInformationType: "ByPolygonVertex"
+			ReferenceInformationType: "Direct"
+			Normals: 0,0,-1,0,0,-1,0,0,-1,0,0,-1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0
+             ,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,-0.998315155506134,-0.0580236949026585,0,-0.998315155506134,-0.0580236949026585
+             ,0,-0.998315155506134,-0.0580236986279488,0,-0.998315155506134,-0.0580236986279488,0.999825179576874,0,-0.0186937171965837
+             ,0.999825179576874,0,-0.0186937171965837,0.999825298786163,0,-0.0186937190592289,0.999825298786163,0,-0.0186937190592289
+             ,0,0.998315155506134,-0.0580236949026585,0,0.998315155506134,-0.0580236949026585,0,0.998315155506134,-0.0580236986279488
+             ,0,0.998315155506134,-0.0580236986279488,-0.999825179576874,0,-0.0186937171965837,-0.999825179576874,0,-0.0186937171965837
+             ,-0.999825298786163,0,-0.0186937190592289,-0.999825298786163,0,-0.0186937190592289,0,0.997546315193176,0.0700094252824783
+             ,0,0.997546315193176,0.0700094252824783,0,0.997546374797821,0.0700094327330589,0,0.997546374797821,0.0700094327330589
+             ,0.999840080738068,0,0.0178811755031347,0.999840080738068,0,0.0178811755031347,0.999840199947357,0,0.0178811773657799
+             ,0.999840199947357,0,0.0178811773657799,0,-0.997546315193176,0.0700094252824783,0,-0.997546315193176,0.0700094252824783
+             ,0,-0.997546374797821,0.0700094327330589,0,-0.997546374797821,0.0700094327330589,-0.999840080738068,0,0.0178811755031347
+             ,-0.999840080738068,0,0.0178811755031347,-0.999840199947357,0,0.0178811773657799,-0.999840199947357,0,0.0178811773657799
+             
+		}
+		LayerElementUV: 0 {
+			Version: 101
+			Name: "UVChannel_1"
+			MappingInformationType: "ByPolygonVertex"
+			ReferenceInformationType: "IndexToDirect"
+			UV: 0.369902342557907,0.174242198467255,0.126044675707817,0.207450747489929,0.0869524329900742,0.120952606201172
+             ,0.332703322172165,0.0871596932411194,0.353063255548477,0.348379969596863,0.366655558347702,0.455535054206848
+             ,0.102226302027702,0.464883923530579,0.0850378721952438,0.358885526657104,0.432824105024338,0.284550309181213
+             ,0.424837082624435,0.532363891601562,0.411188215017319,0.529091715812683,0.41862753033638,0.287690162658691,0.0259320605546236
+             ,0.530935406684875,0.039592981338501,0.527768135070801,0.0229167658835649,0.283176779747009,0.0371024161577225
+             ,0.286417901515961,0.438670486211777,0.0141600370407104,0.0206648427993059,0.0123522877693176
+			UVIndex: 0,1,2,3,4,5,6,7,8,9,10,11,9,12,13,10,12,14,15,13,14,8,11,15,0,3,16,8,3,2,17,16,2,1,14,17,1,0,8,14,5,4,11,10,4
+             ,7,15,11,7,6,13,15,6,5,10,13
+		}
+		LayerElementMaterial: 0 {
+			Version: 101
+			Name: ""
+			MappingInformationType: "AllSame"
+			ReferenceInformationType: "IndexToDirect"
+			Materials: 0
+		}
+		Layer: 0 {
+			Version: 100
+			LayerElement:  {
+				Type: "LayerElementNormal"
+				TypedIndex: 0
+			}
+			LayerElement:  {
+				Type: "LayerElementMaterial"
+				TypedIndex: 0
+			}
+			LayerElement:  {
+				Type: "LayerElementUV"
+				TypedIndex: 0
+			}
+		}
+		NodeAttributeName: "Geometry::쟁반_ncl1_1"
+	}
+	SceneInfo: "SceneInfo::GlobalInfo", "UserData" {
+		Type: "UserData"
+		Version: 100
+		MetaData:  {
+			Version: 100
+			Title: ""
+			Subject: ""
+			Author: ""
+			Keywords: ""
+			Revision: ""
+			Comment: ""
+		}
+		Properties60:  {
+			Property: "DocumentUrl", "KString", "", "C:\Users\Owner\Desktop\팀플작업모음\UV오브젝트\Tray.fbx"
+			Property: "SrcDocumentUrl", "KString", "", "C:\Users\Owner\Desktop\팀플작업모음\UV오브젝트\Tray.fbx"
+			Property: "Original", "Compound", ""
+			Property: "Original|ApplicationVendor", "KString", "", "Autodesk"
+			Property: "Original|ApplicationName", "KString", "", "3ds Max"
+			Property: "Original|ApplicationVersion", "KString", "", "2025"
+			Property: "Original|DateTime_GMT", "DateTime", "", "26/10/2026 16:49:00.206"
+			Property: "Original|FileName", "KString", "", "C:\Users\Owner\Desktop\팀플작업모음\UV오브젝트\Tray.fbx"
+			Property: "LastSaved", "Compound", ""
+			Property: "LastSaved|ApplicationVendor", "KString", "", "Autodesk"
+			Property: "LastSaved|ApplicationName", "KString", "", "3ds Max"
+			Property: "LastSaved|ApplicationVersion", "KString", "", "2025"
+			Property: "LastSaved|DateTime_GMT", "DateTime", "", "26/10/2026 16:49:00.206"
+			Property: "Original|ApplicationActiveProject", "KString", "", "C:\Users\Owner\Documents\3ds Max 2025"
+			Property: "Original|ApplicationNativeFile", "KString", "", "C:\Users\Owner\Desktop\카페 OBJ UV완.max"
+		}
+	}
+	Material: "Material::Material #22", "" {
+		Version: 102
+		ShadingModel: "unknown"
+		MultiLayer: 0
+		Properties60:  {
+			Property: "ShadingModel", "KString", "", "unknown"
+			Property: "MultiLayer", "bool", "",0
+			Property: "AmbientColor", "ColorRGB", "",1,1,1
+			Property: "DiffuseColor", "ColorRGB", "",1,1,1
+			Property: "SpecularColor", "ColorRGB", "",1,1,1
+			Property: "SpecularFactor", "double", "",2
+			Property: "ShininessExponent", "double", "",1024
+			Property: "TransparencyFactor", "double", "",0
+			Property: "EmissiveColor", "ColorRGB", "",0,0,0
+			Property: "EmissiveFactor", "double", "",0
+			Property: "3dsMax", "Compound", ""
+			Property: "3dsMax|ClassIDa", "int", "",-804315648
+			Property: "3dsMax|ClassIDb", "int", "",-1099438848
+			Property: "3dsMax|SuperClassID", "int", "",3072
+			Property: "3dsMax|settings", "Compound", ""
+			Property: "3dsMax|settings|ao_affects_diffuse", "Bool", "A",1
+			Property: "3dsMax|settings|ao_affects_reflection", "Bool", "A",1
+			Property: "3dsMax|settings|normal_flip_red", "Bool", "A",0
+			Property: "3dsMax|settings|normal_flip_green", "Bool", "A",0
+			Property: "3dsMax|main", "Compound", ""
+			Property: "3dsMax|main|baseColor", "ColorAndAlpha", "A",1,1,1,1
+			Property: "3dsMax|main|base_color_map", "Reference", "A"
+			Property: "3dsMax|main|metalness", "Float", "A",0
+			Property: "3dsMax|main|metalness_map", "Reference", "A"
+			Property: "3dsMax|main|roughness", "Float", "A",0
+			Property: "3dsMax|main|Roughness_Map", "Reference", "A"
+			Property: "3dsMax|main|useGlossiness", "Integer", "A",2
+			Property: "3dsMax|main|ao_map", "Reference", "A"
+			Property: "3dsMax|main|bump_map_amt", "Float", "A",1
+			Property: "3dsMax|main|norm_map", "Reference", "A"
+			Property: "3dsMax|main|emit_color", "ColorAndAlpha", "A",0,0,0,1
+			Property: "3dsMax|main|emit_color_map", "Reference", "A"
+			Property: "3dsMax|main|opacity_map", "Reference", "A"
+			Property: "3dsMax|main|displacement_amt", "Float", "A",1
+			Property: "3dsMax|main|displacement_map", "Reference", "A"
+		}
+	}
+	Video: "Video::Map #4", "Clip" {
+		Type: "Clip"
+		Properties60:  {
+			Property: "Path", "KString", "", "C:\Users\Owner\Desktop\팀플작업모음\텍스쳐\카페 오브젝트_Material _22_BaseColor.png"
+             
+			Property: "RelPath", "KString", "", "..\텍스쳐\카페 오브젝트_Material _22_BaseColor.png"
+			Property: "Color", "ColorRGB", "",0.8,0.8,0.8
+			Property: "ClipIn", "KTime", "",0
+			Property: "ClipOut", "KTime", "",0
+			Property: "Offset", "KTime", "",0
+			Property: "PlaySpeed", "double", "",0
+			Property: "FreeRunning", "bool", "",0
+			Property: "Loop", "bool", "",0
+			Property: "Mute", "bool", "",0
+			Property: "AccessMode", "enum", "",0
+			Property: "ImageSequence", "bool", "",0
+			Property: "ImageSequenceOffset", "int", "",0
+			Property: "FrameRate", "double", "",0
+			Property: "LastFrame", "int", "",0
+			Property: "Width", "int", "",0
+			Property: "Height", "int", "",0
+			Property: "StartFrame", "int", "",0
+			Property: "StopFrame", "int", "",0
+			Property: "InterlaceMode", "enum", "",0
+		}
+		UseMipMap: 0
+		Filename: "C:\Users\Owner\Desktop\팀플작업모음\텍스쳐\카페 오브젝트_Material _22_BaseColor.png"
+		RelativeFilename: "..\텍스쳐\카페 오브젝트_Material _22_BaseColor.png"
+	}
+	Texture: "Texture::Map #4", "" {
+		Type: "TextureVideoClip"
+		Version: 202
+		TextureName: "Texture::Map #4"
+		Properties60:  {
+			Property: "TextureTypeUse", "enum", "",0
+			Property: "Texture alpha", "Number", "A",1
+			Property: "CurrentMappingType", "enum", "",0
+			Property: "WrapModeU", "enum", "",0
+			Property: "WrapModeV", "enum", "",0
+			Property: "UVSwap", "bool", "",0
+			Property: "PremultiplyAlpha", "bool", "",1
+			Property: "Translation", "Vector", "A",0,0,0
+			Property: "Rotation", "Vector", "A",0,0,0
+			Property: "Scaling", "Vector", "A",1,1,1
+			Property: "TextureRotationPivot", "Vector3D", "",0,0,0
+			Property: "TextureScalingPivot", "Vector3D", "",0,0,0
+			Property: "CurrentTextureBlendMode", "enum", "",1
+			Property: "UVSet", "KString", "", "UVChannel_1"
+			Property: "UseMaterial", "bool", "",1
+			Property: "UseMipMap", "bool", "",0
+		}
+		Media: "Video::Map #4"
+		FileName: "C:\Users\Owner\Desktop\팀플작업모음\텍스쳐\카페 오브젝트_Material _22_BaseColor.png"
+		RelativeFilename: "..\텍스쳐\카페 오브젝트_Material _22_BaseColor.png"
+		ModelUVTranslation: 0,0
+		ModelUVScaling: 1,1
+		Texture_Alpha_Source: "None"
+		Cropping: 0,0,0,0
+	}
+	GlobalSettings:  {
+		Version: 1000
+		Properties60:  {
+			Property: "UpAxis", "int", "",1
+			Property: "UpAxisSign", "int", "",1
+			Property: "FrontAxis", "int", "",2
+			Property: "FrontAxisSign", "int", "",1
+			Property: "CoordAxis", "int", "",0
+			Property: "CoordAxisSign", "int", "",1
+			Property: "OriginalUpAxis", "int", "",2
+			Property: "OriginalUpAxisSign", "int", "",1
+			Property: "UnitScaleFactor", "double", "",2.54
+			Property: "OriginalUnitScaleFactor", "double", "",2.54
+			Property: "AmbientColor", "ColorRGB", "",0,0,0
+			Property: "DefaultCamera", "KString", "", "Producer Perspective"
+			Property: "TimeMode", "enum", "",6
+			Property: "TimeProtocol", "enum", "",2
+			Property: "SnapOnFrameMode", "enum", "",0
+			Property: "TimeSpanStart", "KTime", "",0
+			Property: "TimeSpanStop", "KTime", "",153953860000
+			Property: "CustomFrameRate", "double", "",-1
+		}
+	}
+	CollectionExclusive: "DisplayLayer::포스기", "DisplayLayer" {
+		Properties60:  {
+			Property: "Color", "ColorRGB", "",0.364705882352941,0.0705882352941176,0.388235294117647
+			Property: "Show", "bool", "",0
+			Property: "Freeze", "bool", "",0
+			Property: "LODBox", "bool", "",0
+		}
+	}
+	CollectionExclusive: "DisplayLayer::NPC", "DisplayLayer" {
+		Properties60:  {
+			Property: "Color", "ColorRGB", "",0.717647058823529,0.607843137254902,0.898039215686275
+			Property: "Show", "bool", "",0
+			Property: "Freeze", "bool", "",0
+			Property: "LODBox", "bool", "",0
+		}
+	}
+	CollectionExclusive: "DisplayLayer::에스프레소 머신", "DisplayLayer" {
+		Properties60:  {
+			Property: "Color", "ColorRGB", "",0.294117647058824,0.0666666666666667,0.474509803921569
+			Property: "Show", "bool", "",0
+			Property: "Freeze", "bool", "",0
+			Property: "LODBox", "bool", "",0
+		}
+	}
+	CollectionExclusive: "DisplayLayer::미니 냉장고, 재빙기", "DisplayLayer" {
+		Properties60:  {
+			Property: "Color", "ColorRGB", "",0.0549019607843137,0.0392156862745098,0.466666666666667
+			Property: "Show", "bool", "",0
+			Property: "Freeze", "bool", "",0
+			Property: "LODBox", "bool", "",0
+		}
+	}
+	CollectionExclusive: "DisplayLayer::티포트,물통, 종이컵, 세라믹컵", "DisplayLayer" {
+		Properties60:  {
+			Property: "Color", "ColorRGB", "",0.772549019607843,0.87843137254902,0.635294117647059
+			Property: "Show", "bool", "",0
+			Property: "Freeze", "bool", "",0
+			Property: "LODBox", "bool", "",0
+		}
+	}
+	CollectionExclusive: "DisplayLayer::맥심, 우유, 시럽, 커피포대, 커피콩", "DisplayLayer" {
+		Properties60:  {
+			Property: "Color", "ColorRGB", "",0.368627450980392,0.352941176470588,0.811764705882353
+			Property: "Show", "bool", "",0
+			Property: "Freeze", "bool", "",0
+			Property: "LODBox", "bool", "",0
+		}
+	}
+	CollectionExclusive: "DisplayLayer::쟁반, 템퍼, 스쿱", "DisplayLayer" {
+		Properties60:  {
+			Property: "Color", "ColorRGB", "",0.596078431372549,0.67843137254902,0.180392156862745
+			Property: "Show", "bool", "",1
+			Property: "Freeze", "bool", "",0
+			Property: "LODBox", "bool", "",0
+		}
+	}
+	CollectionExclusive: "DisplayLayer::핸드드립, 그라인더", "DisplayLayer" {
+		Properties60:  {
+			Property: "Color", "ColorRGB", "",0.627450980392157,0.580392156862745,0.168627450980392
+			Property: "Show", "bool", "",0
+			Property: "Freeze", "bool", "",0
+			Property: "LODBox", "bool", "",0
+		}
+	}
+}
+
+; Object connections
+;------------------------------------------------------------------
+
+Connections:  {
+	Connect: "OO", "Model::쟁반", "Model::Scene"
+	Connect: "OO", "Material::Material #22", "Model::쟁반"
+	Connect: "OP", "Texture::Map #4", "Material::Material #22", "3dsMax|main|base_color_map"
+	Connect: "OO", "Video::Map #4", "Texture::Map #4"
+	Connect: "OO", "Model::쟁반", "DisplayLayer::쟁반, 템퍼, 스쿱"
+}
+;Version 5 settings
+;------------------------------------------------------------------
+
+Version5:  {
+	AmbientRenderSettings:  {
+		Version: 101
+		AmbientLightColor: 0,0,0,1
+	}
+	FogOptions:  {
+		FlogEnable: 0
+		FogMode: 0
+		FogDensity: 0.002
+		FogStart: 0.3
+		FogEnd: 1000
+		FogColor: 1,1,1,1
+	}
+	Settings:  {
+		FrameRate: "30"
+		TimeFormat: 1
+		SnapOnFrames: 0
+		ReferenceTimeIndex: -1
+		TimeLineStartTime: 0
+		TimeLineStopTime: 470400000
+	}
+	RendererSetting:  {
+		DefaultCamera: "Producer Perspective"
+		DefaultViewingMode: 0
+	}
+}
