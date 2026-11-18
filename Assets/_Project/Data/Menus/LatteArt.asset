@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: LatteArt
   m_EditorClassIdentifier: Assembly-CSharp::MenuData
   menuName: "\uB77C\uB5BC \uC544\uD2B8"
-  price: 3500
+  price: 6000
   steps:
   - grinder
   - autogrind

@@ -50,6 +50,36 @@ public static class SaveSlots
         return head + "\n" + money + "\n" + owned + "\n" + data.situation + "\n<size=80%>" + data.savedAt + "</size>";
     }
 
+    // 발표용 데이터: 3일차 아침, 6,000원, 기계·레시피를 모두 산 상태 (id는 GameScene의 CafeShop 물건 id)
+    public static SaveData BuildDemo()
+    {
+        SaveData data = new SaveData();
+        data.day = 3;
+        data.money = 6000;
+        data.shopPending = false;
+        data.newMenuId = "";
+        data.owned = new string[]
+        {
+            "ice_machine", "milk_fridge",
+            "recipe_americano", "recipe_iced_americano", "recipe_latte", "recipe_iced_latte",
+            "recipe_hand_drip", "recipe_machine_latte", "recipe_latte_art"
+        };
+        data.dayTimer = 75f;
+        data.nextCustomerTimer = 2f;
+        data.order = 0;
+        data.menuIndex = -1;
+        data.stepVariants = new int[0];
+        data.request = "";
+        data.cup = new Cup();
+        data.savedAt = System.DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+        data.playDay = 3;
+        data.customersPerDay = 5;
+        data.menuCount = 8;
+        data.machineCount = 8;
+        data.situation = "발표용 데이터";
+        return data;
+    }
+
     // slot: 0부터
     private static string PathOf(int slot)
     {

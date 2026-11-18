@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 // 로비 '게임 시작'을 누르면 뜨는 패널. 이어하기 / 슬롯 1~3 불러오기 / 새 게임 중에서 고른다
@@ -32,6 +33,12 @@ public class LobbySaveSelect : MonoBehaviour
     private const int ArmedNewGame = SaveSlots.Count;
     private int armed = ArmedNone;
 
+    // 발표용 슬롯(F8): 3번 슬롯을 덮어쓴다. 진행이 있으면 2초 안에 한 번 더 눌러야 한다
+    private const int DemoSlot = 2;
+    private const float DemoConfirmSeconds = 2f;
+    private float demoArmedUntil = -1f;
+    private TMP_Text demoNotice;
+
     private void Awake()
     {
         for (int i = 0; i < cards.Length; i++)
@@ -39,6 +46,67 @@ public class LobbySaveSelect : MonoBehaviour
             cards[i].lobby = this;
             cards[i].index = i;
         }
+    }
+
+    private void Update()
+    {
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard != null && keyboard.f8Key.wasPressedThisFrame) PressDemoKey();
+        if (demoArmedUntil > 0f && Time.unscaledTime > demoArmedUntil)
+        {
+            demoArmedUntil = -1f;
+            if (demoNotice != null) demoNotice.gameObject.SetActive(false);
+        }
+    }
+
+    private void OnDisable()
+    {
+        demoArmedUntil = -1f;
+        if (demoNotice != null) demoNotice.gameObject.SetActive(false);
+    }
+
+    private void PressDemoKey()
+    {
+        bool armedNow = demoArmedUntil > 0f && Time.unscaledTime <= demoArmedUntil;
+        if (SaveSlots.Read(DemoSlot) != null && !armedNow)
+        {
+            demoArmedUntil = Time.unscaledTime + DemoConfirmSeconds;
+            ShowDemoNotice("F8 한 번 더: 3번 슬롯을 발표용으로 덮어씁니다");
+            return;
+        }
+        demoArmedUntil = -1f;
+        if (SaveSlots.Write(DemoSlot, SaveSlots.BuildDemo()))
+        {
+            armed = ArmedNone;
+            Refresh();
+            ShowDemoNotice("3번 슬롯을 발표용 데이터로 채웠어요");
+            demoArmedUntil = Time.unscaledTime + DemoConfirmSeconds;
+        }
+    }
+
+    // 패널 아래쪽에 작은 안내 글자를 코드로 만들어 쓴다
+    private void ShowDemoNotice(string message)
+    {
+        if (demoNotice == null)
+        {
+            GameObject go = new GameObject("DemoNotice", typeof(RectTransform));
+            go.transform.SetParent(transform, false);
+            RectTransform rect = (RectTransform)go.transform;
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = new Vector2(0f, 24f);
+            rect.sizeDelta = new Vector2(1200f, 60f);
+            demoNotice = go.AddComponent<TextMeshProUGUI>();
+            if (continueInfo != null) demoNotice.font = continueInfo.font;
+            demoNotice.fontSize = 32f;
+            demoNotice.alignment = TextAlignmentOptions.Center;
+            demoNotice.color = new Color(1f, 0.9f, 0.5f);
+            demoNotice.raycastTarget = false;
+        }
+        demoNotice.text = message;
+        demoNotice.gameObject.SetActive(true);
+        demoNotice.transform.SetAsLastSibling();
     }
 
     // '게임 시작' 버튼
