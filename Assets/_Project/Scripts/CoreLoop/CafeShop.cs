@@ -82,12 +82,12 @@ public class CafeShop : MonoBehaviour
     // 작업본 읽기 (로비처럼 CafeShop이 없는 곳에서도 쓴다)
     public static int ReadDay()
     {
-        return PlayerPrefs.GetInt(DayKey, 1);
+        return Mathf.Max(1, PlayerPrefs.GetInt(DayKey, 1));
     }
 
     public static int ReadMoney()
     {
-        return PlayerPrefs.GetInt(MoneyKey, 0);
+        return Mathf.Max(0, PlayerPrefs.GetInt(MoneyKey, 0));
     }
 
     public static bool ReadShopPending()
@@ -194,11 +194,12 @@ public class CafeShop : MonoBehaviour
     // 불러오기: 슬롯의 작업본으로 PlayerPrefs를 덮어쓴다 (씬을 다시 읽으면 Load가 이 값을 읽는다)
     public void ApplySave(SaveData data)
     {
-        PlayerPrefs.SetInt(DayKey, data.day);
-        PlayerPrefs.SetInt(MoneyKey, data.money);
+        if (data == null) return;
+        PlayerPrefs.SetInt(DayKey, Mathf.Max(1, data.day));
+        PlayerPrefs.SetInt(MoneyKey, Mathf.Max(0, data.money));
         if (data.shopPending) PlayerPrefs.SetInt(PendingKey, 1);
         else PlayerPrefs.DeleteKey(PendingKey);
-        if (data.newMenuId != "") PlayerPrefs.SetString(NewMenuKey, data.newMenuId);
+        if (!string.IsNullOrEmpty(data.newMenuId)) PlayerPrefs.SetString(NewMenuKey, data.newMenuId);
         else PlayerPrefs.DeleteKey(NewMenuKey);
         for (int i = 0; i < items.Length; i++)
         {
@@ -210,6 +211,7 @@ public class CafeShop : MonoBehaviour
 
     private bool HasId(string[] ids, string id)
     {
+        if (ids == null) return false;
         for (int i = 0; i < ids.Length; i++)
         {
             if (ids[i] == id) return true;

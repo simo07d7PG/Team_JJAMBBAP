@@ -24,6 +24,21 @@ public class VideoOption : MonoBehaviour
                 resolutions.Add(Screen.resolutions[i]);
         }
 
+        // 144Hz 항목이 없으면 전체 해상도에서 (너비, 높이) 중복을 뺀 목록으로 대체
+        if (resolutions.Count == 0)
+        {
+            for (int i = 0; i < Screen.resolutions.Length; i++)
+            {
+                UnityEngine.Resolution r = Screen.resolutions[i];
+                bool dup = false;
+                for (int j = 0; j < resolutions.Count; j++)
+                {
+                    if (resolutions[j].width == r.width && resolutions[j].height == r.height) { dup = true; break; }
+                }
+                if (!dup) resolutions.Add(r);
+            }
+        }
+
         resolutionDropdown.options.Clear();
 
         int optionNum = 0;
@@ -56,6 +71,7 @@ public class VideoOption : MonoBehaviour
 
     public void OkBtnClick()
     {
+        if (resolutions == null || resolutions.Count == 0 || resolutinNum < 0 || resolutinNum >= resolutions.Count) return;
         Screen.SetResolution(resolutions[resolutinNum].width,
             resolutions[resolutinNum].height,
             screenMode);

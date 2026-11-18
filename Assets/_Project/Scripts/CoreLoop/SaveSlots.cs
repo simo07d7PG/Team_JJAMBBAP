@@ -26,6 +26,19 @@ public static class SaveSlots
     // 슬롯 칸 정보 5줄: 날짜·시간·손님 / 돈 / 메뉴·기계 / 상황 / 저장 시각
     public static string Describe(SaveData data)
     {
+        try
+        {
+            return DescribeCore(data);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("[SaveSlots] 칸 정보 만들기 실패: " + e.Message);
+            return "저장 정보를 읽을 수 없어요";
+        }
+    }
+
+    private static string DescribeCore(SaveData data)
+    {
         string head;
         string money = "보유 " + data.money.ToString("N0") + "원";
         if (data.shopPending)
@@ -93,7 +106,16 @@ public static class SaveSlots
         if (!File.Exists(path)) return null;
         try
         {
-            return JsonUtility.FromJson<SaveData>(File.ReadAllText(path));
+            string json = File.ReadAllText(path);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                Debug.LogWarning("[SaveSlots] 빈 슬롯 파일: " + path);
+                return null;
+            }
+            SaveData data = JsonUtility.FromJson<SaveData>(json);
+            if (data == null) return null;
+            Sanitize(data);
+            return data;
         }
         catch (System.Exception e)
         {
@@ -102,13 +124,46 @@ public static class SaveSlots
         }
     }
 
+    // 깨졌거나 옛 버전 파일에서 빠진 값을 안전한 값으로 채운다
+    private static void Sanitize(SaveData data)
+    {
+        if (data.day < 1) data.day = 1;
+        if (data.money < 0) data.money = 0;
+        if (data.playDay < 1) data.playDay = data.day;
+        if (data.owned == null) data.owned = new string[0];
+        if (data.newMenuId == null) data.newMenuId = "";
+        if (data.stepVariants == null) data.stepVariants = new int[0];
+        if (data.request == null) data.request = "";
+        if (data.cup == null) data.cup = new Cup();
+        if (data.savedAt == null) data.savedAt = "";
+        if (data.situation == null) data.situation = "";
+    }
+
     // 쓰지 못하면 false
     public static bool Write(int slot, SaveData data)
     {
         string path = PathOf(slot);
         try
         {
-            File.WriteAllText(path, JsonUtility.ToJson(data));
+            // 임시 파일에 먼저 쓴 뒤 교체해서 반쯤 써진 슬롯 파일을 남기지 않는다
+            string tmp = path + ".tmp";
+            File.WriteAllText(tmp, JsonUtility.ToJson(data));
+            if (File.Exists(path))
+            {
+                try
+                {
+                    File.Replace(tmp, path, null);
+                }
+                catch (System.Exception)
+                {
+                    File.Copy(tmp, path, true);
+                    File.Delete(tmp);
+                }
+            }
+            else
+            {
+                File.Move(tmp, path);
+            }
         }
         catch (System.Exception e)
         {
