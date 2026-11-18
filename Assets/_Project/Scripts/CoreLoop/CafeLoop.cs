@@ -197,6 +197,8 @@ public class CafeLoop : MonoBehaviour
     private int combo;
     // 슬롯에서 불러온 하루 중 상태로 시작했다 (OpenDay 대신 '불러왔어요')
     private bool loadedSave;
+    private CafeTutorial tutorial;
+    private CafeEnding ending;
 
     private void Start()
     {
@@ -220,6 +222,10 @@ public class CafeLoop : MonoBehaviour
         dayTimer = daySeconds;
         // HUD 패널·하루 진행 바·수입 튕김 (글자 참조는 그대로)
         gameObject.AddComponent<CafeHud>().Init(this);
+        tutorial = gameObject.AddComponent<CafeTutorial>();
+        tutorial.Init(this);
+        ending = gameObject.AddComponent<CafeEnding>();
+        ending.Init(this);
         ShowDay();
         ShowIncome();
         UpdateTargets();
@@ -650,9 +656,18 @@ public class CafeLoop : MonoBehaviour
             ShowNotice("목표 달성!");
             noticeTimer = GoalNoticeSeconds;
         }
+        tutorial.OnServed();
+        CafeEnding.AddSale();
         Debug.Log("[CafeLoop] 제공: " + menu.menuName + " " + price + "원 + 팁 " + tip);
         CustomerLeave(successCount == menu.steps.Length ? "고마워요!" : "음… 다음엔 잘해 줘요");
         customer.React(true);
+    }
+
+    // 튜토리얼 배너용: 0 숨김, 1 수락 대기, 2 제조 중, 3 제공 대기 (카페 화면·진행 중일 때만)
+    public int TutorialPhase()
+    {
+        if (opening || state != StateCafe || Time.timeScale <= 0f || receiptPanel.activeSelf) return 0;
+        return order;
     }
 
     // 금액을 PriceUnit(100원) 단위로 반올림
@@ -859,6 +874,7 @@ public class CafeLoop : MonoBehaviour
         receiptShown = true;
         shop.SaveEndOfDay(day + 1, income);
         receiptPanel.SetActive(true);
+        ending.TryShow(day);
         view.viewEnabled = false;
         pointer.SetTarget(null, "");
         // 상자가 아래에서 올라오고, 수입 숫자가 굴러 올라간다 (0원이면 굴리지 않는다)
