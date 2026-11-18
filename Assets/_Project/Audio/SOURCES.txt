@@ -16,3 +16,5 @@ sfx_whoosh.wav - procedurally generated, free to use
 sfx_pour.wav - procedurally generated, free to use
 sfx_thud.wav - procedurally generated, free to use
 sfx_hiss.wav - procedurally generated, free to use
+sfx_greet.wav - procedurally generated, free to use
+sfx_bye.wav - procedurally generated, free to use

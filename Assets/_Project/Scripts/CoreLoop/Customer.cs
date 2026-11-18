@@ -1,6 +1,7 @@
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 // 손님. 카운터 앞에 켜고 끄기만 한다. 머리 위 말풍선에 메뉴 이름과 인내도 막대를 보여 준다.
 // 클릭·하이라이트는 같은 오브젝트의 Station(stationId "customer")이 맡는다.
@@ -45,6 +46,15 @@ public class Customer : MonoBehaviour
     private const float ReactJump = 0.06f;
     private const float ReactShake = 0.02f;
 
+    // 인내도 막대 색·깜빡임
+    private static readonly Color PatienceGreen = new Color(0.45f, 0.85f, 0.4f);
+    private static readonly Color PatienceYellow = new Color(0.98f, 0.82f, 0.3f);
+    private static readonly Color PatienceRed = new Color(0.92f, 0.3f, 0.28f);
+    private const float PatienceBlinkRatio = 0.2f;
+    private const float PatienceBlinkPeriod = 0.25f;
+    private Image patienceImage;
+    private float patienceRatio = 1f;
+
     // 루트 등장 연출 시간(초), 아래에서 올라오는 거리(m)
     private const float PopRootSeconds = 0.35f;
     private const float PopRise = 0.02f;
@@ -80,6 +90,7 @@ public class Customer : MonoBehaviour
         if (request != "") menuText.text = menu.menuName + "\n<size=70%>" + request + "</size>";
         else menuText.text = menu.menuName;
         patienceBar.SetActive(false);
+        MinigameSfx.Play("sfx_greet", 0.5f);
         StartCoroutine(PopBubble());
     }
 
@@ -126,6 +137,7 @@ public class Customer : MonoBehaviour
         leaving = true;
         nodTime = 0f;
         menuText.text = message;
+        MinigameSfx.Play("sfx_bye", 0.5f);
         StartCoroutine(LeaveRoutine());
     }
 
@@ -167,6 +179,21 @@ public class Customer : MonoBehaviour
         nervous = visible && ratio <= NervousRatio;
         patienceBar.SetActive(visible && !leaving);
         patienceFill.localScale = new Vector3(Mathf.Clamp01(ratio), 1f, 1f);
+        patienceRatio = Mathf.Clamp01(ratio);
+        if (patienceImage == null) patienceImage = patienceFill.GetComponent<Image>();
+        ApplyPatienceColor();
+    }
+
+    // 인내도 막대 색: 초록 → 노랑 → 빨강, 0.2 이하에서는 알파 깜빡임
+    private void ApplyPatienceColor()
+    {
+        if (patienceImage == null) return;
+        Color c = patienceRatio > 0.5f
+            ? Color.Lerp(PatienceYellow, PatienceGreen, (patienceRatio - 0.5f) / 0.5f)
+            : Color.Lerp(PatienceRed, PatienceYellow, patienceRatio / 0.5f);
+        if (patienceRatio <= PatienceBlinkRatio && !leaving)
+            c.a = Mathf.Repeat(Time.unscaledTime, PatienceBlinkPeriod) < PatienceBlinkPeriod * 0.5f ? 1f : 0.35f;
+        patienceImage.color = c;
     }
 
     private IEnumerator PopBubble()
@@ -199,6 +226,7 @@ public class Customer : MonoBehaviour
     // 대기 흔들림·등장·끄덕임. 코루틴이 아니라 Update라 StopAllCoroutines와 무관하다
     private void Update()
     {
+        if (patienceBar != null && patienceBar.activeSelf && patienceRatio <= PatienceBlinkRatio) ApplyPatienceColor();
         if (!rootSaved) return;
         float dt = Time.deltaTime;
         bool hurry = nervous && !leaving;
