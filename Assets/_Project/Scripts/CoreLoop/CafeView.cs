@@ -72,6 +72,11 @@ public class CafeView : MonoBehaviour
     private Vector3 startPos;
     private Vector3 railDir;
     private bool walking;
+    // 걷기 보빙: 진폭(m)·속도, 도착 반동 깊이(m)·시간(초)
+    private const float BobAmplitude = 0.012f;
+    private const float BobSpeed = 9f;
+    private const float SettleDepth = 0.015f;
+    private const float SettleSeconds = 0.18f;
 
     private void Start()
     {
@@ -87,6 +92,7 @@ public class CafeView : MonoBehaviour
         railDir.y = 0f;
         railDir.Normalize();
         SetCursorLocked(true);
+        if (GetComponent<CafeAmbience>() == null) gameObject.AddComponent<CafeAmbience>().Init(this, cam);
     }
 
     // 레일 위에서 대상과 가장 가까운 곳으로 걸어가며 대상을 바라본다. 걷는 동안 시야·클릭 입력은 막는다
@@ -109,16 +115,30 @@ public class CafeView : MonoBehaviour
         SetHovered(null);
         float seconds = Mathf.Max(minWalkSeconds, Vector3.Distance(from, to) / walkSpeed);
         float t = 0f;
+        float bobPhase = 0f;
         while (t < 1f)
         {
             t = Mathf.Min(1f, t + Time.deltaTime / seconds);
             float s = Mathf.SmoothStep(0f, 1f, t);
-            transform.position = Vector3.Lerp(from, to, s);
+            // 출발·도착 근처에서는 보빙을 줄여 위치가 튀지 않게
+            bobPhase += Time.deltaTime * BobSpeed;
+            float envelope = Mathf.Clamp01(Mathf.Min(t, 1f - t) * 6f);
+            Vector3 bob = Vector3.up * (Mathf.Sin(bobPhase) * BobAmplitude * envelope);
+            transform.position = Vector3.Lerp(from, to, s) + bob;
             yaw = Mathf.Lerp(fromYaw, endYaw, s);
             pitch = Mathf.Lerp(fromPitch, endPitch, s);
             ApplyRotation();
             yield return null;
         }
+        // 도착 반동: 살짝 내려앉았다 돌아온다
+        float settle = 0f;
+        while (settle < 1f)
+        {
+            settle = Mathf.Min(1f, settle + Time.deltaTime / SettleSeconds);
+            transform.position = to + Vector3.down * (Mathf.Sin(settle * Mathf.PI) * SettleDepth);
+            yield return null;
+        }
+        transform.position = to;
         targetYaw = yaw;
         targetPitch = pitch;
         walking = false;
