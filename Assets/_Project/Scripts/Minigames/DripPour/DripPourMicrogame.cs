@@ -89,6 +89,7 @@ public class DripPourMicrogame : Minigame
     private float pourTimer;
     private float pourStartGauge;
     private float pourGain;
+    private float sfxTimer;
 
     private void Awake()
     {
@@ -188,6 +189,13 @@ public class DripPourMicrogame : Minigame
         float t = pourSeconds > 0f ? Mathf.Clamp01(pourTimer / pourSeconds) : 1f;
         gauge = pourStartGauge + pourGain * t;
         SetPourVisual(true, t);
+        // 붓는 동안 0.35초 간격으로 물 소리
+        sfxTimer -= dt;
+        if (sfxTimer <= 0f)
+        {
+            sfxTimer = 0.35f;
+            MinigameSfx.Play("sfx_pour", 0.35f);
+        }
         UpdateCoffee();
         hud.SetGauge(gauge, gaugeMax);
         if (t < 1f) return;

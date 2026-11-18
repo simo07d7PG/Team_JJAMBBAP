@@ -87,6 +87,7 @@ public class TampMicrogame : Minigame
     private float graceTimer;
     private float pressureScoreSum;
     private float levelScoreSum;
+    private bool wasInBand;
 
     private MaterialPropertyBlock block;
     private Vector3 pivotRestLocal;
@@ -118,6 +119,7 @@ public class TampMicrogame : Minigame
         graceTimer = graceSeconds;
         pressureScoreSum = 0f;
         levelScoreSum = 0f;
+        wasInBand = false;
         // 판마다 쏠리는 모양이 다르다
         noiseSeed = Random.value * NoiseSeedRange;
         StopBurst();
@@ -153,6 +155,8 @@ public class TampMicrogame : Minigame
         UpdateTilt();
 
         bool inBand = pressure >= pressureMin && pressure <= pressureMax;
+        if (inBand && !wasInBand) MinigameSfx.Play("sfx_thud");
+        wasInBand = inBand;
         bool level = Mathf.Abs(tilt) <= levelTolerance;
         bool tamping = inBand && level;
         if (tamping)
@@ -173,6 +177,7 @@ public class TampMicrogame : Minigame
         if (hold >= holdNeeded)
         {
             quality = QualityOfRun();
+            MinigameSfx.Play("sfx_thud");
             Finish(true, TextSuccess);
         }
     }

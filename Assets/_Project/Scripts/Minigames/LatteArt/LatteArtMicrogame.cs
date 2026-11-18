@@ -229,6 +229,7 @@ public class LatteArtMicrogame : Minigame
         {
             filledFlags[nextIndex] = true;
             filled++;
+            MinigameSfx.Play("sfx_tick");
             nextIndex++;
             return;
         }
@@ -238,6 +239,7 @@ public class LatteArtMicrogame : Minigame
             // 한 점은 놓친 것으로 치고 다음 점부터 계속
             filledFlags[skip] = true;
             filled++;
+            MinigameSfx.Play("sfx_tick");
             nextIndex = skip + 1;
         }
     }

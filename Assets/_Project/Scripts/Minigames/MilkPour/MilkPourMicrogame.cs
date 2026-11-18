@@ -62,6 +62,7 @@ public class MilkPourMicrogame : Minigame
     private Vector3 streamRestScale;
 
     private bool pouring;
+    private float sfxTimer;
     private float lastAngle;
     private float glugRemaining;
     // 시작할 때 컵에 이미 있던 양과 지금 컵 안의 총량(ml 환산, 용량을 넘지 않음)
@@ -148,6 +149,13 @@ public class MilkPourMicrogame : Minigame
         {
             HideStream();
             return;
+        }
+
+        sfxTimer -= dt;
+        if (sfxTimer <= 0f)
+        {
+            sfxTimer = 0.35f;
+            MinigameSfx.Play("sfx_pour", 0.35f);
         }
 
         float hitDistance;

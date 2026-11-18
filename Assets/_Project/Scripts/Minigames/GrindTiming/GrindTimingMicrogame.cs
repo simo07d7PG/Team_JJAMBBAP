@@ -170,6 +170,7 @@ public class GrindTimingMicrogame : Minigame
 
         bool perfect = needleAngle >= perfectStart && needleAngle <= perfectEnd;
         hits++;
+        MinigameSfx.Play("sfx_tick");
         score += perfect ? perfectScore : goodScore;
         speed *= 1f + speedUpRatio;
         hud.ShowJudge(perfect ? JudgePerfect : JudgeGood, true);

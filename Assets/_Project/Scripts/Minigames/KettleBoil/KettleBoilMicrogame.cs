@@ -76,6 +76,7 @@ public class KettleBoilMicrogame : Minigame
     private float temp;
     private int missCount;
     private float lockTimer;
+    private float nextPourTime;
     private float noiseSeed;
 
     private MaterialPropertyBlock block;
@@ -159,6 +160,12 @@ public class KettleBoilMicrogame : Minigame
         FillSequence();
         ShowKeys();
         hud.PlayCorrect();
+        // 연타해도 0.35초 간격으로만 물 소리
+        if (Time.time >= nextPourTime)
+        {
+            nextPourTime = Time.time + 0.35f;
+            MinigameSfx.Play("sfx_pour", 0.35f);
+        }
         hud.SetTemperature(temp);
 
         if (temp >= targetTemp) EndGame(true, TextSuccess);

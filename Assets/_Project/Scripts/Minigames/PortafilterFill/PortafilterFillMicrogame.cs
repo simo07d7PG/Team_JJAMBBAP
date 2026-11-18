@@ -180,6 +180,8 @@ public class PortafilterFillMicrogame : Minigame
         // 모터가 완전히 멈춘 뒤(클릭 뗌 + 관성 끝) 구간 안에 머물러야 한다
         bool settled = !held && tailLeft <= 0f;
         bool inTarget = ratio >= targetMin - Epsilon && ratio <= targetMax + Epsilon;
+        // 구간 안에 멈춰 선 순간 한 번 틱
+        if (settled && inTarget && holdTimer <= 0f) MinigameSfx.Play("sfx_tick");
         if (settled && inTarget) holdTimer += dt;
         else holdTimer = 0f;
         hud.SetHold(holdTimer / holdSeconds);

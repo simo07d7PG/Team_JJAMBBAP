@@ -65,6 +65,7 @@ public class WaterTopUpMicrogame : Minigame
     private float pouredMl;
     private float initialWater;
     private float holdTimer;
+    private float sfxTimer;
     private float curMinMl;
     private float curMaxMl;
 
@@ -102,6 +103,15 @@ public class WaterTopUpMicrogame : Minigame
 
         float flow = openness * maxFlowMlPerSec;
         pouredMl += flow * dt;
+        if (flow > Epsilon)
+        {
+            sfxTimer -= dt;
+            if (sfxTimer <= 0f)
+            {
+                sfxTimer = 0.35f;
+                MinigameSfx.Play("sfx_pour", 0.35f);
+            }
+        }
         UpdateStream();
         ShowHandle();
         UpdateDisplay();

@@ -94,6 +94,7 @@ public class SteamMilkMicrogame : Minigame
     private float depth;
     private float splashTimer;
     private float sprayTimer;
+    private float sfxTimer;
     private bool spraying;
     private bool inSplash;
 
@@ -136,6 +137,12 @@ public class SteamMilkMicrogame : Minigame
             if (ClickHeld())
             {
                 sprayTimer += dt;
+                sfxTimer -= dt;
+                if (sfxTimer <= 0f)
+                {
+                    sfxTimer = 0.45f;
+                    MinigameSfx.Play("sfx_hiss");
+                }
                 Spray(dt);
                 if (isFinished) return;
             }
