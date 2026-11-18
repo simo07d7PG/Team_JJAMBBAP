@@ -162,9 +162,18 @@ public class CafeLoop : MonoBehaviour
     // 이번 주문의 인내도 최대값(초). 메뉴 값이 있으면 그것, 없으면 patienceSeconds
     private float patienceMax;
     private int income;
+    // 오늘 가장 비싸게 팔린 음료 (이름·가격). 하루 단위라 저장하지 않는다
+    private string bestName = "";
+    private int bestPrice;
+    // 오늘 목표를 이미 넘었다 (달성 알림을 한 번만)
+    private bool goalReached;
     private float noticeTimer;
     private Station customerStation;
 
+    private const int GoalFirst = 3000;
+    private const int GoalStep = 1500;
+    private const int GoalMax = 12000;
+    private const float GoalNoticeSeconds = 1.5f;
     private int day = 1;
     private float dayTimer;
     // 마감됨 (시간 종료 또는 오늘 손님 소진). 새 손님은 오지 않고, 진행 중인 주문이 끝나면 영수증
@@ -252,7 +261,7 @@ public class CafeLoop : MonoBehaviour
     // 하루 시작: "N일차 영업 시작!" → firstCustomerSeconds 뒤 첫 손님
     private void OpenDay()
     {
-        ShowNotice(day + "일차 영업 시작!");
+        ShowNotice(day + "일차 영업 시작!\n목표 " + DailyGoal().ToString("N0") + "원");
         nextCustomerTimer = firstCustomerSeconds;
         opening = false;
         Debug.Log("[CafeLoop] " + day + "일차 영업 시작, 손님 " + CustomersPerDay() + "명");
@@ -622,6 +631,11 @@ public class CafeLoop : MonoBehaviour
         int before = income;
         income += total;
         salesCount++;
+        if (price > bestPrice)
+        {
+            bestPrice = price;
+            bestName = menu.menuName;
+        }
         // 수입 숫자가 굴러 올라가고, 손님 머리 위로 +원이 떠오른다
         StartCoroutine(effects.CountUp(incomeText, "수입 ", before, income, "원", CountUpSeconds));
         StartCoroutine(effects.FloatUp(floatText, "+" + total + "원", customer.bubble.position, cafeCamera));
@@ -629,6 +643,13 @@ public class CafeLoop : MonoBehaviour
         string notice = successCount + "/" + menu.steps.Length + " 성공";
         if (tip > 0) notice += " · 콤보 ×" + combo + " 팁 +" + tip + "원";
         ShowNotice(notice);
+        // 오늘 수입이 처음 목표를 넘은 순간. 같은 알림 자리를 쓰되 1.5초만 띄운다
+        if (!goalReached && income >= DailyGoal())
+        {
+            goalReached = true;
+            ShowNotice("목표 달성!");
+            noticeTimer = GoalNoticeSeconds;
+        }
         Debug.Log("[CafeLoop] 제공: " + menu.menuName + " " + price + "원 + 팁 " + tip);
         CustomerLeave(successCount == menu.steps.Length ? "고마워요!" : "음… 다음엔 잘해 줘요");
         customer.React(true);
@@ -842,8 +863,11 @@ public class CafeLoop : MonoBehaviour
         pointer.SetTarget(null, "");
         // 상자가 아래에서 올라오고, 수입 숫자가 굴러 올라간다 (0원이면 굴리지 않는다)
         StartCoroutine(effects.SlideUp(receiptBox, ReceiptSlideDistance, ReceiptSlideSeconds));
+        int goal = DailyGoal();
         string head = day + "일차 영수증\n\n판매 " + salesCount + "잔 · 실패 " + failCount + "잔\n떠난 손님 " + leftCount + "명\n\n수입 ";
-        string tail = "원\n<size=80%>보유 " + shop.Money().ToString("N0") + "원</size>";
+        string best = bestPrice > 0 ? bestName + "  " + bestPrice.ToString("N0") + "원" : "없음";
+        string tail = "원\n<size=80%>목표 " + goal.ToString("N0") + "원 · " + (income >= goal ? "달성" : "미달")
+            + "\n오늘의 베스트  " + best + "\n" + StarText(goal) + "\n보유 " + shop.Money().ToString("N0") + "원</size>";
         if (income > 0)
         {
             StartCoroutine(effects.CountUp(receiptText, head, 0, income, tail, ReceiptCountSeconds));
@@ -854,6 +878,19 @@ public class CafeLoop : MonoBehaviour
             receiptText.text = head + "0" + tail;
         }
         Debug.Log("[CafeLoop] 영수증: 판매 " + salesCount + ", 실패 " + failCount + ", 떠남 " + leftCount + ", 수입 " + income + ", 보유 " + shop.Money());
+    }
+
+    // 하루 목표 수입: 1일차 3,000원에서 매일 +1,500원, 상한 12,000원
+    private int DailyGoal()
+    {
+        return Mathf.Min(GoalMax, GoalFirst + (day - 1) * GoalStep);
+    }
+
+    // 별점: 목표 100% 이상 3개, 60% 이상 2개, 그 외 1개, 판매 0잔이면 0개
+    private string StarText(int goal)
+    {
+        int stars = salesCount <= 0 ? 0 : income >= goal ? 3 : income * 10 >= goal * 6 ? 2 : 1;
+        return new string('★', stars) + new string('☆', 3 - stars);
     }
 
     // 영수증의 '상점' 버튼
@@ -945,6 +982,8 @@ public class CafeLoop : MonoBehaviour
         dayTimer = data.dayTimer;
         customersToday = data.customersToday;
         income = data.income;
+        // 불러온 시점에 이미 넘었으면 달성 알림을 다시 띄우지 않는다
+        goalReached = income >= DailyGoal();
         salesCount = data.salesCount;
         failCount = data.failCount;
         leftCount = data.leftCount;
@@ -1043,6 +1082,9 @@ public class CafeLoop : MonoBehaviour
         leftCount = 0;
         income = 0;
         customersToday = 0;
+        bestName = "";
+        bestPrice = 0;
+        goalReached = false;
     }
 
     private void ShowIncome()
