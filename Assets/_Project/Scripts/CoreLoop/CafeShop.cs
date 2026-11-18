@@ -56,8 +56,6 @@ public class CafeShop : MonoBehaviour
     // 상자가 올라오는 거리와 시간
     private const float SlideDistance = 600f;
     private const float SlideSeconds = 0.35f;
-    // 구매한 칸이 튀어오르는 배율
-    private const float BuyPopScale = 1.08f;
 
     // 가격 글자 색: 평소 / 돈 부족
     private static readonly Color PriceNormalColor = new Color(0.35f, 0.22f, 0.13f);
@@ -256,7 +254,7 @@ public class CafeShop : MonoBehaviour
         if (item.menu != null) PlayerPrefs.SetString(NewMenuKey, item.id);
         PlayerPrefs.Save();
         Refresh();
-        StartCoroutine(effects.Pop(cards[index].GetComponent<RectTransform>(), BuyPopScale));
+        cards[index].PlayBuyEffect();
         Debug.Log("[CafeShop] 구매: " + item.title + " -" + item.price + "원, 남은 돈 " + money);
     }
 
@@ -298,21 +296,22 @@ public class CafeShop : MonoBehaviour
 
         if (owned)
         {
-            card.background.color = ownedColor;
+            card.SetVisualState(ownedColor, false, false, false);
             card.buttonLabel.text = "보유 중";
             card.button.interactable = false;
             card.priceText.text = "구매 완료";
         }
         else if (!unlocked)
         {
-            card.background.color = lockedColor;
+            card.SetVisualState(lockedColor, false, false, false);
             card.buttonLabel.text = MissingTitle(item) + " 필요";
             card.button.interactable = false;
         }
         else
         {
-            card.background.color = item.isMachine ? machineColor : recipeColor;
             bool afford = money >= item.price;
+            // 구매 전 + 선행 조건 충족이면 NEW, 살 수 있으면 맥동, 돈이 모자라면 어둡게
+            card.SetVisualState(item.isMachine ? machineColor : recipeColor, true, afford, !afford);
             card.buttonLabel.text = afford ? "구매" : "돈 부족";
             card.button.interactable = afford;
             if (!afford) card.priceText.color = PriceShortColor;
