@@ -209,6 +209,8 @@ public class CafeLoop : MonoBehaviour
         receiptPanel.SetActive(false);
         floatText.gameObject.SetActive(false);
         dayTimer = daySeconds;
+        // HUD 패널·하루 진행 바·수입 튕김 (글자 참조는 그대로)
+        gameObject.AddComponent<CafeHud>().Init(this);
         ShowDay();
         ShowIncome();
         UpdateTargets();
@@ -433,14 +435,15 @@ public class CafeLoop : MonoBehaviour
 
     private void ShowDay()
     {
-        string count = "   손님 " + customersToday + "/" + CustomersPerDay();
+        string count = "  <size=70%>손님 " + customersToday + "/" + CustomersPerDay() + "</size>";
+        string head = "<color=#FFD166>" + day + "일차</color>";
         if (dayOver)
         {
-            dayText.text = day + "일차 마감" + count;
+            dayText.text = head + "  마감" + count;
             return;
         }
         int seconds = Mathf.CeilToInt(dayTimer);
-        dayText.text = day + "일차  " + (seconds / 60) + ":" + (seconds % 60).ToString("00") + count;
+        dayText.text = head + "  " + (seconds / 60) + ":" + (seconds % 60).ToString("00") + count;
     }
 
     // 손님이 없으면 시간을 세다가 새 손님을 부른다. 하루가 끝났으면 영수증

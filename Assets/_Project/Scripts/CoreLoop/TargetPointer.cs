@@ -2,65 +2,116 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-// 화면 가운데 점을 둘러싼 고리와 화살표. 다음에 클릭할 대상(기계·손님) 쪽을 가리킨다
-// 대상이 가운데 점에 걸리면 화살표를 숨기고 고리가 금색으로 바뀐다
+// 다음에 할 대상(기계·손님) 머리 위에 아래를 향한 화살표를 띄운다
+// 대상이 화면 밖이면 화면 가장자리에 붙어 바깥쪽을 가리킨다
 public class TargetPointer : MonoBehaviour
 {
     public CafeView view;
     public Camera cam;
+    [Tooltip("가운데 고리: 더 이상 쓰지 않아 항상 숨긴다")]
     public Image ring;
-    [Tooltip("화살표를 돌리는 중심 (고리 가운데). 화살표는 이 아래 위쪽(+y)에 둔다")]
+    [Tooltip("화살표 위치·회전 기준 (화면 위치로 옮긴다)")]
     public RectTransform arrowPivot;
     public Image arrow;
-    [Tooltip("다음 할 일 글자 (고리 아래)")]
+    [Tooltip("다음 할 일 글자 (화살표 위)")]
     public TMP_Text label;
 
-    public Color ringColor = new Color(1f, 1f, 1f, 0.55f);
-    public Color onTargetColor = new Color(1f, 0.82f, 0.35f, 1f);
-    [Tooltip("화살표가 고리 밖으로 들락거리는 폭(px)")]
-    public float bob = 5f;
+    public Color arrowColor = new Color(1f, 0.82f, 0.35f, 1f);
+    [Tooltip("화살표가 위아래로 튀는 폭(px)")]
+    public float bob = 10f;
 
-    // 화살표를 숨길 최소 거리의 제곱 (정면 판정)
-    private const float MinArrowDistanceSqr = 0.0004f;
-    // 대상이 걸렸을 때 고리 맥동 크기·속도
-    private const float PulseAmount = 0.08f;
-    private const float PulseSpeed = 10f;
-    // 화살표 들락거림 속도
-    private const float BobSpeed = 8f;
+    // 화살표 크기 배율, 대상 위에 떨어뜨릴 여백(m), 말풍선 위 여백(m)
+    private const float ArrowScale = 1.6f;
+    private const float HoverScale = 0.8f;
+    private const float TopMargin = 0.12f;
+    private const float BubbleMargin = 0.25f;
+    private const float BobSpeed = 6f;
+    private const float EdgeMargin = 60f;
+    private const float LabelGap = 6f;
+    private const int LabelSize = 26;
     // 화살표 이미지가 위쪽을 향하므로 방향 각도에서 빼는 값
     private const float ArrowBaseAngle = -90f;
 
     private Station target;
     private RectTransform arrowRect;
-    private float arrowRestY;
+    private RectTransform rootRect;
+    private Canvas canvas;
+    private Transform bubble;
+    private Vector3 topPoint;
 
     private void Awake()
     {
         arrowRect = arrow.rectTransform;
-        arrowRestY = arrowRect.anchoredPosition.y;
+        rootRect = (RectTransform)transform;
+        canvas = GetComponentInParent<Canvas>();
+        arrowPivot.anchorMin = arrowPivot.anchorMax = new Vector2(0.5f, 0.5f);
+        arrowPivot.pivot = new Vector2(0.5f, 0.5f);
+        arrowRect.localScale = Vector3.one * ArrowScale;
+        arrowRect.localRotation = Quaternion.Euler(0f, 0f, 180f);
+        arrowRect.anchorMin = arrowRect.anchorMax = new Vector2(0.5f, 0.5f);
+        arrowRect.pivot = new Vector2(0.5f, 0.5f);
+        arrowRect.anchoredPosition = Vector2.zero;
+        arrow.color = arrowColor;
+        if (arrow.GetComponent<Outline>() == null)
+        {
+            Outline o = arrow.gameObject.AddComponent<Outline>();
+            o.effectColor = new Color(0.12f, 0.07f, 0.03f, 0.9f);
+            o.effectDistance = new Vector2(2f, -2f);
+        }
+        label.fontSize = LabelSize;
+        label.raycastTarget = false;
+        arrow.raycastTarget = false;
         SetTarget(null, "");
     }
 
-    // 대상이 없으면(null) 고리·화살표·글자를 모두 숨긴다
+    // 대상이 없으면(null) 화살표·글자를 모두 숨긴다
     public void SetTarget(Station station, string text)
     {
-        target = station;
+        if (station != target)
+        {
+            target = station;
+            bubble = null;
+            if (station != null)
+            {
+                if (station.stationId == "customer")
+                {
+                    Customer c = station.GetComponentInChildren<Customer>(true);
+                    if (c == null) c = station.GetComponentInParent<Customer>();
+                    if (c != null) bubble = c.bubble;
+                }
+                if (bubble == null) topPoint = ComputeTopPoint(station);
+            }
+        }
         label.text = text;
+    }
+
+    // 대상 Renderer들 bounds 윗면 중앙 + 위로 TopMargin
+    private Vector3 ComputeTopPoint(Station station)
+    {
+        Bounds b = new Bounds();
+        bool has = false;
+        Renderer[] rs = station.targets;
+        if (rs == null || rs.Length == 0) rs = station.GetComponentsInChildren<Renderer>();
+        for (int i = 0; i < rs.Length; i++)
+        {
+            Renderer r = rs[i];
+            if (r == null || !r.gameObject.activeInHierarchy) continue;
+            if (!has) b = r.bounds;
+            else b.Encapsulate(r.bounds);
+            has = true;
+        }
+        if (!has) return station.transform.position + Vector3.up * TopMargin;
+        return new Vector3(b.center.x, b.max.y + TopMargin, b.center.z);
     }
 
     private void LateUpdate()
     {
+        // 가운데 고리는 항상 숨긴다
+        if (ring != null && ring.gameObject.activeSelf) ring.gameObject.SetActive(false);
+
         bool show = ShouldShow();
         SetVisible(show);
         if (!show) return;
-
-        if (view.HoveredStation() == target)
-        {
-            ShowOnTarget();
-            return;
-        }
-        ring.color = ringColor;
-        ring.rectTransform.localScale = Vector3.one;
         UpdateArrow();
     }
 
@@ -72,44 +123,76 @@ public class TargetPointer : MonoBehaviour
 
     private void SetVisible(bool show)
     {
-        ring.gameObject.SetActive(show);
         arrowPivot.gameObject.SetActive(show);
         label.gameObject.SetActive(show);
+        if (!show) return;
+        arrow.gameObject.SetActive(true);
     }
 
-    private void HideArrow()
+    private Camera UiCamera()
     {
-        arrow.gameObject.SetActive(false);
+        if (canvas == null) return null;
+        Canvas root = canvas.rootCanvas;
+        return root.renderMode == RenderMode.ScreenSpaceOverlay ? null : root.worldCamera;
     }
 
-    // 대상이 가운데 점에 걸린 상태: 화살표를 숨기고 금색 고리가 맥동한다
-    private void ShowOnTarget()
+    private Vector2 ToLocal(RectTransform space, Vector2 screen)
     {
-        HideArrow();
-        ring.color = onTargetColor;
-        float pulse = 1f + PulseAmount * Mathf.Sin(Time.time * PulseSpeed);
-        ring.rectTransform.localScale = new Vector3(pulse, pulse, 1f);
+        Vector2 local;
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(space, screen, UiCamera(), out local);
+        return local;
     }
 
-    // 대상 방향으로 화살표를 돌리고 위아래로 들락거리게 한다
     private void UpdateArrow()
     {
-        // 화면 가운데에서 대상까지의 방향 (뒤쪽이면 반대로 뒤집는다)
-        Vector3 viewportPos = cam.WorldToViewportPoint(view.LookPoint(target));
-        Vector2 dir = new Vector2((viewportPos.x - 0.5f) * cam.aspect, viewportPos.y - 0.5f);
-        if (viewportPos.z < 0f) dir = -dir;
-        // 거의 정면이면 방향이 의미 없으니 화살표를 숨긴다 (걷기가 끝나는 프레임 등)
-        if (dir.sqrMagnitude < MinArrowDistanceSqr)
+        Vector3 world = bubble != null ? bubble.position + Vector3.up * BubbleMargin : topPoint;
+        Vector3 sp = cam.WorldToScreenPoint(world);
+        float w = Screen.width, h = Screen.height;
+        bool behind = sp.z < 0f;
+        bool inside = !behind && sp.x >= EdgeMargin && sp.x <= w - EdgeMargin && sp.y >= EdgeMargin && sp.y <= h - EdgeMargin;
+
+        bool hovered = view.HoveredStation() == target;
+        float scale = ArrowScale * (hovered ? HoverScale : 1f);
+        arrowRect.localScale = Vector3.one * scale;
+        float bobY = bob * Mathf.Sin(Time.time * BobSpeed);
+
+        RectTransform parent = (RectTransform)arrowPivot.parent;
+        Vector2 half = arrowRect.rect.size * scale * 0.5f;
+        Vector2 screenPos;
+        if (inside)
         {
-            HideArrow();
+            // 대상 위: 화살표 끝이 대상 쪽(아래)을 향한다
+            screenPos = new Vector2(sp.x, sp.y);
+            arrowPivot.localRotation = Quaternion.identity;
+            arrowRect.localRotation = Quaternion.Euler(0f, 0f, 180f);
+            arrowPivot.anchoredPosition = ToLocal(parent, screenPos) + new Vector2(0f, half.y + bobY);
+            arrowRect.anchoredPosition = Vector2.zero;
+            PlaceLabel(arrowPivot.anchoredPosition + new Vector2(0f, half.y + LabelGap), parent);
             return;
         }
 
-        arrow.gameObject.SetActive(true);
+        // 화면 밖/뒤: 가장자리에 붙이고 바깥쪽을 가리킨다
+        Vector2 center = new Vector2(w * 0.5f, h * 0.5f);
+        Vector2 dir = new Vector2(sp.x, sp.y) - center;
+        if (behind) dir = -dir;
+        if (dir.sqrMagnitude < 1f) dir = Vector2.down;
+        dir.Normalize();
+        float sx = dir.x != 0f ? (w * 0.5f - EdgeMargin) / Mathf.Abs(dir.x) : float.MaxValue;
+        float sy = dir.y != 0f ? (h * 0.5f - EdgeMargin) / Mathf.Abs(dir.y) : float.MaxValue;
+        screenPos = center + dir * Mathf.Min(sx, sy);
         float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg + ArrowBaseAngle;
+        arrowRect.localRotation = Quaternion.identity;
         arrowPivot.localRotation = Quaternion.Euler(0f, 0f, angle);
-        Vector2 arrowPos = arrowRect.anchoredPosition;
-        arrowPos.y = arrowRestY + bob * Mathf.Sin(Time.time * BobSpeed);
-        arrowRect.anchoredPosition = arrowPos;
+        // 튐은 바깥 방향으로
+        arrowPivot.anchoredPosition = ToLocal(parent, screenPos) + (Vector2)dir * bobY;
+        arrowRect.anchoredPosition = Vector2.zero;
+        Vector2 labelOffset = -dir * (Mathf.Max(half.x, half.y) + LabelGap + label.rectTransform.rect.height * 0.5f);
+        PlaceLabel(arrowPivot.anchoredPosition + labelOffset, parent);
+    }
+
+    // 글자를 화살표 쪽에 붙인다 (anchoredPosition은 arrowPivot의 부모 좌표 기준)
+    private void PlaceLabel(Vector2 posInArrowParent, RectTransform arrowParent)
+    {
+        label.rectTransform.position = arrowParent.TransformPoint(posInArrowParent);
     }
 }
