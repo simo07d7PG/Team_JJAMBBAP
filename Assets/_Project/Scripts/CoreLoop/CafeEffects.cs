@@ -67,6 +67,24 @@ public class CafeEffects : MonoBehaviour
         audioSource.PlayOneShot(clip);
     }
 
+    // BGM 분위기별 음량 배율 (영업 / 미니게임 / 영수증·상점·로딩)
+    private const float MoodVolume1 = 0.7f;
+    private const float MoodVolume2 = 0.45f;
+    private const float MoodVolumeSpeed = 0.5f;
+    private CafeLoop moodLoop;
+    private bool bgmStarted;
+
+    private void Update()
+    {
+        // StartBgm이 끝난 뒤에만 분위기에 맞춰 음량을 천천히 맞춘다 (일시정지 중엔 건드리지 않는다)
+        if (!bgmStarted || bgmSource == null || Time.timeScale <= 0f) return;
+        if (moodLoop == null) moodLoop = FindFirstObjectByType<CafeLoop>();
+        if (moodLoop == null) return;
+        int mood = moodLoop.Mood;
+        float target = mood == 0 ? bgmVolume : bgmVolume * (mood == 1 ? MoodVolume1 : MoodVolume2);
+        bgmSource.volume = Mathf.MoveTowards(bgmSource.volume, target, MoodVolumeSpeed * Time.unscaledDeltaTime);
+    }
+
     // 배경 음악을 seconds 동안 서서히 키우며 시작한다
     public IEnumerator StartBgm(float seconds)
     {
@@ -83,6 +101,7 @@ public class CafeEffects : MonoBehaviour
             yield return null;
         }
         bgmSource.volume = bgmVolume;
+        bgmStarted = true;
     }
 
     // 화면을 바로 검게 (씬 시작 때 첫 프레임부터 가리기)

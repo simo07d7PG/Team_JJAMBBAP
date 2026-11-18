@@ -226,6 +226,7 @@ public class CafeLoop : MonoBehaviour
         tutorial.Init(this);
         ending = gameObject.AddComponent<CafeEnding>();
         ending.Init(this);
+        gameObject.AddComponent<MinigameHint>().Init(this);
         ShowDay();
         ShowIncome();
         UpdateTargets();
@@ -553,6 +554,25 @@ public class CafeLoop : MonoBehaviour
         }
         return "";
     }
+
+    // BGM 분위기: 0=영업 카페 화면, 1=미니게임(지시어·플레이·결과), 2=영수증·상점·로딩 등 그 외
+    private int lastMood;
+    public int Mood
+    {
+        get
+        {
+            if (receiptPanel != null && receiptPanel.activeSelf) lastMood = 2;
+            else if (shop != null && shop.panel != null && shop.panel.activeSelf) lastMood = 2;
+            else if (state == StateInstruction || state == StatePlaying || state == StateResult) lastMood = 1;
+            else if (state == StateFade) lastMood = opening ? 2 : lastMood; // 전환 페이드 중엔 직전 분위기 유지
+            else lastMood = 0;
+            return lastMood;
+        }
+    }
+
+    // 미니게임 조작 상시 표시용: 플레이 중인지, 지금 미니게임의 조작 문구(없으면 빈 글자)
+    public bool IsMinigamePlaying { get { return state == StatePlaying && current != null; } }
+    public string CurrentControlLabel { get { return current != null ? ControlLabel(current.stationId) : ""; } }
 
     // 처음 들어가는 미니게임의 조작 안내 (실제 입력은 각 미니게임 스크립트 기준)
     private string ControlLabel(string stationId)
@@ -994,9 +1014,36 @@ public class CafeLoop : MonoBehaviour
         SaveData data = SaveSlots.pending;
         SaveSlots.pending = null;
         if (data == null || data.shopPending) return;
+        try
+        {
+            ApplyRestore(data);
+        }
+        catch (System.Exception e)
+        {
+            // 깨진 저장이어도 정상 시작: 손님 없음·카페 상태로 되돌린다
+            Debug.LogWarning("[CafeLoop] 불러오기 실패, 기본값으로 시작: " + e.Message);
+            order = OrderNone;
+            menu = null;
+            stepIndex = 0;
+            stepVariants = new int[0];
+            orderCup = new Cup();
+            state = StateCafe;
+            current = null;
+            if (customer != null) customer.Hide();
+            if (dayTimer <= 0f || float.IsNaN(dayTimer)) dayTimer = daySeconds;
+            customersToday = Mathf.Clamp(customersToday, 0, CustomersPerDay());
+            ShowDay();
+            ShowIncome();
+            UpdateTargets();
+        }
+    }
+
+    private void ApplyRestore(SaveData data)
+    {
         loadedSave = true;
         dayTimer = data.dayTimer;
-        customersToday = data.customersToday;
+        if (float.IsNaN(dayTimer) || float.IsInfinity(dayTimer) || dayTimer <= 0f) dayTimer = daySeconds;
+        customersToday = Mathf.Clamp(data.customersToday, 0, CustomersPerDay());
         income = data.income;
         // 불러온 시점에 이미 넘었으면 달성 알림을 다시 띄우지 않는다
         goalReached = income >= DailyGoal();
@@ -1007,14 +1054,23 @@ public class CafeLoop : MonoBehaviour
         dayOver = data.dayOver;
         nextCustomerTimer = data.nextCustomerTimer;
         receiptTimer = receiptDelay;
-        if (data.order != OrderNone && data.menuIndex >= 0 && data.menuIndex < menus.Length)
+        int menuIndex = data.menuIndex;
+        if (menus == null || menuIndex < 0 || menuIndex >= menus.Length) menuIndex = -1;
+        if (data.order != OrderNone && menuIndex >= 0)
         {
-            menu = menus[data.menuIndex];
+            menu = menus[menuIndex];
             order = data.order;
-            stepIndex = data.stepIndex;
+            int stepCount = menu.steps != null ? menu.steps.Length : 0;
+            stepIndex = Mathf.Clamp(data.stepIndex, 0, Mathf.Max(0, stepCount - 1));
             successCount = data.successCount;
             priceSum = data.priceSum;
-            stepVariants = data.stepVariants;
+            stepVariants = data.stepVariants != null ? data.stepVariants : new int[0];
+            if (stepVariants.Length != stepCount)
+            {
+                int[] fixedVariants = new int[stepCount];
+                for (int i = 0; i < stepCount && i < stepVariants.Length; i++) fixedVariants[i] = stepVariants[i];
+                stepVariants = fixedVariants;
+            }
             orderCup = data.cup != null ? CopyOfCup(data.cup) : new Cup();
             patience = data.patience;
             patienceMax = PatienceOf(menu);
