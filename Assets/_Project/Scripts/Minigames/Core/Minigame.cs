@@ -37,6 +37,7 @@ public class Minigame : MonoBehaviour
         ClearResult();
         ResetGame();
         isPlaying = true;
+        MinigameSfx.Play("sfx_whoosh");
     }
 
     // 시작 전에 첫 화면만 깨끗하게 만든다 (입력·진행 상태는 건드리지 않음). StartGame이 한 번 더 초기화한다
@@ -106,7 +107,9 @@ public class Minigame : MonoBehaviour
 
     protected bool ClickPressed()
     {
-        return clickAction.action.WasPressedThisFrame();
+        bool pressed = clickAction.action.WasPressedThisFrame();
+        if (pressed) MinigameSfx.Play("sfx_tick", 0.4f);
+        return pressed;
     }
 
     protected bool ClickReleased()

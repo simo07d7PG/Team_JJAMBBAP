@@ -76,6 +76,8 @@ public class CafeLoop : MonoBehaviour
     public TMP_Text incomeText;
     [Tooltip("지시어를 보여 주는 시간(초). 이 동안 제한 시간은 세지 않는다")]
     public float instructionSeconds = 1.5f;
+    [Tooltip("이번 실행에서 처음 들어가는 미니게임의 지시어 시간(초). 조작 안내가 함께 보인다")]
+    public float firstInstructionSeconds = 2.6f;
     [Tooltip("기계·손님 앞에 도착한 뒤 상호작용까지 멈추는 시간(초)")]
     public float arriveDelay = 0.15f;
     [Tooltip("실패 결과를 보여 주는 시간(초)")]
@@ -104,6 +106,8 @@ public class CafeLoop : MonoBehaviour
     // 화면 상태 (state)
     private const int StateCafe = 0;        // 카페
     private const int StateInstruction = 1; // 지시어
+    private readonly HashSet<string> seenStations = new HashSet<string>(); // 이번 실행에서 들어가 본 미니게임
+    private bool showControlHint; // 이번 지시어에 조작 안내를 붙일지
     private const int StatePlaying = 2;     // 미니게임 플레이
     private const int StateResult = 3;      // 결과
     private const int StateFade = 4;        // 페이드·걷기 전환 중 (시간 정지)
@@ -532,6 +536,25 @@ public class CafeLoop : MonoBehaviour
         return "";
     }
 
+    // 처음 들어가는 미니게임의 조작 안내 (실제 입력은 각 미니게임 스크립트 기준)
+    private string ControlLabel(string stationId)
+    {
+        switch (stationId)
+        {
+            case "espresso": return "좌클릭 꾹, 목표 구간에서 떼기";
+            case "ice": return "좌클릭 꾹";
+            case "milk": return "우클릭으로 기울이기";
+            case "grinder": return "좌클릭으로 원두 담고 Q로 넘기기";
+            case "autogrind": return "Space로 타이밍";
+            case "portafilter": return "마우스로 맞추고 좌클릭 꾹";
+            case "tamper": return "좌클릭 꾹 + 마우스 좌우로 수평";
+            case "water": return "휠로 열고 우클릭으로 잠그기";
+            case "steam": return "마우스 위아래 + 좌클릭 분사";
+            case "latteart": return "마우스로 컵 위를 움직이며 좌클릭 꾹";
+        }
+        return "";
+    }
+
     // quality → 등급 (완벽 / 좋아요 / 아슬아슬)
     private int GradeOf(float quality)
     {
@@ -741,7 +764,10 @@ public class CafeLoop : MonoBehaviour
         game.cup = orderCup;
         // 지시어 동안 이전 판의 잔상이 보이지 않게, 화면이 검을 때 한 번 초기화 (cup·variant를 넣은 뒤)
         game.PrepareGame();
-        timer = instructionSeconds;
+        // 이번 실행에서 처음 들어가는 미니게임이면 조작 안내를 읽을 시간을 더 준다
+        bool firstVisit = seenStations.Add(game.stationId);
+        timer = firstVisit ? Mathf.Max(instructionSeconds, firstInstructionSeconds) : instructionSeconds;
+        showControlHint = firstVisit;
         state = StateInstruction;
         ShowTexts();
         yield return effects.FadeTo(0f);
@@ -1031,6 +1057,9 @@ public class CafeLoop : MonoBehaviour
             instructionText.text = current.instruction;
             string label = VariantLabel(current.stationId, current.variant);
             if (label != "") instructionText.text = current.instruction + "\n<size=60%>" + label + "</size>";
+            // 처음 들어간 미니게임은 조작 한 줄을 덧붙인다 (매번 원문에서 새로 만들어 누적되지 않는다)
+            string control = showControlHint ? ControlLabel(current.stationId) : "";
+            if (control != "") instructionText.text += "\n<size=60%>조작: " + control + "</size>";
         }
         if (state == StatePlaying) timeText.text = "남은 시간 " + current.timeLimit.ToString("0.0") + "초";
         if (state == StateResult) ShowResult();
