@@ -25,7 +25,7 @@ public class CafeTutorial : MonoBehaviour
         done = PlayerPrefs.GetInt(DoneKey, 0) != 0;
         if (done || loop.instructionText == null) return;
 
-        Transform parent = loop.instructionText.canvas.rootCanvas.transform;
+        Transform parent = loop.dayText.canvas.rootCanvas.transform;
         GameObject go = new GameObject("TutorialBanner", typeof(RectTransform), typeof(CanvasRenderer), typeof(UImage), typeof(CanvasGroup));
         banner = go.GetComponent<RectTransform>();
         banner.SetParent(parent, false);

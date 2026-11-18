@@ -43,6 +43,11 @@ public class CafeEnding : MonoBehaviour
     private IEnumerator Run(int day)
     {
         yield return new WaitForSecondsRealtime(DelaySeconds);
+        if (loop.receiptPanel == null || !loop.receiptPanel.activeSelf)
+        {
+            running = false;
+            yield break;
+        }
         Build(day);
         shownAt = Time.unscaledTime;
     }
@@ -50,7 +55,7 @@ public class CafeEnding : MonoBehaviour
     private void Build(int day)
     {
         TMP_FontAsset font = loop.instructionText.font;
-        Transform parent = loop.instructionText.canvas.rootCanvas.transform;
+        Transform parent = loop.dayText.canvas.rootCanvas.transform;
         overlay = new GameObject("EndingOverlay", typeof(RectTransform), typeof(CanvasRenderer), typeof(UImage));
         RectTransform rt = overlay.GetComponent<RectTransform>();
         rt.SetParent(parent, false);

@@ -141,6 +141,11 @@ public class CafeAmbience : MonoBehaviour
         for (int i = 0; i < puffs.Length; i++)
         {
             Puff p = puffs[i];
+            if (p.source == null || !p.source.gameObject.activeInHierarchy)
+            {
+                p.image.color = new Color(1f, 1f, 1f, 0f);
+                continue;
+            }
             p.age += dt;
             if (p.age >= p.life)
             {

@@ -280,7 +280,7 @@ public class CafeEffects : MonoBehaviour
         const float Distance = 140f;
         const float Size = 22f;
         RectTransform canvasRect = (RectTransform)fadeImage.transform.parent;
-        Vector2 center = WorldToCanvasLocal(canvasRect, worldPos, cam);
+        Vector2 center = cam != null ? WorldToCanvasLocal(canvasRect, worldPos, cam) : new Vector2(0f, 120f);
         Image[] stars = new Image[Count];
         Vector2[] dirs = new Vector2[Count];
         for (int i = 0; i < Count; i++)

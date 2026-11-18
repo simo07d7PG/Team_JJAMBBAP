@@ -76,7 +76,7 @@ public class Customer : MonoBehaviour
     private const float ShrinkSeconds = 0.25f;
 
     // request: 주문 변형 글자 ("진하게, 우유 적게"). 비어 있으면 메뉴 이름만
-    public void Show(MenuData menu, string request)
+    public void Show(MenuData menu, string request, bool greet = true)
     {
         StopAllCoroutines();
         leaving = false;
@@ -90,7 +90,7 @@ public class Customer : MonoBehaviour
         if (request != "") menuText.text = menu.menuName + "\n<size=70%>" + request + "</size>";
         else menuText.text = menu.menuName;
         patienceBar.SetActive(false);
-        MinigameSfx.Play("sfx_greet", 0.5f);
+        if (greet) MinigameSfx.Play("sfx_greet", 0.5f);
         StartCoroutine(PopBubble());
     }
 

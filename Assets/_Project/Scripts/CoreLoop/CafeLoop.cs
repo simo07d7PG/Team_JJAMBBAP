@@ -668,14 +668,15 @@ public class CafeLoop : MonoBehaviour
         effects.Play(effects.coinClip);
         string notice = successCount + "/" + menu.steps.Length + " 성공";
         if (tip > 0) notice += " · 콤보 ×" + combo + " 팁 +" + tip + "원";
-        ShowNotice(notice);
         // 오늘 수입이 처음 목표를 넘은 순간. 같은 알림 자리를 쓰되 1.5초만 띄운다
         if (!goalReached && income >= DailyGoal())
         {
             goalReached = true;
-            ShowNotice("목표 달성!");
+            notice += "\n목표 달성!";
+            ShowNotice(notice);
             noticeTimer = GoalNoticeSeconds;
         }
+        else ShowNotice(notice);
         tutorial.OnServed();
         CafeEnding.AddSale();
         Debug.Log("[CafeLoop] 제공: " + menu.menuName + " " + price + "원 + 팁 " + tip);
@@ -1030,7 +1031,7 @@ public class CafeLoop : MonoBehaviour
             state = StateCafe;
             current = null;
             if (customer != null) customer.Hide();
-            if (dayTimer <= 0f || float.IsNaN(dayTimer)) dayTimer = daySeconds;
+            if ((dayTimer <= 0f && !dayOver) || float.IsNaN(dayTimer)) dayTimer = daySeconds;
             customersToday = Mathf.Clamp(customersToday, 0, CustomersPerDay());
             ShowDay();
             ShowIncome();
@@ -1042,7 +1043,7 @@ public class CafeLoop : MonoBehaviour
     {
         loadedSave = true;
         dayTimer = data.dayTimer;
-        if (float.IsNaN(dayTimer) || float.IsInfinity(dayTimer) || dayTimer <= 0f) dayTimer = daySeconds;
+        if (float.IsNaN(dayTimer) || float.IsInfinity(dayTimer) || (dayTimer <= 0f && !data.dayOver)) dayTimer = daySeconds;
         customersToday = Mathf.Clamp(data.customersToday, 0, CustomersPerDay());
         income = data.income;
         // 불러온 시점에 이미 넘었으면 달성 알림을 다시 띄우지 않는다
@@ -1074,7 +1075,7 @@ public class CafeLoop : MonoBehaviour
             orderCup = data.cup != null ? CopyOfCup(data.cup) : new Cup();
             patience = data.patience;
             patienceMax = PatienceOf(menu);
-            customer.Show(menu, data.request);
+            customer.Show(menu, data.request, false);
         }
         ShowDay();
         ShowIncome();
@@ -1218,7 +1219,7 @@ public class CafeLoop : MonoBehaviour
         if (combo >= TipMinCombo) resultText.text += "\n<size=45%>콤보 ×" + combo + "</size>";
         effects.Play(effects.successClip);
         StartCoroutine(effects.Flash(true));
-        if (customer != null) StartCoroutine(effects.Sparkle(customer.bubble.position, cafeCamera));
+        if (customer != null) StartCoroutine(effects.Sparkle(Vector3.zero, null));
     }
 
     private void ShowFailResult()

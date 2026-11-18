@@ -49,6 +49,8 @@ public class ShopCard : MonoBehaviour
         if (badge != null) badge.gameObject.SetActive(isNew);
         if (isDimmed) EnsureDim();
         if (dim != null) dim.gameObject.SetActive(isDimmed);
+        // 어둡게 덮는 판이 NEW 띠 위로 올라오지 않게 띠를 맨 위로
+        if (badge != null && isNew) badge.transform.SetAsLastSibling();
     }
 
     // 구매 성공 순간: 튕기고 금색으로 번쩍인다

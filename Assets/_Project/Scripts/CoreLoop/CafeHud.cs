@@ -150,7 +150,10 @@ public class CafeHud : MonoBehaviour
     private void UpdateDay()
     {
         if (dayPanel == null) return;
-        bool on = dayText.gameObject.activeInHierarchy;
+        // 미니게임 남은 시간 패널이 같은 자리에 뜨는 동안은 날짜 패널과 글자를 숨긴다
+        bool timeOn = timeText != null && timeText.gameObject.activeInHierarchy;
+        bool on = dayText.gameObject.activeInHierarchy && !timeOn;
+        dayText.enabled = !timeOn;
         if (dayPanel.gameObject.activeSelf != on) dayPanel.gameObject.SetActive(on);
         if (!on) return;
         Fit(dayPanel, dayText);
