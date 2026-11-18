@@ -144,8 +144,8 @@ public class CafeLoop : MonoBehaviour
 
     // 결과 글자 색
     private static readonly Color PerfectColor = new Color(1f, 0.82f, 0.2f);
-    private static readonly Color GoodColor = new Color(1f, 0.92f, 0.45f);
-    private static readonly Color CloseColor = new Color(1f, 0.7f, 0.4f);
+    private static readonly Color GoodColor = new Color(0.6f, 0.95f, 0.4f);
+    private static readonly Color CloseColor = new Color(0.55f, 0.82f, 1f);
     private static readonly Color FailColor = new Color(1f, 0.6f, 0.55f);
 
     private int state;
@@ -611,6 +611,7 @@ public class CafeLoop : MonoBehaviour
             ShowNotice("제조 실패 · 0원");
             Debug.Log("[CafeLoop] 제공 실패: " + menu.menuName);
             CustomerLeave("이건 못 마시겠어요…");
+            customer.React(false);
             return;
         }
         // 가격 = 정가 × 단계 등급 배율 평균 (100원 단위), 콤보 팁은 그 위에
@@ -630,6 +631,7 @@ public class CafeLoop : MonoBehaviour
         ShowNotice(notice);
         Debug.Log("[CafeLoop] 제공: " + menu.menuName + " " + price + "원 + 팁 " + tip);
         CustomerLeave(successCount == menu.steps.Length ? "고마워요!" : "음… 다음엔 잘해 줘요");
+        customer.React(true);
     }
 
     // 금액을 PriceUnit(100원) 단위로 반올림
@@ -670,6 +672,7 @@ public class CafeLoop : MonoBehaviour
             leftCount++;
             Debug.Log("[CafeLoop] 인내도 초과, 손님 떠남");
             CustomerLeave("너무 오래 걸려요!");
+            customer.React(false);
         }
     }
 
@@ -1100,6 +1103,8 @@ public class CafeLoop : MonoBehaviour
         }
         if (combo >= TipMinCombo) resultText.text += "\n<size=45%>콤보 ×" + combo + "</size>";
         effects.Play(effects.successClip);
+        StartCoroutine(effects.Flash(true));
+        if (customer != null) StartCoroutine(effects.Sparkle(customer.bubble.position, cafeCamera));
     }
 
     private void ShowFailResult()
@@ -1108,5 +1113,6 @@ public class CafeLoop : MonoBehaviour
         StartCoroutine(effects.Pop(resultText.rectTransform, PopFail));
         StartCoroutine(effects.Shake(resultText.rectTransform, ShakeFail));
         effects.Play(effects.failClip);
+        StartCoroutine(effects.Flash(false));
     }
 }

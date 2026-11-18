@@ -34,6 +34,16 @@ public class Customer : MonoBehaviour
     private float popTime = PopRootSeconds;
     private float nodTime;
     private bool nervous;
+    // 반응 상태 (Update로 몸을 움직이므로 StopAllCoroutines와 무관)
+    private float reactTime = ReactSeconds;
+    private bool reactHappy;
+    private TMP_Text reactText;
+
+    // 반응: 글자 떠오름·몸 움직임 시간(초), 떠오르는 높이(로컬), 점프 높이(m), 흔들림 폭(m)
+    private const float ReactSeconds = 0.8f;
+    private const float ReactRise = 0.25f;
+    private const float ReactJump = 0.06f;
+    private const float ReactShake = 0.02f;
 
     // 루트 등장 연출 시간(초), 아래에서 올라오는 거리(m)
     private const float PopRootSeconds = 0.35f;
@@ -66,6 +76,7 @@ public class Customer : MonoBehaviour
         popTime = 0f;
         nodTime = 0f;
         nervous = false;
+        ClearReact();
         if (request != "") menuText.text = menu.menuName + "\n<size=70%>" + request + "</size>";
         else menuText.text = menu.menuName;
         patienceBar.SetActive(false);
@@ -100,6 +111,7 @@ public class Customer : MonoBehaviour
 
     public void Hide()
     {
+        ClearReact();
         if (scaleSaved) bubble.localScale = bubbleScale;
         RestoreRoot();
         popTime = PopRootSeconds;
@@ -115,6 +127,38 @@ public class Customer : MonoBehaviour
         nodTime = 0f;
         menuText.text = message;
         StartCoroutine(LeaveRoutine());
+    }
+
+    // 반응: happy면 ♥ 글자가 뜨며 점프, 아니면 !? 글자가 뜨며 좌우로 흔들린다 (Leave 뒤에 불러도 된다)
+    public void React(bool happy)
+    {
+        if (!gameObject.activeSelf || bubble == null || menuText == null) return;
+        ClearReact();
+        reactHappy = happy;
+        reactTime = 0f;
+        GameObject go = new GameObject("ReactText", typeof(RectTransform));
+        go.transform.SetParent(bubble, false);
+        reactText = go.AddComponent<TextMeshProUGUI>();
+        reactText.font = menuText.font;
+        reactText.fontSharedMaterial = menuText.fontSharedMaterial;
+        reactText.alignment = TextAlignmentOptions.Center;
+        reactText.fontSize = menuText.fontSize * 1.2f;
+        reactText.raycastTarget = false;
+        reactText.enableWordWrapping = false;
+        reactText.text = happy ? "♥" : "!?";
+        reactText.color = happy ? new Color(1f, 0.4f, 0.55f) : new Color(1f, 0.85f, 0.2f);
+        RectTransform rect = reactText.rectTransform;
+        RectTransform menuRect = menuText.rectTransform;
+        rect.sizeDelta = new Vector2(200f, 100f);
+        // 말풍선 위쪽 모서리 근처에서 시작
+        rect.anchoredPosition = new Vector2(0f, menuRect.rect.height * 0.5f + 30f);
+    }
+
+    private void ClearReact()
+    {
+        reactTime = ReactSeconds;
+        if (reactText != null) Destroy(reactText.gameObject);
+        reactText = null;
     }
 
     // ratio: 남은 인내도 비율 (1 = 가득, 0 = 다 됨)
@@ -183,7 +227,26 @@ public class Customer : MonoBehaviour
             y -= Mathf.Sin(Mathf.Clamp01(nodTime / leaveSeconds) * Mathf.PI) * NodDepth;
         }
 
-        transform.localPosition = rootPos + new Vector3(0f, y, 0f);
+        float x = 0f;
+        if (reactTime < ReactSeconds)
+        {
+            reactTime += dt;
+            float p = Mathf.Clamp01(reactTime / ReactSeconds);
+            if (reactHappy) y += Mathf.Sin(Mathf.Min(p * 2f, 1f) * Mathf.PI) * ReactJump;
+            else x = Mathf.Sin(p * Mathf.PI * 6f) * ReactShake * (1f - p);
+            if (reactText != null)
+            {
+                RectTransform rr = reactText.rectTransform;
+                Vector2 pos = rr.anchoredPosition;
+                rr.anchoredPosition = new Vector2(pos.x, pos.y + ReactRise * 100f * dt / ReactSeconds * 4f);
+                Color c = reactText.color;
+                c.a = 1f - Mathf.Clamp01((p - 0.5f) / 0.5f);
+                reactText.color = c;
+            }
+            if (p >= 1f) ClearReact();
+        }
+
+        transform.localPosition = rootPos + new Vector3(x, y, 0f);
         transform.localRotation = rootRot * Quaternion.Euler(0f, 0f, z);
         transform.localScale = Vector3.Scale(rootScale, mul);
     }

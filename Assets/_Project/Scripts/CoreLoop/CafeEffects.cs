@@ -224,4 +224,82 @@ public class CafeEffects : MonoBehaviour
         }
         rect.anchoredPosition = end;
     }
+
+    // 결과 번쩍임: 성공은 금색 흰빛 0.18초, 실패는 붉은빛 0.15초. 전체 화면 Image를 임시로 만들어 알파 0.35 → 0
+    public IEnumerator Flash(bool success)
+    {
+        RectTransform canvasRect = (RectTransform)fadeImage.transform.parent;
+        GameObject go = new GameObject("ResultFlash", typeof(RectTransform));
+        go.transform.SetParent(canvasRect, false);
+        RectTransform rect = (RectTransform)go.transform;
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        // 페이드 Image보다 아래에 둔다 (화면 전환 중에는 검정이 덮는다)
+        rect.SetSiblingIndex(fadeImage.transform.GetSiblingIndex());
+        Image image = go.AddComponent<Image>();
+        image.raycastTarget = false;
+        Color color = success ? new Color(1f, 0.95f, 0.7f) : new Color(1f, 0.15f, 0.1f);
+        float seconds = success ? 0.18f : 0.15f;
+        float t = 0f;
+        while (t < seconds)
+        {
+            t += Time.unscaledDeltaTime;
+            color.a = Mathf.Lerp(0.35f, 0f, Mathf.Clamp01(t / seconds));
+            image.color = color;
+            yield return null;
+        }
+        Destroy(go);
+    }
+
+    // 월드 위치의 화면 좌표에서 작은 별(45도 회전한 마름모) 8개가 사방으로 퍼지며 0.5초 사라진다
+    public IEnumerator Sparkle(Vector3 worldPos, Camera cam)
+    {
+        const int Count = 8;
+        const float Seconds = 0.5f;
+        const float Distance = 140f;
+        const float Size = 22f;
+        RectTransform canvasRect = (RectTransform)fadeImage.transform.parent;
+        Vector2 center = WorldToCanvasLocal(canvasRect, worldPos, cam);
+        Image[] stars = new Image[Count];
+        Vector2[] dirs = new Vector2[Count];
+        for (int i = 0; i < Count; i++)
+        {
+            GameObject go = new GameObject("Sparkle", typeof(RectTransform));
+            go.transform.SetParent(canvasRect, false);
+            go.transform.SetSiblingIndex(fadeImage.transform.GetSiblingIndex());
+            RectTransform rect = (RectTransform)go.transform;
+            rect.sizeDelta = new Vector2(Size, Size);
+            rect.anchoredPosition = center;
+            rect.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            Image image = go.AddComponent<Image>();
+            image.raycastTarget = false;
+            image.color = i % 2 == 0 ? new Color(1f, 0.9f, 0.4f) : Color.white;
+            stars[i] = image;
+            float angle = i * Mathf.PI * 2f / Count;
+            dirs[i] = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+        }
+        float t = 0f;
+        while (t < Seconds)
+        {
+            t += Time.unscaledDeltaTime;
+            float p = Mathf.Clamp01(t / Seconds);
+            float dist = Distance * EaseOutCubic(p);
+            float scale = 1f - p * 0.6f;
+            for (int i = 0; i < Count; i++)
+            {
+                if (stars[i] == null) continue;
+                RectTransform rect = stars[i].rectTransform;
+                rect.anchoredPosition = center + dirs[i] * dist;
+                rect.localScale = new Vector3(scale, scale, 1f);
+                Color c = stars[i].color;
+                c.a = 1f - p;
+                stars[i].color = c;
+            }
+            yield return null;
+        }
+        for (int i = 0; i < Count; i++)
+            if (stars[i] != null) Destroy(stars[i].gameObject);
+    }
 }
