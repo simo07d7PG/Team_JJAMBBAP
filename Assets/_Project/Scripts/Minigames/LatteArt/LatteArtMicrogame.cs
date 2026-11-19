@@ -328,8 +328,8 @@ public class LatteArtMicrogame : Minigame
     {
         if (filled >= checkpoints.Length) EndGame(true, TextPerfect, 1f);
         else if (filled >= needCount) EndGame(true, TextSuccess, GradeOf(filled));
-        else if (filled > 0) EndGame(false, TextBad, 0f);
-        else EndGame(false, TextTimeOver, 0f);
+        else if (filled > 0) EndGame(false, TextBad + "\n<size=50%>" + filled + " / " + checkpoints.Length + "점 (" + needCount + "점 필요)</size>", 0f);
+        else EndGame(false, TextTimeOver + "\n<size=50%>0 / " + checkpoints.Length + "점</size>", 0f);
     }
 
     public override void TimeOver()

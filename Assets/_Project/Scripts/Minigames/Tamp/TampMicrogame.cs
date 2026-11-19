@@ -148,7 +148,7 @@ public class TampMicrogame : Minigame
             pressure = pressureLimit;
             ApplyVisuals(false);
             StartBurst();
-            Finish(false, TextTooHard);
+            Finish(false, TextTooHard + "\n<size=50%>압력이 " + Mathf.RoundToInt(pressureLimit * PercentScale) + "%를 넘었어요</size>");
             return;
         }
 
@@ -202,8 +202,9 @@ public class TampMicrogame : Minigame
 
     public override void TimeOver()
     {
-        if (hold >= holdNeeded * almostRatio) Finish(false, TextAlmost);
-        else Finish(false, TextTimeOver);
+        string progress = "\n<size=50%>" + hold.ToString("0.0") + " / " + holdNeeded.ToString("0.0") + "초 다짐</size>";
+        if (hold >= holdNeeded * almostRatio) Finish(false, TextAlmost + progress);
+        else Finish(false, TextTimeOver + progress);
     }
 
     private void ApplyVisuals(bool tamping)

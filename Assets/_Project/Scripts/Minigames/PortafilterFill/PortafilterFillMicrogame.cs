@@ -173,7 +173,7 @@ public class PortafilterFillMicrogame : Minigame
         float ratio = fillGrams / capacityGrams;
         if (ratio > overflowLimit)
         {
-            EndGame(false, TextOverflow);
+            EndGame(false, TextOverflow + "\n<size=50%>" + "100%를 넘었어요</size>");
             return;
         }
 
@@ -195,9 +195,10 @@ public class PortafilterFillMicrogame : Minigame
     public override void TimeOver()
     {
         float ratio = fillGrams / capacityGrams;
-        if (ratio < targetMin) EndGame(false, TextShort);
-        else if (ratio > targetMax) EndGame(false, TextTooMuch);
-        else EndGame(false, TextTimeOver);
+        string range = "\n<size=50%>" + Mathf.RoundToInt(ratio * 100f) + "% / 목표 " + Mathf.RoundToInt(targetMin * 100f) + "~" + Mathf.RoundToInt(targetMax * 100f) + "%</size>";
+        if (ratio < targetMin) EndGame(false, TextShort + range);
+        else if (ratio > targetMax) EndGame(false, TextTooMuch + range);
+        else EndGame(false, TextTimeOver + "\n<size=50%>뗀 채 " + holdSeconds.ToString("0.0") + "초 유지 필요</size>");
     }
 
     private void EndGame(bool success, string text)

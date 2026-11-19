@@ -277,7 +277,7 @@ public class EspressoShotMicrogame : Minigame
         UpdateCupVisual();
         hud.SetAmount(extracted, capacityMl);
         UpdateZone(before);
-        if (overflow) EndGame(false, "컵이 넘쳤어!");
+        if (overflow) EndGame(false, "컵이 넘쳤어!\n<size=50%>" + Mathf.RoundToInt(capacityMl) + "ml 초과</size>");
     }
 
     // 거품 치직: 양은 늘지 않고, 굵기·길이가 다른 짧은 물줄기가 툭툭 끊겨 떨어진다(컵까지 못 가기도 함)
@@ -386,8 +386,8 @@ public class EspressoShotMicrogame : Minigame
     public override void TimeOver()
     {
         if (TryFinishByAmount()) return;
-        if (extracted > 0f) EndGame(false, "샷이 모자라!");
-        else EndGame(false, "시간 초과!");
+        if (extracted > 0f) EndGame(false, "샷이 모자라!\n<size=50%>" + Mathf.RoundToInt(extracted) + "ml / 목표 " + Mathf.RoundToInt(curMinMl) + "ml</size>");
+        else EndGame(false, "시간 초과!\n<size=50%>추출을 시작하지 못했어요</size>");
     }
 
     // 뽑은 양이 구간 안이면 성공, 넘었으면 실패로 끝낸다. 끝냈으면 true, 모자라면 false
@@ -400,7 +400,7 @@ public class EspressoShotMicrogame : Minigame
         }
         if (extracted > curMaxMl)
         {
-            EndGame(false, TextOverAmount);
+            EndGame(false, TextOverAmount + "\n<size=50%>" + Mathf.RoundToInt(extracted) + "ml / 목표 " + Mathf.RoundToInt(curMinMl) + "~" + Mathf.RoundToInt(curMaxMl) + "ml</size>");
             return true;
         }
         return false;

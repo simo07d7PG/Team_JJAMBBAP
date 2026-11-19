@@ -140,7 +140,7 @@ public class IceScoopMicrogame : Minigame
     {
         if (countInCup > cupMax)
         {
-            EndGame(false, "얼음이 넘쳤어!");
+            EndGame(false, "얼음이 넘쳤어!\n<size=50%>" + countInCup + "개 / 최대 " + cupMax + "개</size>");
             return;
         }
 
@@ -158,10 +158,11 @@ public class IceScoopMicrogame : Minigame
     // 시간 초과. 유지 시간을 못 채웠으면 구간 안이어도 실패
     public override void TimeOver()
     {
-        if (InTargetRange()) EndGame(false, "시간 초과!");
-        else if (countInCup > curMax) EndGame(false, "얼음이 너무 많아!");
-        else if (countInCup > 0) EndGame(false, "얼음이 모자라!");
-        else EndGame(false, "시간 초과!");
+        string range = countInCup + "개 / 목표 " + curMin + "~" + curMax + "개";
+        if (InTargetRange()) EndGame(false, "시간 초과!\n<size=50%>구간 유지 시간이 모자라요</size>");
+        else if (countInCup > curMax) EndGame(false, "얼음이 너무 많아!\n<size=50%>" + range + "</size>");
+        else if (countInCup > 0) EndGame(false, "얼음이 모자라!\n<size=50%>" + range + "</size>");
+        else EndGame(false, "시간 초과!\n<size=50%>컵에 얼음이 없어요</size>");
     }
 
     private void EndGame(bool success, string text)

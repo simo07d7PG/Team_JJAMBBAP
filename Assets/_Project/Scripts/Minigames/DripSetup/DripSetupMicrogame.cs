@@ -171,7 +171,7 @@ public class DripSetupMicrogame : Minigame
         else wrongTimer = 0f;
         if (wrongTimer >= wrongSeconds)
         {
-            EndGame(false, "거기가 아니야!");
+            EndGame(false, "거기가 아니야!\n<size=50%>가루는 드리퍼, 물은 주전자</size>");
             return;
         }
 
@@ -252,7 +252,7 @@ public class DripSetupMicrogame : Minigame
         if (overflow)
         {
             hud.SetFills(fill[Grounds], fill[Water]);
-            EndGame(false, "넘쳤어!");
+            EndGame(false, "넘쳤어!\n<size=50%>" + (t == Grounds ? "가루가" : "물이") + " 100%를 넘었어요</size>");
         }
     }
 
@@ -284,10 +284,11 @@ public class DripSetupMicrogame : Minigame
     // 시간 초과. 순서: 하나라도 구간 넘김 → 둘 다 구간 안(붓는 중이어도 성공) → 하나도 안 부음 → 모자람
     public override void TimeOver()
     {
-        if (OverTarget(Grounds) || OverTarget(Water)) EndGame(false, "너무 많아!");
+        string amounts = "\n<size=50%>가루 " + Mathf.RoundToInt(fill[Grounds] * 100f) + "% · 물 " + Mathf.RoundToInt(fill[Water] * 100f) + "%</size>";
+        if (OverTarget(Grounds) || OverTarget(Water)) EndGame(false, "너무 많아!" + amounts);
         else if (BothInTarget()) EndGame(true, "성공!");
-        else if (fill[Grounds] <= 0f && fill[Water] <= 0f) EndGame(false, "시간 초과!");
-        else EndGame(false, "모자라!");
+        else if (fill[Grounds] <= 0f && fill[Water] <= 0f) EndGame(false, "시간 초과!\n<size=50%>아무것도 붓지 못했어요</size>");
+        else EndGame(false, "모자라!" + amounts);
     }
 
     private void EndGame(bool success, string text)

@@ -118,7 +118,7 @@ public class WaterTopUpMicrogame : Minigame
 
         if (pouredMl > curMaxMl + overflowMarginMl)
         {
-            EndGame(false, "물이 넘쳤어!");
+            EndGame(false, "물이 넘쳤어!\n<size=50%>" + Mathf.RoundToInt(curMaxMl + overflowMarginMl) + "ml를 넘었어요</size>");
             return;
         }
 
@@ -140,10 +140,11 @@ public class WaterTopUpMicrogame : Minigame
 
     public override void TimeOver()
     {
-        if (pouredMl <= Epsilon) EndGame(false, "시간 초과!");
-        else if (pouredMl < curMinMl) EndGame(false, "물이 모자라!");
-        else if (pouredMl > curMaxMl) EndGame(false, "물이 너무 많아!");
-        else EndGame(false, "시간 초과!");
+        string amount = "\n<size=50%>" + Mathf.RoundToInt(pouredMl) + "ml / 목표 " + Mathf.RoundToInt(curMinMl) + "~" + Mathf.RoundToInt(curMaxMl) + "ml</size>";
+        if (pouredMl <= Epsilon) EndGame(false, "시간 초과!\n<size=50%>휠을 올려 밸브를 열어요</size>");
+        else if (pouredMl < curMinMl) EndGame(false, "물이 모자라!" + amount);
+        else if (pouredMl > curMaxMl) EndGame(false, "물이 너무 많아!" + amount);
+        else EndGame(false, "시간 초과!\n<size=50%>멈춘 채 " + holdSeconds.ToString("0.0") + "초 유지 필요</size>");
     }
 
     private void EndGame(bool success, string text)

@@ -196,7 +196,7 @@ public class GrindTimingMicrogame : Minigame
 
         if (misses >= maxMisses)
         {
-            Finish(false, TextTooManyMisses);
+            Finish(false, TextTooManyMisses + "\n<size=50%>" + hits + " / " + neededHits + "번 성공</size>");
             return;
         }
         StartRest();
@@ -210,8 +210,9 @@ public class GrindTimingMicrogame : Minigame
 
     public override void TimeOver()
     {
-        if (hits >= halfHits) Finish(false, TextNotEnough);
-        else base.TimeOver();
+        string progress = "\n<size=50%>" + hits + " / " + neededHits + "번 성공</size>";
+        if (hits >= halfHits) Finish(false, TextNotEnough + progress);
+        else Finish(false, "시간 초과!" + progress);
     }
 
     private void UpdatePile()

@@ -195,8 +195,9 @@ public class ManualGrindMicrogame : Minigame
     // 시간 초과. 반 이상 갈았으면 "덜 갈렸어!"
     public override void TimeOver()
     {
-        if (accumulated >= neededTurns * DegreesPerTurn * halfDoneRatio) EndGame(false, TextHalfDone);
-        else EndGame(false, TextTimeOver);
+        string turns = "\n<size=50%>" + (accumulated / DegreesPerTurn).ToString("0.0") + " / " + neededTurns + "바퀴</size>";
+        if (accumulated >= neededTurns * DegreesPerTurn * halfDoneRatio) EndGame(false, TextHalfDone + turns);
+        else EndGame(false, TextTimeOver + turns);
     }
 
     private void EndGame(bool success, string text)

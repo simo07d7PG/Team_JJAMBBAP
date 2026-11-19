@@ -165,8 +165,8 @@ public class BeanScoopMicrogame : Minigame
     // 시간 초과. 필요한 양을 못 채웠으면 실패
     public override void TimeOver()
     {
-        if (countInHopper > 0) EndGame(false, "원두가 모자라!");
-        else EndGame(false, "시간 초과!");
+        if (countInHopper > 0) EndGame(false, "원두가 모자라!\n<size=50%>" + countInHopper + " / " + neededCount + "알</size>");
+        else EndGame(false, "시간 초과!\n<size=50%>0 / " + neededCount + "알</size>");
     }
 
     private void EndGame(bool success, string text)

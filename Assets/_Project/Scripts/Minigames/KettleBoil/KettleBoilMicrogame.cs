@@ -208,8 +208,9 @@ public class KettleBoilMicrogame : Minigame
     // 시간 초과. 목표 온도 근처까지 올렸으면 "덜 끓었어!"
     public override void TimeOver()
     {
-        if (temp >= almostTemp) EndGame(false, TextAlmost);
-        else EndGame(false, TextTimeOver);
+        string degrees = "\n<size=50%>" + Mathf.RoundToInt(temp) + "도 / 목표 " + Mathf.RoundToInt(targetTemp) + "도</size>";
+        if (temp >= almostTemp) EndGame(false, TextAlmost + degrees);
+        else EndGame(false, TextTimeOver + degrees);
     }
 
     private void EndGame(bool success, string text)

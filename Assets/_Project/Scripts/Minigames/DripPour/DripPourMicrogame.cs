@@ -208,7 +208,7 @@ public class DripPourMicrogame : Minigame
         }
         if (poursUsed >= pourCount)
         {
-            EndGame(false, TextNotEnough);
+            EndGame(false, NotEnoughText());
             return;
         }
         // 멈출 때마다 빨라진다
@@ -230,8 +230,14 @@ public class DripPourMicrogame : Minigame
         if (!isPlaying) return;
         if (pouring) StopPour();
         if (gauge >= targetGauge) EndGame(true, TextSuccess);
-        else if (poursUsed >= pourCount) EndGame(false, TextNotEnough);
-        else EndGame(false, TextTimeOver);
+        else if (poursUsed >= pourCount) EndGame(false, NotEnoughText());
+        else EndGame(false, TextTimeOver + "\n<size=50%>" + poursUsed + " / " + pourCount + "번 · 게이지 " + Mathf.RoundToInt(gauge) + "</size>");
+    }
+
+    // 기회를 다 쓰고도 모자랐을 때: 게이지 / 목표
+    private string NotEnoughText()
+    {
+        return TextNotEnough + "\n<size=50%>게이지 " + Mathf.RoundToInt(gauge) + " / 목표 " + Mathf.RoundToInt(targetGauge) + "</size>";
     }
 
     private void EndGame(bool success, string text)

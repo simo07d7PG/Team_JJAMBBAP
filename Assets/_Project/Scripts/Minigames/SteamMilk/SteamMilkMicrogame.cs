@@ -177,7 +177,7 @@ public class SteamMilkMicrogame : Minigame
             {
                 spraying = false;
                 UpdateVisuals();
-                Finish(false, TextSplash);
+                Finish(false, TextSplash + "\n<size=50%>표면 위에서 " + splashLimitSeconds.ToString("0.0") + "초 분사</size>");
                 return;
             }
         }
@@ -196,7 +196,7 @@ public class SteamMilkMicrogame : Minigame
             temp = failTemp;
             spraying = false;
             UpdateVisuals();
-            Finish(false, TextTooHot);
+            Finish(false, TextTooHot + "\n<size=50%>" + Mathf.RoundToInt(failTemp) + "도에 닿았어요</size>");
         }
     }
 
@@ -205,10 +205,12 @@ public class SteamMilkMicrogame : Minigame
     {
         spraying = false;
         UpdateVisuals();
-        if (temp < tempMin) Finish(false, TextCold);
-        else if (temp > tempMax) Finish(false, TextTooHot);
-        else if (foam < foamMin) Finish(false, TextNoFoam);
-        else if (foam > foamMax) Finish(false, TextTooFoamy);
+        string tempInfo = "\n<size=50%>" + Mathf.RoundToInt(temp) + "도 / 목표 " + Mathf.RoundToInt(tempMin) + "~" + Mathf.RoundToInt(tempMax) + "도</size>";
+        string foamInfo = "\n<size=50%>거품 " + Mathf.RoundToInt(foam) + "% / 목표 " + Mathf.RoundToInt(foamMin) + "~" + Mathf.RoundToInt(foamMax) + "%</size>";
+        if (temp < tempMin) Finish(false, TextCold + tempInfo);
+        else if (temp > tempMax) Finish(false, TextTooHot + tempInfo);
+        else if (foam < foamMin) Finish(false, TextNoFoam + foamInfo);
+        else if (foam > foamMax) Finish(false, TextTooFoamy + foamInfo);
         else
         {
             float tempScore = Mathf.Clamp01(1f - Mathf.Abs(temp - tempBest) / tempQualityRange);
@@ -222,7 +224,7 @@ public class SteamMilkMicrogame : Minigame
     {
         spraying = false;
         UpdateVisuals();
-        Finish(false, TextTimeOver);
+        Finish(false, TextTimeOver + "\n<size=50%>" + Mathf.RoundToInt(temp) + "도 · 거품 " + Mathf.RoundToInt(foam) + "%</size>");
     }
 
     private void UpdateVisuals()

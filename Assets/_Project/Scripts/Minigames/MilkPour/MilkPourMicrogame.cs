@@ -183,7 +183,7 @@ public class MilkPourMicrogame : Minigame
         bool overflow = liquidMl > cupCapacityMl + Epsilon;
         if (overflow) liquidMl = cupCapacityMl;
         UpdateCupDisplay();
-        if (overflow) EndGame(false, "우유가 넘쳤어!");
+        if (overflow) EndGame(false, "우유가 넘쳤어!\n<size=50%>컵 용량을 넘었어요</size>");
     }
 
     // 컵 밖으로 흘린 경우: 줄기는 바닥까지, 한도를 넘기면 실패
@@ -192,7 +192,7 @@ public class MilkPourMicrogame : Minigame
         SetStream(true, DistanceToFloor());
         outsideMl += ml;
         hud.SetSpill(outsideMl / maxOutsideMl);
-        if (outsideMl > maxOutsideMl + Epsilon) EndGame(false, "우유를 흘렸어!");
+        if (outsideMl > maxOutsideMl + Epsilon) EndGame(false, "우유를 흘렸어!\n<size=50%>컵 밖으로 " + Mathf.RoundToInt(maxOutsideMl) + "ml 넘게</size>");
     }
 
     // 입구에서 바닥까지의 높이(줄기 길이)
@@ -232,8 +232,14 @@ public class MilkPourMicrogame : Minigame
 
     public override void TimeOver()
     {
-        if (!HasPoured()) EndGame(false, "시간 초과!");
-        else if (!EndIfInTargetOrOver()) EndGame(false, "너무 적게 부었어!");
+        if (!HasPoured()) EndGame(false, "시간 초과!\n<size=50%>우유를 붓지 못했어요</size>");
+        else if (!EndIfInTargetOrOver()) EndGame(false, "너무 적게 부었어!\n<size=50%>" + FillText() + "</size>");
+    }
+
+    // 결과 둘째 줄: 지금 높이 / 목표 구간 (%)
+    private string FillText()
+    {
+        return Mathf.RoundToInt(Fill01() * 100f) + "% / 목표 " + Mathf.RoundToInt(curMin01 * 100f) + "~" + Mathf.RoundToInt(curMax01 * 100f) + "%";
     }
 
     // 목표 구간이면 성공, 넘었으면 실패로 끝내고 true. 아직 모자라면 false
@@ -246,7 +252,7 @@ public class MilkPourMicrogame : Minigame
         }
         if (Fill01() > curMax01)
         {
-            EndGame(false, "너무 많이 부었어!");
+            EndGame(false, "너무 많이 부었어!\n<size=50%>" + FillText() + "</size>");
             return true;
         }
         return false;
