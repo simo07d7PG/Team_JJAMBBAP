@@ -44,7 +44,7 @@ public class LoadingScreen : MonoBehaviour
         gameObject.SetActive(true);
         group.alpha = 1f;
         dayText.text = day + "일차";
-        tipText.text = tips.Length > 0 ? "TIP  " + tips[Random.Range(0, tips.Length)] : "";
+        tipText.text = PickTip();
 
         // 가짜 진행 막대 채우기
         float fillT = 0f;
@@ -66,6 +66,31 @@ public class LoadingScreen : MonoBehaviour
             yield return null;
         }
         gameObject.SetActive(false);
+    }
+
+    // 코드에 둔 기본 팁. 인스펙터 목록에 없는 것만 후보에 더한다
+    private static readonly string[] ExtraTips =
+    {
+        "손님을 클릭해 주문을 받고, 화살표가 가리키는 기계를 순서대로 눌러요",
+        "상점에서 레시피를 사면 다음 날부터 새 메뉴가 나와요",
+        "인내도 막대가 빨개지기 전에 음료를 건네요",
+        "마지막까지 성공하면 팁이 붙어요",
+        "ESC로 저장하고 불러올 수 있어요",
+        "기계 라떼는 단계가 많지만 값이 비싸요"
+    };
+
+    // 인스펙터 팁 + 기본 팁(중복 제외) 중 무작위로 하나
+    private string PickTip()
+    {
+        System.Collections.Generic.List<string> pool = new System.Collections.Generic.List<string>();
+        if (tips != null)
+        {
+            for (int i = 0; i < tips.Length; i++)
+                if (!string.IsNullOrEmpty(tips[i]) && !pool.Contains(tips[i])) pool.Add(tips[i]);
+        }
+        for (int i = 0; i < ExtraTips.Length; i++)
+            if (!pool.Contains(ExtraTips[i])) pool.Add(ExtraTips[i]);
+        return "TIP  " + pool[Random.Range(0, pool.Count)];
     }
 
     // 처음엔 빠르게, 중간에 잠깐 멈칫, 끝에서 마저 찬다

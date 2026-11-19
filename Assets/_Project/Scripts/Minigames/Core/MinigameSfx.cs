@@ -13,7 +13,10 @@ public static class MinigameSfx
         AudioClip clip = GetClip(name);
         if (clip == null) return;
         AudioSource s = GetSource();
-        if (s != null) s.PlayOneShot(clip, volume);
+        if (s == null) return;
+        // 같은 소리가 단조롭지 않게 매번 음높이를 조금 흔든다 (tick은 폭을 더 넓게)
+        s.pitch = name == "tick" ? Random.Range(0.92f, 1.12f) : Random.Range(0.95f, 1.06f);
+        s.PlayOneShot(clip, volume);
     }
 
     private static AudioClip GetClip(string name)
