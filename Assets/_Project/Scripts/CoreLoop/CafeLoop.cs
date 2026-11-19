@@ -111,6 +111,19 @@ public class CafeLoop : MonoBehaviour
     private const int StatePlaying = 2;     // 미니게임 플레이
     private const int StateResult = 3;      // 결과
     private const int StateFade = 4;        // 페이드·걷기 전환 중 (시간 정지)
+    private const int StateGuide = 5;       // 첫 진입 설명 카드 (시계·인내도·제한 시간 정지, 미니게임 입력 전)
+
+    // 설명 카드: 이번 PC에서 처음 보는 미니게임이면 카드를 띄운다
+    private const string GuideKeyPrefix = "bari_guide_seen_";
+    private const float GuideFirstTryTimeMult = 1.5f; // 카드를 본 직후 첫 판 제한 시간 배율
+    private MinigameGuideCard guideCard;
+    private MinigameGuide.Entry currentGuide; // 지금 미니게임의 설명 (없으면 null)
+    private float timeMult = 1f;             // 이번 판 제한 시간 배율
+    private bool guideClosing;               // 카드를 닫았다. 한 프레임 뒤 시작 (닫은 클릭이 새지 않게)
+    private int guideCloseFrame;
+    private bool reviewing;                  // 플레이 중 Tab으로 카드를 다시 보는 중
+    private float reviewPrevScale = 1f;
+    private int reviewResumeFrame = -1;      // 이 프레임부터 미니게임 입력을 다시 켠다
 
     // 이번 주문의 컵. 수락 때 만들고 단계마다 같은 컵을 넘기며, 손님이 떠나면 버린다
     private Cup orderCup = new Cup();
@@ -218,6 +231,7 @@ public class CafeLoop : MonoBehaviour
             // 새 진행이면 튜토리얼·엔딩도 처음부터 (CafeTutorial.Init이 이 값을 읽기 전에 지운다)
             CafeEnding.ResetFlags();
             CafeTutorial.ResetFlag();
+            ResetGuideSeen();
         }
         else if (SaveSlots.pending != null) shop.ApplySave(SaveSlots.pending);
         SaveSlots.newGame = false;
@@ -242,6 +256,8 @@ public class CafeLoop : MonoBehaviour
         ending = gameObject.AddComponent<CafeEnding>();
         ending.Init(this);
         gameObject.AddComponent<AchievementToast>().Init(this);
+        guideCard = gameObject.AddComponent<MinigameGuideCard>();
+        guideCard.Init(this);
         // 조작 안내는 각 미니게임 화면에 이미 있어서 상시 표시 패널은 쓰지 않는다 (겹침)
         ShowDay();
         ShowIncome();
@@ -298,6 +314,7 @@ public class CafeLoop : MonoBehaviour
         UpdateCustomer();
         UpdatePatience();
         UpdateNotice();
+        guideCard.SetPlayHint(state == StatePlaying && !reviewing && currentGuide != null);
         if (order == OrderNone)
         {
             // 주문이 없는 프레임에 들어온 클릭은 버린다 (다음 손님 때 저절로 걸어가지 않게)
@@ -314,7 +331,11 @@ public class CafeLoop : MonoBehaviour
                 UpdateInstruction();
                 break;
             case StatePlaying:
+                if (UpdateReview()) break;
                 UpdatePlaying();
+                break;
+            case StateGuide:
+                UpdateGuide();
                 break;
             case StateResult:
                 UpdateResult();
@@ -344,6 +365,7 @@ public class CafeLoop : MonoBehaviour
             shop.ResetSave();
             CafeEnding.ResetFlags();
             CafeTutorial.ResetFlag();
+            ResetGuideSeen();
             Achievements.ResetAll();
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
             return true;
@@ -367,11 +389,86 @@ public class CafeLoop : MonoBehaviour
     {
         timer -= Time.deltaTime;
         if (timer > 0f) return;
+        timeMult = 1f;
+        BeginPlay();
+    }
+
+    // 미니게임을 실제로 시작한다. 제한 시간은 current.timeLimit에 배율(timeMult)만 곱해 센다
+    private void BeginPlay()
+    {
         current.StartGame();
-        timer = current.timeLimit;
+        timer = current.timeLimit * timeMult;
         state = StatePlaying;
         ShowTexts();
         Debug.Log("[CafeLoop] 미니게임 시작: " + current.stationId);
+    }
+
+    // 설명 카드가 떠 있는 동안: 좌클릭·Space·Enter로 닫으면 키를 저장하고, 한 프레임 뒤 시작한다
+    private void UpdateGuide()
+    {
+        if (guideClosing)
+        {
+            // 닫은 클릭을 뗄 때까지 기다린다 (누른 채면 미니게임이 꾹 누름으로 읽는다)
+            if (Time.frameCount > guideCloseFrame && !PointerHeld()) BeginPlay();
+            return;
+        }
+        if (!guideCard.IsOpen || Time.timeScale <= 0f) return;
+        if (!guideCard.ClosePressed(false)) return;
+        guideCard.Hide();
+        PlayerPrefs.SetInt(GuideKeyPrefix + current.stationId, 1);
+        PlayerPrefs.Save();
+        guideClosing = true;
+        guideCloseFrame = Time.frameCount;
+    }
+
+    // 플레이 중 Tab: 카드를 다시 띄우고 시간을 멈춘다. 반환 true면 이번 프레임 플레이 처리를 건너뛴다
+    // ESC 메뉴(EscManager)가 timeScale을 0/1로 직접 바꾸므로, 이미 0이면 열지 않고 ESC가 눌리면 시간 복원은 메뉴에 맡긴다
+    private bool UpdateReview()
+    {
+        if (!reviewing)
+        {
+            if (current != null && !current.enabled)
+            {
+                // 닫은 다음 프레임에 미니게임 입력을 다시 켠다 (닫은 클릭이 새지 않게)
+                if (Time.frameCount < reviewResumeFrame || PointerHeld()) return true;
+                current.enabled = true;
+            }
+            if (currentGuide == null || !guideCard.Ready || Time.timeScale <= 0f || Keyboard.current == null) return false;
+            if (!Keyboard.current.tabKey.wasPressedThisFrame || !current.isPlaying || current.isFinished) return false;
+            reviewing = true;
+            reviewPrevScale = Time.timeScale;
+            Time.timeScale = 0f;
+            current.enabled = false;
+            guideCard.Show(currentGuide, false);
+            return true;
+        }
+        bool esc = Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame;
+        if (esc)
+        {
+            // ESC 메뉴가 있으면 메뉴가 timeScale을 맡는다 (열면 0 유지, 닫으면 1). 없으면 여기서 복원
+            if (FindFirstObjectByType<EscManager>() == null) Time.timeScale = reviewPrevScale;
+            CloseReview();
+            return true;
+        }
+        if (guideCard.ClosePressed(true))
+        {
+            Time.timeScale = reviewPrevScale;
+            CloseReview();
+        }
+        return true;
+    }
+
+    // 마우스 왼쪽·오른쪽 버튼이 눌려 있는가
+    private static bool PointerHeld()
+    {
+        return Mouse.current != null && (Mouse.current.leftButton.isPressed || Mouse.current.rightButton.isPressed);
+    }
+
+    private void CloseReview()
+    {
+        reviewing = false;
+        guideCard.Hide();
+        reviewResumeFrame = Time.frameCount + 1;
     }
 
     // 미니게임 플레이: 제한 시간을 세고, 끝나면 판정해 결과 화면으로 넘어간다
@@ -619,7 +716,7 @@ public class CafeLoop : MonoBehaviour
         {
             if (receiptPanel != null && receiptPanel.activeSelf) lastMood = 2;
             else if (shop != null && shop.panel != null && shop.panel.activeSelf) lastMood = 2;
-            else if (state == StateInstruction || state == StatePlaying || state == StateResult) lastMood = 1;
+            else if (state == StateInstruction || state == StateGuide || state == StatePlaying || state == StateResult) lastMood = 1;
             else if (state == StateFade) lastMood = opening ? 2 : lastMood; // 전환 페이드 중엔 직전 분위기 유지
             else lastMood = 0;
             return lastMood;
@@ -790,7 +887,7 @@ public class CafeLoop : MonoBehaviour
         float ratio = patienceMax > 0f ? patience / patienceMax : 0f;
         customer.SetPatience(accepted, ratio);
         // 미니게임이 보이는 동안에만 (걷기·전환 페이드·카페에서는 숨김)
-        bool inMinigame = current != null && (state == StateInstruction || state == StatePlaying || state == StateResult);
+        bool inMinigame = current != null && (state == StateInstruction || state == StateGuide || state == StatePlaying || state == StateResult);
         minigamePatienceBar.SetActive(accepted && inMinigame);
         minigamePatienceFill.localScale = new Vector3(Mathf.Clamp01(ratio), 1f, 1f);
 
@@ -901,12 +998,40 @@ public class CafeLoop : MonoBehaviour
         // 지시어 동안 이전 판의 잔상이 보이지 않게, 화면이 검을 때 한 번 초기화 (cup·variant를 넣은 뒤)
         game.PrepareGame();
         // 이번 실행에서 처음 들어가는 미니게임이면 조작 안내를 읽을 시간을 더 준다
+        game.enabled = true;
+        reviewing = false;
+        guideClosing = false;
+        currentGuide = MinigameGuide.Get(game.stationId);
         bool firstVisit = seenStations.Add(game.stationId);
+        // 이 PC에서 처음 보는 미니게임이면 지시어 대신 설명 카드 (카드가 뜨면 첫 방문 지시어는 쓰지 않는다)
+        bool showCard = currentGuide != null && guideCard.Ready &&PlayerPrefs.GetInt(GuideKeyPrefix + game.stationId, 0) == 0;
+        if (showCard)
+        {
+            timeMult = GuideFirstTryTimeMult;
+            state = StateGuide;
+            ShowTexts();
+            yield return effects.FadeTo(0f);
+            if (state == StateGuide) guideCard.Show(currentGuide, true);
+            yield break;
+        }
+        timeMult = 1f;
         timer = firstVisit ? Mathf.Max(instructionSeconds, firstInstructionSeconds) : instructionSeconds;
         showControlHint = firstVisit;
         state = StateInstruction;
         ShowTexts();
         yield return effects.FadeTo(0f);
+    }
+
+    // 설명 카드를 이미 봤다는 표시를 모두 지운다 (새 게임·F9)
+    private static void ResetGuideSeen()
+    {
+        MinigameGuide.Entry[] all = MinigameGuide.All;
+        if (all == null) return;
+        for (int i = 0; i < all.Length; i++)
+        {
+            PlayerPrefs.DeleteKey(GuideKeyPrefix + all[i].stationId);
+        }
+        PlayerPrefs.Save();
     }
 
     // 미니게임 하나가 끝남 → 다음 단계로 (실패해도 진행)
@@ -1042,7 +1167,7 @@ public class CafeLoop : MonoBehaviour
     // 저장 버튼 아래 이유 글자
     public string SaveBlockedReason()
     {
-        if (state == StateInstruction || state == StatePlaying || state == StateResult) return "미니게임 중에는 저장할 수 없어요";
+        if (state == StateInstruction || state == StateGuide || state == StatePlaying || state == StateResult) return "미니게임 중에는 저장할 수 없어요";
         return "지금은 저장할 수 없어요";
     }
 
@@ -1252,7 +1377,7 @@ public class CafeLoop : MonoBehaviour
         timeText.gameObject.SetActive(state == StatePlaying);
         resultText.gameObject.SetActive(state == StateResult);
         // 지시어·결과는 알림과 같은 자리라 겹치지 않게 알림을 숨긴다
-        if (state == StateInstruction || state == StateResult) HideNotice();
+        if (state == StateInstruction || state == StateGuide || state == StateResult) HideNotice();
         if (state == StateInstruction)
         {
             instructionText.text = current.instruction;
@@ -1262,7 +1387,7 @@ public class CafeLoop : MonoBehaviour
             string control = showControlHint ? ControlLabel(current.stationId) : "";
             if (control != "") instructionText.text += "\n<size=60%>조작: " + control + "</size>";
         }
-        if (state == StatePlaying) timeText.text = "남은 시간 " + current.timeLimit.ToString("0.0") + "초";
+        if (state == StatePlaying) timeText.text = "남은 시간 " + (current.timeLimit * timeMult).ToString("0.0") + "초";
         if (state == StateResult) ShowResult();
     }
 
