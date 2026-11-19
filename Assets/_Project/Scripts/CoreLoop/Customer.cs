@@ -85,6 +85,7 @@ public class Customer : MonoBehaviour
         SaveBubbleScale();
         SaveRoot();
         ApplyScaleVariation();
+        ApplyTint();
         popTime = 0f;
         nodTime = 0f;
         nervous = false;
@@ -124,6 +125,24 @@ public class Customer : MonoBehaviour
     }
 
     // 말풍선 원래 크기를 처음 한 번만 저장한다
+    // 옷 색 6가지를 돌려 가며 원래 색에 섞는다 (직전과 같은 색은 피함)
+    private static readonly Color[] TintPalette =
+    {
+        new Color(0.85f, 0.45f, 0.40f), new Color(0.40f, 0.65f, 0.85f), new Color(0.55f, 0.78f, 0.45f),
+        new Color(0.92f, 0.75f, 0.35f), new Color(0.70f, 0.50f, 0.80f), new Color(0.45f, 0.75f, 0.72f),
+    };
+    private int tintIndex = -1;
+
+    private void ApplyTint()
+    {
+        Station station = GetComponent<Station>();
+        if (station == null) return;
+        int next = Random.Range(0, TintPalette.Length);
+        if (next == tintIndex) next = (next + 1) % TintPalette.Length;
+        tintIndex = next;
+        station.TintBase(TintPalette[next], Random.Range(0.3f, 0.45f));
+    }
+
     private void SaveBubbleScale()
     {
         if (scaleSaved) return;

@@ -40,6 +40,7 @@ public class Station : MonoBehaviour
         public Material mat;
         public bool hasOutline;
         public Color color;
+        public Color origColor;
         public Color outlineColor;
         public float outlineWidth;
         public float outlineUsePosition;
@@ -65,6 +66,7 @@ public class Station : MonoBehaviour
                 MaterialState state = new MaterialState();
                 state.mat = mat;
                 state.color = GetColor(mat);
+                state.origColor = state.color;
                 state.hasOutline = mat.HasProperty(OutlineWidthProp);
                 state.outlinePass = mat.GetShaderPassEnabled(OutlinePass);
                 if (state.hasOutline)
@@ -79,6 +81,18 @@ public class Station : MonoBehaviour
                 }
                 states.Add(state);
             }
+        }
+    }
+
+    // 기본 색을 원래 색에서 tint 쪽으로 amount만큼 섞는다 (손님 옷 색 다양화). 하이라이트 중이 아니면 바로 반영
+    public void TintBase(Color tint, float amount)
+    {
+        for (int i = 0; i < states.Count; i++)
+        {
+            MaterialState state = states[i];
+            state.color = Color.Lerp(state.origColor, tint, amount);
+            states[i] = state;
+            if (!highlighted) SetColor(state.mat, state.color);
         }
     }
 
