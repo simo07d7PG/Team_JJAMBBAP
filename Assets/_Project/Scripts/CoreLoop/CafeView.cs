@@ -289,6 +289,13 @@ public class CafeView : MonoBehaviour
         if (hovered != null) hovered.SetHighlight(true);
     }
 
+    // 씬이 바뀌거나 꺼질 때 잠근 커서를 풀어 둔다 (메인 메뉴 복귀 시 커서 사라짐 방지)
+    private void OnDestroy()
+    {
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+
     private void SetCursorLocked(bool locked)
     {
         cursorLocked = locked;

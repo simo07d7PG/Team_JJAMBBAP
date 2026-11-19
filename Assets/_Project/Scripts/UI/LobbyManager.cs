@@ -30,6 +30,9 @@ public class LobbyManager : MonoBehaviour
     private int selectedCoffeeIndex = -1; // 현재 선택된 커피 번호 저장
     private void Start()
     {
+        // 게임 씬에서 돌아와도 커서가 항상 보이게
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
         CloseAllCoffeePanels();
     }
 

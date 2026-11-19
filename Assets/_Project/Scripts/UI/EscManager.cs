@@ -18,6 +18,9 @@ public class EscManager : MonoBehaviour
     public void GameOut()
     {
         Time.timeScale = 1f; // 일시정지 상태로 메인씬으로 돌아가지 않도록 복구
+        // 게임 씬에서 잠근 커서를 풀어야 메인 메뉴에서 마우스가 보인다
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
         SceneManager.LoadScene("MainScene");
     }
 
