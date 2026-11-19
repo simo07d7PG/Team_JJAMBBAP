@@ -57,6 +57,9 @@ public class LobbyManager : MonoBehaviour
             }
         }
 
+        // 메뉴별 '만드는 법' 버튼 (잠긴 칸은 RecipeGuideView가 무시)
+        if (index >= 0 && index < coffeePanels.Length) RecipeGuideView.Show(coffeePanels[index], index);
+
         // 선택된 패널 및 버튼 레이어, 색상 처리
         for (int i = 0; i < coffeeButtonImages.Length; i++)
         {
