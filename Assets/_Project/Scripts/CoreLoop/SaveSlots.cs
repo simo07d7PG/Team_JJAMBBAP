@@ -134,6 +134,7 @@ public static class SaveSlots
         if (data.newMenuId == null) data.newMenuId = "";
         if (data.stepVariants == null) data.stepVariants = new int[0];
         if (data.request == null) data.request = "";
+        if (data.bestName == null) data.bestName = "";
         if (data.cup == null) data.cup = new Cup();
         if (data.savedAt == null) data.savedAt = "";
         if (data.situation == null) data.situation = "";

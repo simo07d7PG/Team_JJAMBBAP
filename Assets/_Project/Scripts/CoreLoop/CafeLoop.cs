@@ -165,6 +165,15 @@ public class CafeLoop : MonoBehaviour
     // 오늘 가장 비싸게 팔린 음료 (이름·가격). 하루 단위라 저장하지 않는다
     private string bestName = "";
     private int bestPrice;
+    // 주문 편중 완화: 직전 두 주문 메뉴, 오늘 이미 나온 메뉴
+    private MenuData lastPicked;
+    private MenuData lastPicked2;
+    private readonly HashSet<MenuData> servedToday = new HashSet<MenuData>();
+    // 손님 한마디 문구 풀 (직전과 같은 문구는 피한다)
+    private static readonly string[] PraiseLines = { "고마워요!", "맛있어 보여요!", "딱 제가 원하던 맛!", "또 올게요~" };
+    private static readonly string[] OkLines = { "음… 다음엔 잘해 줘요", "조금 아쉬워요", "괜찮네요" };
+    private static readonly string[] BadLines = { "이건 주문한 게 아닌데요…", "다시 만들어 주세요…", "너무 오래 걸려요!" };
+    private string lastLine = "";
     // 오늘 목표를 이미 넘었다 (달성 알림을 한 번만)
     private bool goalReached;
     private float noticeTimer;
@@ -532,13 +541,45 @@ public class CafeLoop : MonoBehaviour
     private MenuData PickMenu()
     {
         MenuData fresh = shop.TakeNewMenu();
-        if (fresh != null) return fresh;
+        if (fresh != null) return RecordPick(fresh);
         List<MenuData> open = new List<MenuData>();
         for (int i = 0; i < menus.Length; i++)
         {
             if (shop.IsMenuOpen(menus[i])) open.Add(menus[i]);
         }
-        return open[Random.Range(0, open.Count)];
+        if (open.Count == 1) return RecordPick(open[0]);
+        // 같은 메뉴 3연속 금지: 직전 두 번이 같으면 그 메뉴는 후보에서 뺀다
+        List<MenuData> pool = new List<MenuData>(open);
+        if (lastPicked != null && lastPicked == lastPicked2) pool.Remove(lastPicked);
+        if (pool.Count == 0) pool = open;
+        // 오늘 아직 안 나온 메뉴는 가중치 2배
+        float total = 0f;
+        for (int i = 0; i < pool.Count; i++) total += servedToday.Contains(pool[i]) ? 1f : 2f;
+        float roll = Random.value * total;
+        MenuData picked = pool[pool.Count - 1];
+        for (int i = 0; i < pool.Count; i++)
+        {
+            roll -= servedToday.Contains(pool[i]) ? 1f : 2f;
+            if (roll <= 0f) { picked = pool[i]; break; }
+        }
+        return RecordPick(picked);
+    }
+
+    private MenuData RecordPick(MenuData picked)
+    {
+        lastPicked2 = lastPicked;
+        lastPicked = picked;
+        servedToday.Add(picked);
+        return picked;
+    }
+
+    // 문구 풀에서 직전과 다른 것을 무작위로 고른다
+    private string PickLine(string[] pool)
+    {
+        string line = pool[Random.Range(0, pool.Length)];
+        for (int tries = 0; tries < 8 && line == lastLine && pool.Length > 1; tries++) line = pool[Random.Range(0, pool.Length)];
+        lastLine = line;
+        return line;
     }
 
     // 변형 글자. 기계 id마다 '적게/많이'에 해당하는 말
@@ -645,7 +686,7 @@ public class CafeLoop : MonoBehaviour
             effects.Play(effects.failClip);
             ShowNotice("제조 실패 · 0원");
             Debug.Log("[CafeLoop] 제공 실패: " + menu.menuName);
-            CustomerLeave("이건 못 마시겠어요…");
+            CustomerLeave(PickLine(BadLines));
             customer.React(false);
             return;
         }
@@ -680,7 +721,7 @@ public class CafeLoop : MonoBehaviour
         tutorial.OnServed();
         CafeEnding.AddSale();
         Debug.Log("[CafeLoop] 제공: " + menu.menuName + " " + price + "원 + 팁 " + tip);
-        CustomerLeave(successCount == menu.steps.Length ? "고마워요!" : "음… 다음엔 잘해 줘요");
+        CustomerLeave(PickLine(successCount == menu.steps.Length ? PraiseLines : OkLines));
         customer.React(true);
     }
 
@@ -728,7 +769,7 @@ public class CafeLoop : MonoBehaviour
             ShowNotice("손님이 떠났어요");
             leftCount++;
             Debug.Log("[CafeLoop] 인내도 초과, 손님 떠남");
-            CustomerLeave("너무 오래 걸려요!");
+            CustomerLeave(PickLine(BadLines));
             customer.React(false);
         }
     }
@@ -981,6 +1022,8 @@ public class CafeLoop : MonoBehaviour
         data.menuCount = OpenMenuCount();
         data.machineCount = MachineCount();
         data.situation = SituationText(data.shopPending);
+        data.bestName = bestName ?? "";
+        data.bestPrice = bestPrice;
         data.menuIndex = -1;
         data.stepVariants = new int[0];
         data.request = "";
@@ -1046,6 +1089,8 @@ public class CafeLoop : MonoBehaviour
         if (float.IsNaN(dayTimer) || float.IsInfinity(dayTimer) || (dayTimer <= 0f && !data.dayOver)) dayTimer = daySeconds;
         customersToday = Mathf.Clamp(data.customersToday, 0, CustomersPerDay());
         income = data.income;
+        bestName = data.bestName ?? "";
+        bestPrice = data.bestPrice < 0 ? 0 : data.bestPrice;
         // 불러온 시점에 이미 넘었으면 달성 알림을 다시 띄우지 않는다
         goalReached = income >= DailyGoal();
         salesCount = data.salesCount;
@@ -1157,6 +1202,7 @@ public class CafeLoop : MonoBehaviour
         customersToday = 0;
         bestName = "";
         bestPrice = 0;
+        servedToday.Clear();
         goalReached = false;
     }
 

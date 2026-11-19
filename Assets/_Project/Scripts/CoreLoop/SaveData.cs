@@ -14,6 +14,9 @@ public class SaveData
     public float dayTimer;
     public int customersToday;
     public int income;
+    // 오늘의 베스트 음료 (구버전 슬롯엔 없다 → 빈 글자·0)
+    public string bestName;
+    public int bestPrice;
     public int salesCount;
     public int failCount;
     public int leftCount;
