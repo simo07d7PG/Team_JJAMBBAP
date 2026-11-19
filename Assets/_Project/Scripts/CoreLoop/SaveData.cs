@@ -29,6 +29,8 @@ public class SaveData
     public int successCount;
     public float priceSum;
     public int[] stepVariants;
+    // 손님 성격 (0 보통, 1 급한 손님, 2 느긋한 손님. 옛 슬롯엔 없다 → 0)
+    public int personality;
     public float patience;
     public float nextCustomerTimer;
     // 손님 말풍선의 요청 글자 ("진하게, 우유 적게")

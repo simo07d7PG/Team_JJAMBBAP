@@ -169,6 +169,8 @@ public class CafeLoop : MonoBehaviour
     private int order;
     private MenuData menu;
     private int stepIndex;
+    private int pendingReaction; // 카페 복귀 시 손님 반응: 0 없음, 1+ (성공 비트 1, 마지막 단계 비트 2)
+    private int[] stepResults = new int[0]; // 단계별 결과 (0 실패, 1 성공). 주문서 카드 표시용
     private int successCount;
     private float nextCustomerTimer;
     private float patience;
@@ -214,6 +216,8 @@ public class CafeLoop : MonoBehaviour
 
     // 이번 주문의 단계별 변형(-1/0/1), 단계 가격 배율 합, 방금 끝난 단계 배율, 연속 성공
     private int[] stepVariants = new int[0];
+    // 지금 손님의 성격: 0 보통, 1 급한 손님(인내도 0.7배·팁 +30%), 2 느긋한 손님(인내도 1.4배)
+    private int personality;
     private float priceSum;
     private float stepMultiplier;
     private int combo;
@@ -258,6 +262,8 @@ public class CafeLoop : MonoBehaviour
         gameObject.AddComponent<AchievementToast>().Init(this);
         guideCard = gameObject.AddComponent<MinigameGuideCard>();
         guideCard.Init(this);
+        gameObject.AddComponent<OrderCard>().Init(this);
+        gameObject.AddComponent<CustomerQueue>().Init(this);
         // 조작 안내는 각 미니게임 화면에 이미 있어서 상시 표시 패널은 쓰지 않는다 (겹침)
         ShowDay();
         ShowIncome();
@@ -558,6 +564,11 @@ public class CafeLoop : MonoBehaviour
         return order == OrderWaitAccept || order == OrderWaitServe;
     }
 
+    // 줄 서기(CustomerQueue)가 읽는 읽기 전용 값
+    public int CustomersToday { get { return customersToday; } }
+    public int CustomersPerDayCount { get { return CustomersPerDay(); } }
+    public bool DayOver { get { return dayOver; } }
+
     // 오늘 받을 손님 수
     private int CustomersPerDay()
     {
@@ -622,8 +633,12 @@ public class CafeLoop : MonoBehaviour
     private void SpawnCustomer()
     {
         menu = PickMenu();
+        // 1일차 첫 손님과 튜토리얼 미완료 상태에서는 항상 보통
+        bool forceNormal = (day <= 1 && customersToday == 0) || PlayerPrefs.GetInt(CafeTutorial.DoneKey, 0) == 0;
+        personality = CustomerLines.RollPersonality(forceNormal);
         customersToday++;
         string request = RollVariants();
+        customer.SetPersonality(personality);
         customer.Show(menu, request);
         effects.Play(effects.bellClip);
         if (customersToday == CustomersPerDay()) ShowNotice("오늘 마지막 손님이에요!");
@@ -708,6 +723,27 @@ public class CafeLoop : MonoBehaviour
         return "";
     }
 
+    // 주문서 카드용 읽기 전용 값
+    public bool HasActiveOrder { get { return menu != null && (order == OrderMaking || order == OrderWaitServe); } }
+    public bool IsCafeState { get { return state == StateCafe; } }
+    public MenuData OrderMenu { get { return menu; } }
+    public int OrderPersonality { get { return personality; } }
+    public string OrderRequest { get { return menu != null && stepVariants != null && stepVariants.Length == menu.steps.Length ? RequestText() : ""; } }
+    public int OrderStepIndex { get { return stepIndex; } }
+    public int OrderStepCount { get { return menu != null ? menu.steps.Length : 0; } }
+    public string OrderStepName(int i)
+    {
+        if (menu == null || i < 0 || i >= menu.steps.Length) return "";
+        return StepLabel(menu.steps[i]);
+    }
+    // -1 아직, 0 실패, 1 성공 (불러온 주문처럼 기록이 없는 끝난 단계는 성공으로 본다)
+    public int OrderStepResult(int i)
+    {
+        if (i >= stepIndex) return -1;
+        if (stepResults != null && i >= 0 && i < stepResults.Length) return stepResults[i];
+        return 1;
+    }
+
     // BGM 분위기: 0=영업 카페 화면, 1=미니게임(지시어·플레이·결과), 2=영수증·상점·로딩 등 그 외
     private int lastMood;
     public int Mood
@@ -779,6 +815,7 @@ public class CafeLoop : MonoBehaviour
         order = OrderMaking;
         orderCup = new Cup();
         stepIndex = 0;
+        stepResults = new int[menu.steps.Length];
         successCount = 0;
         priceSum = 0f;
         patienceMax = PatienceOf(menu);
@@ -790,7 +827,8 @@ public class CafeLoop : MonoBehaviour
     // 메뉴의 인내도(초). 비어 있으면(0) 공통 값
     private float PatienceOf(MenuData target)
     {
-        return target.patienceSeconds > 0f ? target.patienceSeconds : patienceSeconds;
+        float baseSeconds = target.patienceSeconds > 0f ? target.patienceSeconds : patienceSeconds;
+        return baseSeconds * (personality == 1 ? 0.7f : (personality == 2 ? 1.4f : 1f));
     }
 
     private void Serve()
@@ -802,7 +840,9 @@ public class CafeLoop : MonoBehaviour
             effects.Play(effects.failClip);
             ShowNotice("제조 실패 · 0원");
             Debug.Log("[CafeLoop] 제공 실패: " + menu.menuName);
-            CustomerLeave(PickLine(BadLines));
+            string badReview = CustomerLines.Review(stepResults, ReviewNames());
+            if (badReview != null) lastLine = badReview;
+            CustomerLeave(badReview ?? PickLine(BadLines));
             customer.React(false);
             return;
         }
@@ -810,6 +850,8 @@ public class CafeLoop : MonoBehaviour
         int price = RoundToHundred(menu.price * priceSum / menu.steps.Length);
         int tip = 0;
         if (combo >= TipMinCombo) tip = RoundToHundred(price * comboTip * Mathf.Min(combo - 1, comboTipMax));
+        int rush = personality == 1 ? RoundToHundred(price * 0.3f) : 0;
+        tip += rush;
         int total = price + tip;
         int before = income;
         income += total;
@@ -824,7 +866,8 @@ public class CafeLoop : MonoBehaviour
         StartCoroutine(effects.FloatUp(floatText, "+" + total + "원", customer.bubble.position, cafeCamera));
         effects.Play(effects.coinClip);
         string notice = successCount + "/" + menu.steps.Length + " 성공";
-        if (tip > 0) notice += " · 콤보 ×" + combo + " 팁 +" + tip + "원";
+        if (tip - rush > 0) notice += " · 콤보 ×" + combo + " 팁 +" + (tip - rush) + "원";
+        if (rush > 0) notice += " · 급행 +" + rush + "원";
         // 오늘 수입이 처음 목표를 넘은 순간. 같은 알림 자리를 쓰되 1.5초만 띄운다
         if (!goalReached && income >= DailyGoal())
         {
@@ -838,8 +881,18 @@ public class CafeLoop : MonoBehaviour
         CafeEnding.AddSale();
         ReportServeAchievements();
         Debug.Log("[CafeLoop] 제공: " + menu.menuName + " " + price + "원 + 팁 " + tip);
-        CustomerLeave(PickLine(successCount == menu.steps.Length ? PraiseLines : OkLines));
+        string review = CustomerLines.Review(stepResults, ReviewNames());
+        if (review != null) lastLine = review;
+        CustomerLeave(review ?? PickLine(successCount == menu.steps.Length ? PraiseLines : OkLines));
         customer.React(true);
+    }
+
+    // 단계 이름 배열 (대사 만들기용). 불러온 주문 등으로 결과 길이가 다르면 Review가 null을 돌려준다
+    private string[] ReviewNames()
+    {
+        string[] names = new string[menu.steps.Length];
+        for (int i = 0; i < names.Length; i++) names[i] = StepLabel(menu.steps[i]);
+        return names;
     }
 
     // 판매 성공 한 번마다 업적 진행을 알린다
@@ -1038,9 +1091,11 @@ public class CafeLoop : MonoBehaviour
     private void FinishStep()
     {
         if (current.isSuccess) successCount++;
+        if (stepResults != null && stepIndex < stepResults.Length) stepResults[stepIndex] = current.isSuccess ? 1 : 0;
         priceSum += stepMultiplier;
         stepIndex++;
         if (stepIndex >= menu.steps.Length) order = OrderWaitServe;
+        pendingReaction = (stepIndex >= menu.steps.Length ? 2 : 0) + (current.isSuccess ? 1 : 0) + 1;
         CloseMinigame();
         UpdateTargets();
     }
@@ -1064,6 +1119,9 @@ public class CafeLoop : MonoBehaviour
         returnFrame = Time.frameCount;
         state = StateCafe;
         ShowTexts();
+        if (pendingReaction > 0 && customer != null && customer.gameObject.activeSelf)
+            customer.StepReaction((pendingReaction - 1 & 1) == 1, pendingReaction - 1 >= 2);
+        pendingReaction = 0;
         Debug.Log("[CafeLoop] 카페 복귀");
     }
 
@@ -1207,6 +1265,7 @@ public class CafeLoop : MonoBehaviour
         data.cup = CopyOfCup(orderCup);
         data.patience = patience;
         data.request = RequestText();
+        data.personality = personality;
         return data;
     }
 
@@ -1278,7 +1337,9 @@ public class CafeLoop : MonoBehaviour
             }
             orderCup = data.cup != null ? CopyOfCup(data.cup) : new Cup();
             patience = data.patience;
+            personality = Mathf.Clamp(data.personality, 0, 2);
             patienceMax = PatienceOf(menu);
+            customer.SetPersonality(personality);
             customer.Show(menu, data.request, false);
         }
         ShowDay();

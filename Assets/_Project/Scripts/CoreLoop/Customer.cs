@@ -20,6 +20,52 @@ public class Customer : MonoBehaviour
     [Tooltip("떠날 때 한마디를 보여 주는 시간(초)")]
     public float leaveSeconds = 1f;
 
+    [Header("걷기")]
+    [Tooltip("등장 시작점: 카운터 자리 기준 로컬 오프셋")]
+    [SerializeField] private Vector3 enterOffset = new Vector3(-2.2f, 0f, -0.6f);
+    [Tooltip("퇴장 도착점: 카운터 자리 기준 로컬 오프셋")]
+    [SerializeField] private Vector3 exitOffset = new Vector3(2.2f, 0f, -0.6f);
+    [SerializeField] private float arriveSeconds = 0.9f;
+    [SerializeField] private float exitSeconds = 0.8f;
+
+    // 걷기 상태: 0 없음, 1 들어옴, 2 나감
+    private int walkMode;
+    private float walkT;
+    private Vector3 walkOffset;
+    private Vector3 walkFrom;
+    private float walkPhase;
+    private const float WalkBob = 0.04f;
+    private const float WalkTilt = 5f;
+    private const float WalkStepsPerSecond = 2.2f;
+
+    // 글자 찍힘 (초당 글자 수)
+    private const float TypeSpeed = 30f;
+    private bool typing;
+    private float typeCount;
+    private int typeTotal;
+
+    public bool IsArriving { get { return walkMode == 1; } }
+
+    // 성격: 0 보통, 1 급한 손님, 2 느긋한 손님 (Show 전에 SetPersonality로 정한다)
+    private int personality;
+    public int Personality { get { return personality; } }
+    public void SetPersonality(int value) { personality = Mathf.Clamp(value, 0, 2); }
+
+    // 시선·몸짓 (Update에서 한 곳으로 합성)
+    private float gazeYaw;
+    private float stompTimer;
+    private float stompT = 1f;
+    private float nodStepTime = 1f;
+    private bool patienceVisible;
+    private const float GazeSpeed = 120f;
+    private const float GazeMax = 50f;
+    private const float StompInterval = 1.6f;
+    private const float StompSeconds = 0.3f;
+    private const float StompHeight = 0.03f;
+    private const float ArmsTilt = 3f;
+    private const float StepNodSeconds = 0.4f;
+    private const float StepNodAngle = 8f;
+
     // 말풍선 원래 크기 (처음 Show 때 저장)
     private Vector3 bubbleScale;
     private bool scaleSaved;
@@ -80,21 +126,59 @@ public class Customer : MonoBehaviour
     public void Show(MenuData menu, string request, bool greet = true)
     {
         StopAllCoroutines();
+        stepReacting = false;
+        stepRoutine = null;
         leaving = false;
         gameObject.SetActive(true);
         SaveBubbleScale();
         SaveRoot();
         ApplyScaleVariation();
         ApplyTint();
+        gazeYaw = 0f;
+        stompTimer = 0f;
+        stompT = 1f;
+        nodStepTime = 1f;
+        patienceVisible = false;
         popTime = 0f;
         nodTime = 0f;
         nervous = false;
+        walkMode = 0;
+        walkOffset = Vector3.zero;
         ClearReact();
-        if (request != "") menuText.text = menu.menuName + "\n<size=70%>" + request + "</size>";
-        else menuText.text = menu.menuName;
+        menuText.text = CustomerLines.Order(menu.menuName, request, personality);
         patienceBar.SetActive(false);
-        if (greet) MinigameSfx.Play("sfx_greet", 0.5f);
-        StartCoroutine(PopBubble());
+        if (greet)
+        {
+            // 옆에서 걸어 들어온다. 말풍선은 도착 후에 등장
+            walkMode = 1;
+            walkT = 0f;
+            walkOffset = enterOffset;
+            popTime = PopRootSeconds;
+            bubble.localScale = Vector3.zero;
+            StopTyping();
+            menuText.maxVisibleCharacters = 0;
+            MinigameSfx.Play("sfx_greet", 0.5f);
+        }
+        else
+        {
+            StopTyping();
+            StartCoroutine(PopBubble());
+        }
+    }
+
+    // 글자 찍힘 시작 (현재 menuText 기준)
+    private void StartTyping()
+    {
+        typeTotal = menuText.GetParsedText().Length;
+        typeCount = 0f;
+        typing = typeTotal > 0;
+        menuText.maxVisibleCharacters = typing ? 0 : int.MaxValue;
+    }
+
+    private void StopTyping()
+    {
+        typing = false;
+        menuText.maxVisibleCharacters = int.MaxValue;
     }
 
     // 루트 원래 위치·크기·회전을 처음 한 번만 저장한다
@@ -133,12 +217,17 @@ public class Customer : MonoBehaviour
     };
     private int tintIndex = -1;
 
+    // 성격별 색 제한: 팔레트 번호 (급한 손님 = 붉은 계열, 느긋한 손님 = 푸른/초록 계열)
+    private static readonly int[] HurryTints = { 0, 3 };
+    private static readonly int[] RelaxTints = { 1, 2, 5 };
+
     private void ApplyTint()
     {
         Station station = GetComponent<Station>();
         if (station == null) return;
-        int next = Random.Range(0, TintPalette.Length);
-        if (next == tintIndex) next = (next + 1) % TintPalette.Length;
+        int[] allowed = personality == 1 ? HurryTints : (personality == 2 ? RelaxTints : null);
+        int next = allowed != null ? allowed[Random.Range(0, allowed.Length)] : Random.Range(0, TintPalette.Length);
+        if (next == tintIndex) next = allowed != null ? allowed[(System.Array.IndexOf(allowed, next) + 1) % allowed.Length] : (next + 1) % TintPalette.Length;
         tintIndex = next;
         station.TintBase(TintPalette[next], Random.Range(0.3f, 0.45f));
     }
@@ -153,6 +242,9 @@ public class Customer : MonoBehaviour
     public void Hide()
     {
         ClearReact();
+        walkMode = 0;
+        walkOffset = Vector3.zero;
+        StopTyping();
         if (scaleSaved) bubble.localScale = bubbleScale;
         RestoreRoot();
         popTime = PopRootSeconds;
@@ -164,9 +256,15 @@ public class Customer : MonoBehaviour
     {
         if (!gameObject.activeSelf) return;
         StopAllCoroutines();
+        stepReacting = false;
+        stepRoutine = null;
         leaving = true;
         nodTime = 0f;
+        // 걸어 들어오는 중이면 현재 위치에서 멈추고 말풍선을 보여 준다
+        walkMode = 0;
+        if (scaleSaved) bubble.localScale = bubbleScale;
         menuText.text = message;
+        StartTyping();
         MinigameSfx.Play("sfx_bye", 0.5f);
         StartCoroutine(LeaveRoutine());
     }
@@ -203,13 +301,71 @@ public class Customer : MonoBehaviour
         reactText = null;
     }
 
+    // 미니게임 한 단계 직후 반응: 말풍선 문구를 잠깐 바꿨다가 원래 주문 문구로 돌아온다
+    private const float StepReactionSeconds = 1.2f;
+    private bool stepReacting;
+    private string stepSavedText;
+    private Coroutine stepRoutine;
+
+    public void StepReaction(bool success, bool last = false)
+    {
+        if (!gameObject.activeSelf || leaving || walkMode == 1 || menuText == null) return;
+        if (stepReacting) { menuText.text = stepSavedText; }
+        else stepSavedText = menuText.text;
+        if (success) nodStepTime = 0f;
+        stepReacting = true;
+        menuText.text = CustomerLines.StepReaction(success, last);
+        StartTyping();
+        if (stepRoutine != null) StopCoroutine(stepRoutine);
+        stepRoutine = StartCoroutine(StepReactionRoutine());
+    }
+
+    private IEnumerator StepReactionRoutine()
+    {
+        yield return new WaitForSeconds(StepReactionSeconds);
+        stepReacting = false;
+        stepRoutine = null;
+        menuText.text = stepSavedText;
+        StartTyping();
+    }
+
+    // 인내도 막대 옆 표정 글자
+    private TMP_Text faceText;
+
+    private void UpdateFace()
+    {
+        if (faceText == null)
+        {
+            if (patienceBar == null || menuText == null) return;
+            GameObject go = new GameObject("FaceText", typeof(RectTransform));
+            go.transform.SetParent(patienceBar.transform, false);
+            faceText = go.AddComponent<TextMeshProUGUI>();
+            faceText.font = menuText.font;
+            faceText.fontSharedMaterial = menuText.fontSharedMaterial;
+            faceText.alignment = TextAlignmentOptions.MidlineLeft;
+            faceText.fontSize = menuText.fontSize * 0.8f;
+            faceText.raycastTarget = false;
+            faceText.enableWordWrapping = false;
+            faceText.color = Color.white;
+            RectTransform rect = faceText.rectTransform;
+            rect.anchorMin = new Vector2(1f, 0.5f);
+            rect.anchorMax = new Vector2(1f, 0.5f);
+            rect.pivot = new Vector2(0f, 0.5f);
+            rect.sizeDelta = new Vector2(160f, 50f);
+            rect.anchoredPosition = new Vector2(10f, 0f);
+        }
+        faceText.text = patienceRatio > 0.6f ? "(^-^)" : (patienceRatio >= 0.3f ? "(-_-)" : "(>_<)");
+    }
+
     // ratio: 남은 인내도 비율 (1 = 가득, 0 = 다 됨)
     public void SetPatience(bool visible, float ratio)
     {
         nervous = visible && ratio <= NervousRatio;
+        patienceVisible = visible;
         patienceBar.SetActive(visible && !leaving);
         patienceFill.localScale = new Vector3(Mathf.Clamp01(ratio), 1f, 1f);
         patienceRatio = Mathf.Clamp01(ratio);
+        UpdateFace();
         if (patienceImage == null) patienceImage = patienceFill.GetComponent<Image>();
         ApplyPatienceColor();
     }
@@ -250,6 +406,12 @@ public class Customer : MonoBehaviour
             bubble.localScale = bubbleScale * (1f - Mathf.Clamp01(t / ShrinkSeconds));
             yield return null;
         }
+        bubble.localScale = Vector3.zero;
+        // 반대쪽으로 걸어 나간다
+        walkFrom = walkOffset;
+        walkT = 0f;
+        walkMode = 2;
+        while (walkMode == 2) yield return null;
         Hide();
     }
 
@@ -259,6 +421,51 @@ public class Customer : MonoBehaviour
         if (patienceBar != null && patienceBar.activeSelf && patienceRatio <= PatienceBlinkRatio) ApplyPatienceColor();
         if (!rootSaved) return;
         float dt = Time.deltaTime;
+
+        if (typing)
+        {
+            typeCount += TypeSpeed * dt;
+            if (typeCount >= typeTotal) StopTyping();
+            else menuText.maxVisibleCharacters = (int)typeCount;
+        }
+
+        // 걷기: 위치 보간 + 걸음 보빙·기울임 + 진행 방향 바라보기
+        float walkY = 0f, walkZ = 0f;
+        Quaternion walkRot = Quaternion.identity;
+        if (walkMode != 0)
+        {
+            Vector3 from = walkMode == 1 ? enterOffset : walkFrom;
+            Vector3 to = walkMode == 1 ? Vector3.zero : exitOffset;
+            float dur = walkMode == 1 ? arriveSeconds : exitSeconds;
+            walkT += dt;
+            float p = Mathf.Clamp01(walkT / Mathf.Max(0.01f, dur));
+            float e = walkMode == 1 ? 1f - (1f - p) * (1f - p) : p * p * (3f - 2f * p);
+            walkOffset = Vector3.Lerp(from, to, e);
+            walkPhase += dt * Mathf.PI * 2f * WalkStepsPerSecond;
+            walkY = Mathf.Abs(Mathf.Sin(walkPhase)) * WalkBob;
+            walkZ = Mathf.Sin(walkPhase) * WalkTilt;
+            Vector3 dir = to - from;
+            dir.y = 0f;
+            if (dir.sqrMagnitude > 0.0001f)
+            {
+                float yaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+                // 도착이 가까워지면 원래 회전으로 돌아온다
+                float w = walkMode == 1 ? 1f - Mathf.Clamp01((p - 0.8f) / 0.2f) : 1f;
+                walkRot = Quaternion.Euler(0f, yaw * w, 0f);
+            }
+            if (p >= 1f)
+            {
+                if (walkMode == 1)
+                {
+                    walkMode = 0;
+                    walkOffset = Vector3.zero;
+                    popTime = 0f;
+                    StartCoroutine(PopBubble());
+                    StartTyping();
+                }
+                else walkMode = 0;
+            }
+        }
         bool hurry = nervous && !leaving;
         float amp = hurry ? NervousAmp : IdleAmp;
         float tilt = hurry ? NervousTilt : IdleTilt;
@@ -304,8 +511,45 @@ public class Customer : MonoBehaviour
             if (p >= 1f) ClearReact();
         }
 
-        transform.localPosition = rootPos + new Vector3(x, y, 0f);
-        transform.localRotation = rootRot * Quaternion.Euler(0f, 0f, z);
+        // 몸짓: 발 구르기(0.3 이하), 좌우 기울이기(0.6 이하), 단계 성공 끄덕임
+        bool waiting = patienceVisible && !leaving && walkMode == 0;
+        if (waiting && patienceRatio <= 0.3f)
+        {
+            stompTimer += dt;
+            if (stompTimer >= StompInterval) { stompTimer = 0f; stompT = 0f; }
+        }
+        else stompTimer = 0f;
+        if (stompT < 1f)
+        {
+            stompT += dt / StompSeconds;
+            y += Mathf.Abs(Mathf.Sin(Mathf.Clamp01(stompT) * Mathf.PI * 2f)) * StompHeight;
+        }
+        if (waiting && patienceRatio <= 0.6f) z += Mathf.Sin(Time.time * Mathf.PI * 2f / 4f) * ArmsTilt;
+        float nodX = 0f;
+        if (nodStepTime < 1f)
+        {
+            nodStepTime += dt / StepNodSeconds;
+            nodX = Mathf.Sin(Mathf.Clamp01(nodStepTime) * Mathf.PI) * StepNodAngle;
+        }
+
+        // 시선: 걷는 중이 아니면 카메라 쪽으로 Y축만 천천히 돌린다
+        Transform cam = faceCamera != null ? faceCamera : (Camera.main != null ? Camera.main.transform : null);
+        float gazeTarget = 0f;
+        if (cam != null && walkMode == 0 && !leaving)
+        {
+            Vector3 toCam = cam.position - transform.position;
+            toCam.y = 0f;
+            Vector3 axis = -cam.forward;
+            axis.y = 0f;
+            if (toCam.sqrMagnitude > 0.0001f && axis.sqrMagnitude > 0.0001f)
+                gazeTarget = Mathf.Clamp(Vector3.SignedAngle(axis, toCam, Vector3.up), -GazeMax, GazeMax);
+        }
+        gazeYaw = Mathf.MoveTowards(gazeYaw, gazeTarget, GazeSpeed * dt);
+
+        y += walkY;
+        z += walkZ;
+        transform.localPosition = rootPos + walkOffset + new Vector3(x, y, 0f);
+        transform.localRotation = walkRot * Quaternion.Euler(0f, gazeYaw, 0f) * rootRot * Quaternion.Euler(nodX, 0f, z);
         transform.localScale = Vector3.Scale(rootScale, mul);
     }
 
