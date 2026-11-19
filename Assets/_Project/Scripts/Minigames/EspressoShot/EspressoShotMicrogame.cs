@@ -312,7 +312,11 @@ public class EspressoShotMicrogame : Minigame
     // 치직 소리 (소리 설정이 없으면 무음)
     private void PlaySputterSound()
     {
-        if (sfxSource != null && sputterClip != null) sfxSource.PlayOneShot(sputterClip);
+        if (sfxSource == null || sputterClip == null) return;
+        // SFX 슬라이더가 먹게 믹서 그룹에 연결 (AudioManager가 없으면 그대로)
+        UnityEngine.Audio.AudioMixerGroup group = AudioManager.SfxGroup;
+        if (group != null) sfxSource.outputAudioMixerGroup = group;
+        sfxSource.PlayOneShot(sputterClip);
     }
 
     // 멈춤이 끝나면 "푸슉!"과 함께 확 쏟아진다

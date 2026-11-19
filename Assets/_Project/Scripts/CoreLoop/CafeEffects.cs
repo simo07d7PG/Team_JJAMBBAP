@@ -61,6 +61,16 @@ public class CafeEffects : MonoBehaviour
         return 1f - q * q * q;
     }
 
+    // 음량 슬라이더(믹서)가 게임 안 소리에도 먹도록 BGM은 Music, 효과음은 SFX 그룹에 연결한다. AudioManager가 없으면 그대로
+    // bgmVolume·분위기 배율은 AudioSource 자체 볼륨이라 믹서와 곱해질 뿐 충돌하지 않는다
+    private void Awake()
+    {
+        UnityEngine.Audio.AudioMixerGroup music = AudioManager.MusicGroup;
+        UnityEngine.Audio.AudioMixerGroup sfx = AudioManager.SfxGroup;
+        if (bgmSource != null && music != null) bgmSource.outputAudioMixerGroup = music;
+        if (audioSource != null && sfx != null) audioSource.outputAudioMixerGroup = sfx;
+    }
+
     public void Play(AudioClip clip)
     {
         if (clip == null || audioSource == null) return;
