@@ -10006,13 +10006,13 @@ MonoBehaviour:
   coffeeVideos:
   - coffeeName: 
     videoClips:
-    - {fileID: 32900000, guid: db37c448279d5504daa77639362f47b4, type: 3}
-    - {fileID: 32900000, guid: 005bfe5266856c443a9d7c1b1938b2c4, type: 3}
+    - {fileID: 0}
+    - {fileID: 0}
   - coffeeName: 
     videoClips:
-    - {fileID: 32900000, guid: f5c8b2a2fdb1f0e4590756bcd6c19ddd, type: 3}
-    - {fileID: 32900000, guid: 005bfe5266856c443a9d7c1b1938b2c4, type: 3}
-    - {fileID: 32900000, guid: db37c448279d5504daa77639362f47b4, type: 3}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
 --- !u!1 &1382377935
 GameObject:
   m_ObjectHideFlags: 0
