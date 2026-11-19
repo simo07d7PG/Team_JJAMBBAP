@@ -102,11 +102,14 @@ public class Minigame : MonoBehaviour
 
     protected bool ClickHeld()
     {
+        // 일시정지(ESC 메뉴) 중 클릭은 게임 입력으로 치지 않는다
+        if (Time.timeScale <= 0f) return false;
         return clickAction.action.IsPressed();
     }
 
     protected bool ClickPressed()
     {
+        if (Time.timeScale <= 0f) return false;
         bool pressed = clickAction.action.WasPressedThisFrame();
         if (pressed) MinigameSfx.Play("sfx_tick", 0.4f);
         return pressed;
@@ -119,6 +122,7 @@ public class Minigame : MonoBehaviour
 
     protected bool RightHeld()
     {
+        if (Time.timeScale <= 0f) return false;
         return rightClickAction.action.IsPressed();
     }
 }

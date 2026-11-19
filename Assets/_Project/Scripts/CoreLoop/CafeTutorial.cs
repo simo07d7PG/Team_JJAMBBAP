@@ -19,6 +19,13 @@ public class CafeTutorial : MonoBehaviour
     private float animTimer = AnimSeconds;
     private bool done;
 
+    // 새 진행을 시작할 때: 튜토리얼을 다시 보여 주도록 완료 표시를 지운다
+    public static void ResetFlag()
+    {
+        PlayerPrefs.DeleteKey(DoneKey);
+        PlayerPrefs.Save();
+    }
+
     public void Init(CafeLoop cafeLoop)
     {
         loop = cafeLoop;

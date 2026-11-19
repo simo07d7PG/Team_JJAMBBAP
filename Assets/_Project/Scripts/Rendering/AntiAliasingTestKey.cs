@@ -25,7 +25,13 @@ public class AntiAliasingTestKey : MonoBehaviour
 
     private void Update()
     {
-        if (Keyboard.current != null && Keyboard.current.f1Key.wasPressedThisFrame) CycleMode();
+        Keyboard keyboard = Keyboard.current;
+        // 에디터에서는 F1만, 빌드에서는 왼쪽 Ctrl+Shift를 함께 눌러야 바뀐다 (exe에서 실수로 눌러도 안전)
+        if (keyboard != null && keyboard.f1Key.wasPressedThisFrame
+#if !UNITY_EDITOR
+            && keyboard.leftCtrlKey.isPressed && keyboard.leftShiftKey.isPressed
+#endif
+            ) CycleMode();
         if (showTimer > 0f) showTimer -= Time.unscaledDeltaTime;
     }
 

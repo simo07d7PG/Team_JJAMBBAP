@@ -24,6 +24,14 @@ public class CafeEnding : MonoBehaviour
         loop = cafeLoop;
     }
 
+    // 새 진행을 시작할 때: 엔딩을 봤다는 표시와 누적 판매를 지운다
+    public static void ResetFlags()
+    {
+        PlayerPrefs.DeleteKey(SeenKey);
+        PlayerPrefs.DeleteKey(TotalKey);
+        PlayerPrefs.Save();
+    }
+
     // 판매 성공 한 번마다 누적 판매를 올린다
     public static void AddSale()
     {

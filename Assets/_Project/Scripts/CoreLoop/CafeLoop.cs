@@ -212,7 +212,13 @@ public class CafeLoop : MonoBehaviour
     private void Start()
     {
         // 새 게임·슬롯 불러오기(로비·ESC 메뉴)면 작업본부터 바꾼다. 하루 중 상태는 RestoreSave가 되살린다
-        if (SaveSlots.newGame) shop.ResetSave();
+        if (SaveSlots.newGame)
+        {
+            shop.ResetSave();
+            // 새 진행이면 튜토리얼·엔딩도 처음부터 (CafeTutorial.Init이 이 값을 읽기 전에 지운다)
+            CafeEnding.ResetFlags();
+            CafeTutorial.ResetFlag();
+        }
         else if (SaveSlots.pending != null) shop.ApplySave(SaveSlots.pending);
         SaveSlots.newGame = false;
         // 저장된 날·돈·산 기계를 읽는다 (하루 도중 나갔으면 그날 아침부터)
@@ -325,13 +331,19 @@ public class CafeLoop : MonoBehaviour
     }
 
     // 치트 키(발표·테스트용): F9 = 저장을 지우고 1일차부터, F10 = 돈 +10000원
+    // 에디터에서는 F키만, 빌드에서는 왼쪽 Ctrl+Shift를 함께 눌러야 동작한다 (exe에서 실수로 눌러도 안전)
     // F9로 씬을 다시 불러오면 true (이번 프레임의 나머지 처리를 건너뛴다)
     private bool HandleCheatKeys()
     {
         if (Keyboard.current == null) return false;
+#if !UNITY_EDITOR
+        if (!(Keyboard.current.leftCtrlKey.isPressed && Keyboard.current.leftShiftKey.isPressed)) return false;
+#endif
         if (Keyboard.current.f9Key.wasPressedThisFrame)
         {
             shop.ResetSave();
+            CafeEnding.ResetFlags();
+            CafeTutorial.ResetFlag();
             Achievements.ResetAll();
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
             return true;
@@ -387,7 +399,8 @@ public class CafeLoop : MonoBehaviour
     {
         timer -= Time.deltaTime;
         // 클릭하면 결과 표시를 건너뛴다
-        if (timer <= 0f || current.clickAction.action.WasPressedThisFrame())
+        // 일시정지(ESC 메뉴) 중 버튼 클릭이 건너뛰기로 새지 않게 시간 흐름이 있을 때만 클릭을 받는다
+        if (timer <= 0f || (Time.timeScale > 0f && current.clickAction.action.WasPressedThisFrame()))
         {
             FinishStep();
         }
@@ -632,6 +645,10 @@ public class CafeLoop : MonoBehaviour
             case "water": return "휠로 열고 우클릭으로 잠그기";
             case "steam": return "마우스 위아래 + 좌클릭 분사";
             case "latteart": return "마우스로 컵 위를 움직이며 좌클릭 꾹";
+            case "handgrinder": return "클릭 없이 마우스를 손잡이 둘레로 시계 방향으로 돌리기";
+            case "dripper": return "좌클릭 꾹으로 잡고 우클릭 꾹으로 붓기";
+            case "kettle": return "화면에 나온 키(Q/W/E/R)를 차례로 누르기";
+            case "drip": return "Space로 표시 멈추기";
         }
         return "";
     }
