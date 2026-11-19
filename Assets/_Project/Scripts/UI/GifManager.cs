@@ -25,7 +25,10 @@ public class GifManager : MonoBehaviour
 
     public void OpenGifViewer(int coffeeIndex)
     {
-        if (coffeeIndex < 0 || coffeeIndex >= coffeeVideos.Length) return;
+        if (coffeeVideos == null || coffeeIndex < 0 || coffeeIndex >= coffeeVideos.Length) return;
+
+        // 재생할 영상이 하나도 없으면 빈 화면 패널을 열지 않는다
+        if (!HasPlayableClip(coffeeIndex)) return;
 
         transform.SetAsLastSibling(); // 최상단 레이어로 이동
         currentCoffeeIndex = coffeeIndex;
@@ -35,6 +38,18 @@ public class GifManager : MonoBehaviour
         PlayCurrentVideo();
     }
 
+    // 해당 커피에 null 이 아닌 클립이 하나라도 있는지
+    private bool HasPlayableClip(int coffeeIndex)
+    {
+        VideoClip[] clips = coffeeVideos[coffeeIndex].videoClips;
+        if (clips == null) return false;
+        for (int i = 0; i < clips.Length; i++)
+        {
+            if (clips[i] != null) return true;
+        }
+        return false;
+    }
+
     // 영상 재생 처리
     private void PlayCurrentVideo()
     {
@@ -42,7 +57,7 @@ public class GifManager : MonoBehaviour
 
         VideoClip[] clips = coffeeVideos[currentCoffeeIndex].videoClips;
 
-        if (clips != null && clips.Length > 0 && currentVideoIndex < clips.Length)
+        if (clips != null && clips.Length > 0 && currentVideoIndex < clips.Length && clips[currentVideoIndex] != null)
         {
             if (videoPlayer != null)
             {
