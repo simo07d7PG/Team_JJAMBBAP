@@ -40,9 +40,35 @@ public class CafeHud : MonoBehaviour
     private CanvasGroup escButtonGroup;
     private const float TimePanelHeight = 40f;
 
+    // 지시어·결과 글자 뒤 시네마틱 띠 (글자가 켜질 때만 보이고, 세로로 펼쳐지며 등장)
+    private const float BandPadY = 56f;
+    private const float BandPadX = 220f;
+    private const float BandMinWidth = 900f;
+    private const float BandLineThickness = 4f;
+    private const float BandOpenSeconds = 0.15f;
+    private static readonly Color BandColor = new Color(0.10f, 0.06f, 0.04f, 0.82f);
+    private static readonly Color BandLineColor = new Color(1f, 0.82f, 0.35f, 0.9f);
+    private static Sprite bandSprite;
+
+    private class Band
+    {
+        public TMP_Text text;
+        public RectTransform root;
+        public Vector2 basePos; // 글자의 원래 위치 (Shake로 움직여도 띠는 고정)
+        public bool wasOn;
+        public float timer;
+    }
+
+    private Band instructionBand;
+    private Band resultBand;
+    private RectTransform bandCanvasRect;
+
     public void Init(CafeLoop cafeLoop)
     {
         loop = cafeLoop;
+        if (loop.dayText != null && loop.dayText.canvas != null) bandCanvasRect = loop.dayText.canvas.rootCanvas.transform as RectTransform;
+        instructionBand = MakeBand("InstructionBand", loop.instructionText);
+        resultBand = MakeBand("ResultBand", loop.resultText);
         if (loop.receiptBox != null)
         {
             UImage src = loop.receiptBox.GetComponent<UImage>();
@@ -113,6 +139,110 @@ public class CafeHud : MonoBehaviour
         outline.effectColor = BorderColor;
         outline.effectDistance = new Vector2(2f, -2f);
         return rt;
+    }
+
+    // 가운데 불투명, 양끝 알파 0인 256x1 가로 그라데이션 (한 번만 만든다)
+    private static Sprite GetBandSprite()
+    {
+        if (bandSprite != null) return bandSprite;
+        const int w = 256;
+        Texture2D tex = new Texture2D(w, 1, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+        for (int x = 0; x < w; x++)
+        {
+            float u = (x + 0.5f) / w;
+            float edge = Mathf.Min(u, 1f - u) / 0.2f; // 양끝 20% 구간에서 서서히 투명
+            tex.SetPixel(x, 0, new Color(1f, 1f, 1f, Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(edge))));
+        }
+        tex.Apply();
+        bandSprite = Sprite.Create(tex, new Rect(0, 0, w, 1), new Vector2(0.5f, 0.5f), 100f);
+        return bandSprite;
+    }
+
+    private UImage MakeBandImage(string name, RectTransform parent, Color color)
+    {
+        GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(UImage));
+        go.GetComponent<RectTransform>().SetParent(parent, false);
+        UImage img = go.GetComponent<UImage>();
+        img.sprite = GetBandSprite();
+        img.type = UImage.Type.Simple;
+        img.color = color;
+        img.raycastTarget = false;
+        return img;
+    }
+
+    private Band MakeBand(string name, TMP_Text text)
+    {
+        if (text == null) return null;
+        RectTransform tr = text.rectTransform;
+        GameObject go = new GameObject(name, typeof(RectTransform));
+        RectTransform root = go.GetComponent<RectTransform>();
+        root.SetParent(tr.parent, false);
+        root.SetSiblingIndex(tr.GetSiblingIndex());
+        root.anchorMin = tr.anchorMin;
+        root.anchorMax = tr.anchorMax;
+        root.pivot = new Vector2(0.5f, 0.5f);
+
+        UImage body = MakeBandImage("Body", root, BandColor);
+        RectTransform br = body.rectTransform;
+        br.anchorMin = Vector2.zero;
+        br.anchorMax = Vector2.one;
+        br.offsetMin = Vector2.zero;
+        br.offsetMax = Vector2.zero;
+
+        UImage top = MakeBandImage("LineTop", root, BandLineColor);
+        RectTransform tt = top.rectTransform;
+        tt.anchorMin = new Vector2(0f, 1f);
+        tt.anchorMax = new Vector2(1f, 1f);
+        tt.pivot = new Vector2(0.5f, 1f);
+        tt.anchoredPosition = Vector2.zero;
+        tt.sizeDelta = new Vector2(0f, BandLineThickness);
+
+        UImage bottom = MakeBandImage("LineBottom", root, BandLineColor);
+        RectTransform bt = bottom.rectTransform;
+        bt.anchorMin = new Vector2(0f, 0f);
+        bt.anchorMax = new Vector2(1f, 0f);
+        bt.pivot = new Vector2(0.5f, 0f);
+        bt.anchoredPosition = Vector2.zero;
+        bt.sizeDelta = new Vector2(0f, BandLineThickness);
+
+        go.SetActive(false);
+        return new Band { text = text, root = root, basePos = tr.anchoredPosition };
+    }
+
+    private void UpdateBand(Band band)
+    {
+        if (band == null) return;
+        bool on = band.text.gameObject.activeInHierarchy;
+        if (band.root.gameObject.activeSelf != on) band.root.gameObject.SetActive(on);
+        if (!on)
+        {
+            band.wasOn = false;
+            return;
+        }
+        if (!band.wasOn)
+        {
+            band.wasOn = true;
+            band.timer = 0f;
+        }
+
+        RectTransform tr = band.text.rectTransform;
+        float maxWidth = bandCanvasRect != null ? bandCanvasRect.rect.width : 1920f;
+        float width = Mathf.Clamp(band.text.preferredWidth + BandPadX * 2f, BandMinWidth, maxWidth);
+        float height = band.text.preferredHeight + BandPadY;
+        band.root.sizeDelta = new Vector2(width, height);
+        // 글자 영역의 중심에 맞춘다 (글자의 피벗이 가운데가 아닌 경우 보정)
+        Vector2 size = tr.rect.size;
+        band.root.anchoredPosition = band.basePos + new Vector2((0.5f - tr.pivot.x) * size.x, (0.5f - tr.pivot.y) * size.y);
+
+        float scaleY = 1f;
+        if (band.timer < BandOpenSeconds)
+        {
+            band.timer += Time.unscaledDeltaTime;
+            scaleY = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(band.timer / BandOpenSeconds));
+        }
+        band.root.localScale = new Vector3(1f, scaleY, 1f);
     }
 
     private void MakeBar(RectTransform panel)
@@ -190,6 +320,8 @@ public class CafeHud : MonoBehaviour
         UpdateIncome();
         UpdateTime();
         UpdateEscButton();
+        UpdateBand(instructionBand);
+        UpdateBand(resultBand);
     }
 
     private void UpdateDay()
