@@ -256,8 +256,20 @@ public class CafeShop : MonoBehaviour
         if (item.menu != null) PlayerPrefs.SetString(NewMenuKey, item.id);
         PlayerPrefs.Save();
         Refresh();
+        ReportBuyAchievements();
         cards[index].PlayBuyEffect();
         Debug.Log("[CafeShop] 구매: " + item.title + " -" + item.price + "원, 남은 돈 " + money);
+    }
+
+    // 구매 업적: 첫 구매, 전부 구매
+    private void ReportBuyAchievements()
+    {
+        Achievements.Report("first_buy");
+        for (int i = 0; i < items.Length; i++)
+        {
+            if (!Owns(items[i].id)) return;
+        }
+        Achievements.Report("collector");
     }
 
     private void BuildCards()

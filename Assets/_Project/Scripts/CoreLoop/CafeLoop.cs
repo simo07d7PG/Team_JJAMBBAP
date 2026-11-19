@@ -235,6 +235,7 @@ public class CafeLoop : MonoBehaviour
         tutorial.Init(this);
         ending = gameObject.AddComponent<CafeEnding>();
         ending.Init(this);
+        gameObject.AddComponent<AchievementToast>().Init(this);
         // 조작 안내는 각 미니게임 화면에 이미 있어서 상시 표시 패널은 쓰지 않는다 (겹침)
         ShowDay();
         ShowIncome();
@@ -331,6 +332,7 @@ public class CafeLoop : MonoBehaviour
         if (Keyboard.current.f9Key.wasPressedThisFrame)
         {
             shop.ResetSave();
+            Achievements.ResetAll();
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
             return true;
         }
@@ -720,9 +722,22 @@ public class CafeLoop : MonoBehaviour
         else ShowNotice(notice);
         tutorial.OnServed();
         CafeEnding.AddSale();
+        ReportServeAchievements();
         Debug.Log("[CafeLoop] 제공: " + menu.menuName + " " + price + "원 + 팁 " + tip);
         CustomerLeave(PickLine(successCount == menu.steps.Length ? PraiseLines : OkLines));
         customer.React(true);
+    }
+
+    // 판매 성공 한 번마다 업적 진행을 알린다
+    private void ReportServeAchievements()
+    {
+        Achievements.Report("first_cup");
+        Achievements.AddProgress("sales_10", 1);
+        Achievements.AddProgress("sales_30", 1);
+        if (priceSum >= menu.steps.Length * perfectPrice - 0.001f) Achievements.Report("perfect");
+        if (combo >= 3) Achievements.Report("combo_3");
+        if (combo >= 5) Achievements.Report("combo_5");
+        if (goalReached) Achievements.Report("goal");
     }
 
     // 튜토리얼 배너용: 0 숨김, 1 수락 대기, 2 제조 중, 3 제공 대기 (카페 화면·진행 중일 때만)
@@ -937,6 +952,7 @@ public class CafeLoop : MonoBehaviour
         shop.SaveEndOfDay(day + 1, income);
         receiptPanel.SetActive(true);
         ending.TryShow(day);
+        if (leftCount == 0 && salesCount > 0) Achievements.Report("no_leave");
         view.viewEnabled = false;
         pointer.SetTarget(null, "");
         // 상자가 아래에서 올라오고, 수입 숫자가 굴러 올라간다 (0원이면 굴리지 않는다)
@@ -986,6 +1002,7 @@ public class CafeLoop : MonoBehaviour
         receiptPanel.SetActive(false);
         view.viewEnabled = true;
         day++;
+        if (day >= 5) Achievements.Report("day_5");
         dayTimer = daySeconds;
         dayOver = false;
         receiptShown = false;

@@ -135,6 +135,7 @@ public class LobbyManager : MonoBehaviour
     public void OpenQuestPanel()
     {
         if (questPanel != null) questPanel.SetActive(true);
+        AchievementList.Show(questPanel);
         if (menuPanel != null) menuPanel.SetActive(false);
         CloseAllCoffeePanels();
     }
