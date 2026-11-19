@@ -28,6 +28,7 @@ public class Customer : MonoBehaviour
     // 손님 루트 원래 상태 (처음 Show 때 저장, Hide 때 복원)
     private Vector3 rootPos;
     private Vector3 rootScale;
+    private Vector3 rootBaseScale;
     private Quaternion rootRot;
     private bool rootSaved;
     // 움직임 상태
@@ -83,6 +84,7 @@ public class Customer : MonoBehaviour
         gameObject.SetActive(true);
         SaveBubbleScale();
         SaveRoot();
+        ApplyScaleVariation();
         popTime = 0f;
         nodTime = 0f;
         nervous = false;
@@ -100,8 +102,17 @@ public class Customer : MonoBehaviour
         if (rootSaved) return;
         rootPos = transform.localPosition;
         rootScale = transform.localScale;
+        rootBaseScale = rootScale;
         rootRot = transform.localRotation;
         rootSaved = true;
+    }
+
+    // 손님마다 크기를 0.96~1.04배로 아주 조금 다르게 한다 (원래 scale 기준)
+    private void ApplyScaleVariation()
+    {
+        if (!rootSaved) return;
+        rootScale = rootBaseScale * Random.Range(0.96f, 1.04f);
+        transform.localScale = rootScale;
     }
 
     private void RestoreRoot()
