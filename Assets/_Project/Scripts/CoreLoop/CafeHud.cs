@@ -36,6 +36,9 @@ public class CafeHud : MonoBehaviour
 
     private TMP_Text timeText;
     private RectTransform timePanel;
+    // 팀원 ESC 메뉴 로고 버튼(왼쪽 위). 미니게임 중에는 안내 종이와 겹쳐서 숨긴다 (ESC 키는 그대로 동작)
+    private CanvasGroup escButtonGroup;
+    private const float TimePanelHeight = 40f;
 
     public void Init(CafeLoop cafeLoop)
     {
@@ -68,9 +71,25 @@ public class CafeHud : MonoBehaviour
         }
         if (timeText != null)
         {
+            // 미니게임 HUD는 화면 위쪽 3/4까지 쓴다. 맨 위 가는 띠(인내도 막대 + 남은 시간)에만 둬서 겹치지 않게 한다
+            RectTransform tr = timeText.rectTransform;
+            tr.anchorMin = new Vector2(0.5f, 1f);
+            tr.anchorMax = new Vector2(0.5f, 1f);
+            tr.pivot = new Vector2(0f, 1f);
+            tr.sizeDelta = new Vector2(420f, 36f);
+            tr.anchoredPosition = new Vector2(310f, -1f);
+            timeText.fontSize = 28f;
             timeText.alignment = TextAlignmentOptions.MidlineLeft;
             timeText.enableWordWrapping = false;
             timePanel = MakePanel("TimePanel", timeText);
+        }
+        if (loop.minigamePatienceBar != null)
+        {
+            RectTransform bar = loop.minigamePatienceBar.GetComponent<RectTransform>();
+            bar.anchorMin = new Vector2(0.5f, 1f);
+            bar.anchorMax = new Vector2(0.5f, 1f);
+            bar.pivot = new Vector2(0.5f, 1f);
+            bar.anchoredPosition = new Vector2(0f, -2f);
         }
     }
 
@@ -128,15 +147,40 @@ public class CafeHud : MonoBehaviour
     }
 
     // 패널을 글자 크기에 맞춘다. 글자의 피벗 쪽 기준으로 좌우 여백만큼 바깥으로 둔다
-    private void Fit(RectTransform panel, TMP_Text text)
+    private void Fit(RectTransform panel, TMP_Text text, float height = PanelHeight)
     {
         RectTransform tr = text.rectTransform;
         float width = text.preferredWidth + PadX;
-        panel.sizeDelta = new Vector2(width, PanelHeight);
-        float extraY = (PanelHeight - tr.rect.height) * 0.5f;
+        panel.sizeDelta = new Vector2(width, height);
+        float extraY = (height - tr.rect.height) * 0.5f;
         float ox = Mathf.Lerp(-PadX * 0.5f, PadX * 0.5f, tr.pivot.x);
         float oy = Mathf.Lerp(-extraY, extraY, tr.pivot.y);
         panel.anchoredPosition = tr.anchoredPosition + new Vector2(ox, oy);
+    }
+
+    private void FindEscButton()
+    {
+        foreach (Button b in FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (b.onClick.GetPersistentEventCount() > 0 && b.onClick.GetPersistentTarget(0) is EscManager)
+            {
+                escButtonGroup = b.GetComponent<CanvasGroup>();
+                if (escButtonGroup == null) escButtonGroup = b.gameObject.AddComponent<CanvasGroup>();
+                return;
+            }
+        }
+    }
+
+    private void UpdateEscButton()
+    {
+        if (escButtonGroup == null)
+        {
+            FindEscButton();
+            if (escButtonGroup == null) return;
+        }
+        bool hide = loop.Mood == 1;
+        escButtonGroup.alpha = hide ? 0f : 1f;
+        escButtonGroup.blocksRaycasts = !hide;
     }
 
     private void LateUpdate()
@@ -145,6 +189,7 @@ public class CafeHud : MonoBehaviour
         UpdateDay();
         UpdateIncome();
         UpdateTime();
+        UpdateEscButton();
     }
 
     private void UpdateDay()
@@ -200,6 +245,6 @@ public class CafeHud : MonoBehaviour
         if (timePanel == null) return;
         bool on = timeText.gameObject.activeInHierarchy;
         if (timePanel.gameObject.activeSelf != on) timePanel.gameObject.SetActive(on);
-        if (on) Fit(timePanel, timeText);
+        if (on) Fit(timePanel, timeText, TimePanelHeight);
     }
 }

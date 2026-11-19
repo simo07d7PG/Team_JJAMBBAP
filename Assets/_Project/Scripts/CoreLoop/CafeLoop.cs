@@ -235,7 +235,7 @@ public class CafeLoop : MonoBehaviour
         tutorial.Init(this);
         ending = gameObject.AddComponent<CafeEnding>();
         ending.Init(this);
-        gameObject.AddComponent<MinigameHint>().Init(this);
+        // 조작 안내는 각 미니게임 화면에 이미 있어서 상시 표시 패널은 쓰지 않는다 (겹침)
         ShowDay();
         ShowIncome();
         UpdateTargets();
