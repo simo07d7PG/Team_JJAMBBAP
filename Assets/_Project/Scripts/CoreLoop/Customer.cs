@@ -131,6 +131,7 @@ public class Customer : MonoBehaviour
         leaving = false;
         gameObject.SetActive(true);
         SaveBubbleScale();
+        SetupMenuText();
         SaveRoot();
         ApplyScaleVariation();
         ApplyTint();
@@ -165,6 +166,31 @@ public class Customer : MonoBehaviour
             StartCoroutine(PopBubble());
         }
     }
+
+    // 말풍선 글자 설정: 한 곳에서 처리 (주문·한마디·단계 반응·성격 줄 모두 적용)
+    // 원래 글자 크기의 60%를 최대로 자동 축소하고, 좌우·위 여백을 8%쯤 둔다(아래는 인내도 막대 영역이라 비워 둠)
+    private bool menuTextSetup;
+    private void SetupMenuText()
+    {
+        if (menuTextSetup || menuText == null) return;
+        menuTextSetup = true;
+        float baseSize = menuText.fontSize;
+        menuText.enableAutoSizing = true;
+        menuText.fontSizeMax = baseSize * 0.6f;
+        menuText.fontSizeMin = baseSize * 0.3f;
+        menuText.fontSize = menuText.fontSizeMax;
+        menuText.enableWordWrapping = true;
+        menuText.overflowMode = TextOverflowModes.Truncate;
+        menuText.alignment = TextAlignmentOptions.Center;
+        // x=좌, y=아래, z=우, w=위 (rect 크기 기준 8%)
+        Rect r = menuText.rectTransform.rect;
+        float mx = r.width * 0.08f;
+        float my = r.height * 0.08f;
+        menuText.margin = new Vector4(mx, my, mx, my);
+        // 표정·반응 글자는 원래 크기 기준이라 따로 쓰지 않도록 보관
+        reactBaseSize = baseSize;
+    }
+    private float reactBaseSize = 44f;
 
     // 글자 찍힘 시작 (현재 menuText 기준)
     private void StartTyping()
@@ -282,7 +308,7 @@ public class Customer : MonoBehaviour
         reactText.font = menuText.font;
         reactText.fontSharedMaterial = menuText.fontSharedMaterial;
         reactText.alignment = TextAlignmentOptions.Center;
-        reactText.fontSize = menuText.fontSize * 1.2f;
+        reactText.fontSize = reactBaseSize * 0.8f;
         reactText.raycastTarget = false;
         reactText.enableWordWrapping = false;
         reactText.text = happy ? "♥" : "!?";
@@ -343,7 +369,7 @@ public class Customer : MonoBehaviour
             faceText.font = menuText.font;
             faceText.fontSharedMaterial = menuText.fontSharedMaterial;
             faceText.alignment = TextAlignmentOptions.MidlineLeft;
-            faceText.fontSize = menuText.fontSize * 0.8f;
+            faceText.fontSize = reactBaseSize * 0.5f;
             faceText.raycastTarget = false;
             faceText.enableWordWrapping = false;
             faceText.color = Color.white;
