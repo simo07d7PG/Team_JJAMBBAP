@@ -98,6 +98,9 @@ public class MilkPourMicrogame : Minigame
         curMin01 = Mathf.Clamp(targetMin01 + variant * variantShift01, MinBandLow01, MinBandHigh01);
         curMax01 = Mathf.Clamp(targetMax01 + variant * variantShift01, curMin01 + MinBandGap01, MaxBandHigh01);
         hud.Configure(curMin01, curMax01);
+        // 이미 든 양은 우유가 아니라는 걸 게이지에서 구분해 보인다
+        string baseLabel = cup.ice > 0 ? (cup.TotalLiquid() > 0f ? "커피·얼음" : "얼음") : "커피";
+        hud.SetBase(initialMl / cupCapacityMl, baseLabel);
         cupVisual.SetIceVisible(cup.ice > 0);
         UpdateCupDisplay();
     }

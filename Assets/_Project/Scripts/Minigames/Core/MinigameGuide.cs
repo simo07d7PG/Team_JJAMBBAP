@@ -92,7 +92,7 @@ public static class MinigameGuide
                 new Control[] { C("MOUSE_MOVE", "팩 옮기기"), C("LMB_HOLD", "팩 잡기"), C("RMB_HOLD", "기울여 붓기") },
                 "컵의 60~85%에서 팩 세우기",
                 "85% 넘기거나 밖으로 60ml 흘림",
-                "주문에 따라 구간이 달라져요. 앞 단계 내용물도 높이에 포함돼요"),
+                "앞 단계의 커피가 이미 들어 있어요(갈색). 그 위로 구간이 정해져요"),
             E("handgrinder", "원두 갈기", "손잡이를 시계 방향으로 돌리기",
                 new Control[] { C("MOUSE_CIRCLE", "시계 방향 돌리기") },
                 "6바퀴를 채우기 (빠를수록 좋은 등급)",
