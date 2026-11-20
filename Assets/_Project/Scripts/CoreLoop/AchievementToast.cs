@@ -48,8 +48,27 @@ public class AchievementToast : MonoBehaviour
 
         smallText = MakeText("Small", font, 24f, SmallColor, new Vector2(0f, -10f), 30f);
         titleText = MakeText("Title", font, 38f, Color.white, new Vector2(0f, -42f), 46f);
+        group = go.AddComponent<CanvasGroup>();
+        group.interactable = false;
+        group.blocksRaycasts = false;
+        this.loop = loop;
         go.SetActive(false);
+        Achievements.OnUnlocked -= Enqueue; // 중복 구독 방지
         Achievements.OnUnlocked += Enqueue;
+    }
+
+    private CafeLoop loop;
+    private CanvasGroup group;
+
+    // 일시정지(ESC 메뉴·설명 카드)나 영수증이 떠 있으면 알림을 숨기고 표시 시간도 멈춘다
+    private bool Suppressed()
+    {
+        return Time.timeScale <= 0f || (loop != null && loop.receiptPanel != null && loop.receiptPanel.activeInHierarchy);
+    }
+
+    private void Update()
+    {
+        if (group != null) group.alpha = Suppressed() ? 0f : 1f;
     }
 
     private TMP_Text MakeText(string name, TMP_FontAsset font, float size, Color color, Vector2 pos, float height)
@@ -98,13 +117,21 @@ public class AchievementToast : MonoBehaviour
             float t = 0f;
             while (t < ShowSeconds)
             {
-                t += Time.unscaledDeltaTime;
+                if (!Suppressed()) t += Time.unscaledDeltaTime;
                 yield return null;
             }
             yield return Slide(RestX, Width + 40f);
         }
         panel.gameObject.SetActive(false);
         running = false;
+    }
+
+    private void OnDisable()
+    {
+        // 비활성화되면 코루틴이 멈추므로 상태를 정리한다
+        running = false;
+        queue.Clear();
+        if (panel != null) panel.gameObject.SetActive(false);
     }
 
     // 오른쪽 가장자리 기준 x 위치를 부드럽게 옮긴다 (오른쪽 밖에서 들어오고 나감)

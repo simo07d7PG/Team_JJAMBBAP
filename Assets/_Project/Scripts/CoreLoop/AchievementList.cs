@@ -26,6 +26,13 @@ public class AchievementList : MonoBehaviour
         list.Rebuild();
     }
 
+    // 패널이 닫히거나 다른 탭으로 바뀌면 격자를 지워 다른 팝업 위에 남지 않게 한다 (열 때 Show가 다시 만든다)
+    private void OnDisable()
+    {
+        if (grid != null) Destroy(grid.gameObject);
+        grid = null;
+    }
+
     private void Rebuild()
     {
         TMP_Text fontSource = FindFirstObjectByType<TMP_Text>(FindObjectsInactive.Include);
