@@ -939,9 +939,9 @@ public class CafeLoop : MonoBehaviour
 
         float ratio = patienceMax > 0f ? patience / patienceMax : 0f;
         customer.SetPatience(accepted, ratio);
-        // 미니게임이 보이는 동안에만 (걷기·전환 페이드·카페에서는 숨김)
-        bool inMinigame = current != null && (state == StateInstruction || state == StateGuide || state == StatePlaying || state == StateResult);
-        minigamePatienceBar.SetActive(accepted && inMinigame);
+        // 주문을 받은 뒤에는 카페·미니게임 모두 상단에 표시 (걷기·전환 페이드·영수증 중에는 숨김)
+        bool showBar = accepted && state != StateFade && !(receiptPanel != null && receiptPanel.activeSelf);
+        minigamePatienceBar.SetActive(showBar);
         minigamePatienceFill.localScale = new Vector3(Mathf.Clamp01(ratio), 1f, 1f);
 
         if (accepted && patience <= 0f)

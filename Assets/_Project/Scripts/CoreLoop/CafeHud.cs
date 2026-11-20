@@ -115,7 +115,7 @@ public class CafeHud : MonoBehaviour
             tr.anchorMax = new Vector2(0.5f, 1f);
             tr.pivot = new Vector2(0f, 1f);
             tr.sizeDelta = new Vector2(420f, 36f);
-            tr.anchoredPosition = new Vector2(310f, -1f);
+            tr.anchoredPosition = new Vector2(410f, -1f);
             timeText.fontSize = 28f;
             timeText.alignment = TextAlignmentOptions.MidlineLeft;
             timeText.enableWordWrapping = false;
@@ -128,7 +128,60 @@ public class CafeHud : MonoBehaviour
             bar.anchorMax = new Vector2(0.5f, 1f);
             bar.pivot = new Vector2(0.5f, 1f);
             bar.anchoredPosition = new Vector2(0f, -2f);
+            MakePatienceFace(bar);
         }
+    }
+
+    // 상단 인내도 막대(520x22, 가운데 위 y -2~-24, 왼쪽에 '손님 인내도' 라벨)의 오른쪽에 표정 글자를 붙인다
+    // 막대 오른쪽 끝이 x=+260, 표정은 +272~+382, 남은 시간(timeText)은 +410부터라 겹치지 않는다
+    private const float FaceWidth = 110f;
+    private static readonly Color PatienceGreen = new Color(0.45f, 0.85f, 0.4f);
+    private static readonly Color PatienceYellow = new Color(0.98f, 0.82f, 0.3f);
+    private static readonly Color PatienceRed = new Color(0.92f, 0.3f, 0.28f);
+    private const float PatienceBlinkRatio = 0.2f;
+    private const float PatienceBlinkPeriod = 0.25f;
+    private TMP_Text patienceFace;
+    private UImage patienceFillImage;
+
+    private void MakePatienceFace(RectTransform bar)
+    {
+        TMP_Text label = bar.GetComponentInChildren<TMP_Text>(true);
+        GameObject go = new GameObject("PatienceFace", typeof(RectTransform));
+        go.transform.SetParent(bar, false);
+        patienceFace = go.AddComponent<TextMeshProUGUI>();
+        if (label != null)
+        {
+            patienceFace.font = label.font;
+            patienceFace.fontSharedMaterial = label.fontSharedMaterial;
+        }
+        patienceFace.fontSize = 26f;
+        patienceFace.alignment = TextAlignmentOptions.MidlineLeft;
+        patienceFace.enableWordWrapping = false;
+        patienceFace.raycastTarget = false;
+        patienceFace.color = Color.white;
+        RectTransform fr = patienceFace.rectTransform;
+        fr.anchorMin = new Vector2(1f, 0.5f);
+        fr.anchorMax = new Vector2(1f, 0.5f);
+        fr.pivot = new Vector2(0f, 0.5f);
+        fr.sizeDelta = new Vector2(FaceWidth, 40f);
+        fr.anchoredPosition = new Vector2(12f, 0f);
+        if (loop.minigamePatienceFill != null) patienceFillImage = loop.minigamePatienceFill.GetComponent<UImage>();
+    }
+
+    // 막대 색(초록 → 노랑 → 빨강), 20% 이하 깜빡임(시간 정지와 무관), 표정 글자
+    private void UpdatePatienceBar()
+    {
+        if (patienceFace == null || loop.minigamePatienceFill == null) return;
+        if (!loop.minigamePatienceBar.activeSelf) return;
+        float ratio = Mathf.Clamp01(loop.minigamePatienceFill.localScale.x);
+        patienceFace.text = ratio > 0.6f ? "(^-^)" : (ratio >= 0.3f ? "(-_-)" : "(>_<)");
+        if (patienceFillImage == null) return;
+        Color c = ratio > 0.5f
+            ? Color.Lerp(PatienceYellow, PatienceGreen, (ratio - 0.5f) / 0.5f)
+            : Color.Lerp(PatienceRed, PatienceYellow, ratio / 0.5f);
+        if (ratio <= PatienceBlinkRatio)
+            c.a = Mathf.Repeat(Time.unscaledTime, PatienceBlinkPeriod) < PatienceBlinkPeriod * 0.5f ? 1f : 0.35f;
+        patienceFillImage.color = c;
     }
 
     // 글자와 같은 sibling 자리에 패널을 끼워 글자가 한 칸 뒤로 밀리게 한다 (글자 뒤에 그려지고, 덮이는 패널보다는 아래)
@@ -332,6 +385,7 @@ public class CafeHud : MonoBehaviour
         UpdateIncome();
         UpdateTime();
         UpdateEscButton();
+        UpdatePatienceBar();
         UpdateBand(instructionBand);
         UpdateBand(resultBand);
     }
