@@ -84,6 +84,12 @@ public class CafeHud : MonoBehaviour
 
         if (dayText != null)
         {
+            // 씬 값과 상관없이 왼쪽 위 모서리에 고정 (패널은 가장자리에서 가로 14, 세로 8 안팎)
+            RectTransform dr = dayText.rectTransform;
+            dr.anchorMin = new Vector2(0f, 1f);
+            dr.anchorMax = new Vector2(0f, 1f);
+            dr.pivot = new Vector2(0f, 1f);
+            dr.anchoredPosition = new Vector2(PadX, -14f);
             dayText.alignment = TextAlignmentOptions.MidlineLeft;
             dayText.enableWordWrapping = false;
             dayPanel = MakePanel("DayPanel", dayText);
@@ -91,6 +97,12 @@ public class CafeHud : MonoBehaviour
         }
         if (incomeText != null)
         {
+            // 오른쪽 위 모서리에 고정
+            RectTransform ir = incomeText.rectTransform;
+            ir.anchorMin = new Vector2(1f, 1f);
+            ir.anchorMax = new Vector2(1f, 1f);
+            ir.pivot = new Vector2(1f, 1f);
+            ir.anchoredPosition = new Vector2(-PadX, -14f);
             incomeText.alignment = TextAlignmentOptions.MidlineRight;
             incomeText.enableWordWrapping = false;
             incomePanel = MakePanel("IncomePanel", incomeText);

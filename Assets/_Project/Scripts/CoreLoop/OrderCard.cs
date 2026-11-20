@@ -9,8 +9,8 @@ using UImage = UnityEngine.UI.Image;
 public class OrderCard : MonoBehaviour
 {
     private const float CardWidth = 300f;
-    private const float ShownX = 24f;
-    private const float ShownY = -130f;
+    private const float ShownX = 14f; // 날짜 패널 왼쪽 가장자리와 맞춤
+    private const float ShownY = -108f; // 날짜 패널(높이 72)+진행 바 아래 12px
     private const float SlideSeconds = 0.2f;
     private const float Pad = 18f;
 
