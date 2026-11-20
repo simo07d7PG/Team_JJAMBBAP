@@ -3637,7 +3637,7 @@ MonoBehaviour:
   SFXSource: {fileID: 269197263}
   soundList:
   - name: background
-    clip: {fileID: 8300000, guid: 750c44532bcda1646bfbfe3c876d4460, type: 3}
+    clip: {fileID: 0}
 --- !u!4 &513047580
 Transform:
   m_ObjectHideFlags: 0
